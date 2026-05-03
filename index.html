@@ -3,13 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Memory Image Map</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <title>RSD3_C375039</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
-    /* 로컬 폰트 — assets 폴더에 'New Century Schoolbook Roman.otf' 파일 필요 */
+    /* ───────── 로컬 폰트 ───────── */
     @font-face {
       font-family: 'NewCenturySchoolbook';
       src: url('./assets/New Century Schoolbook Roman.otf') format('opentype');
@@ -19,625 +16,190 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #f0ede8; }
-    .bg-img {
-      position: fixed; inset: 0; z-index: 1;
-      width: 100%; height: 100%; object-fit: cover;
-    }
-    #paint-canvas {
-      position: fixed; inset: 0; z-index: 2;
-      width: 100%; height: 100%; pointer-events: none;
-    }
-    #shape-canvas {
-      position: fixed; inset: 0; z-index: 3;
-      width: 100%; height: 100%; pointer-events: none;
-    }
-    #ui-canvas {
-      position: fixed; inset: 0; z-index: 4;
-      pointer-events: auto; cursor: crosshair;
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #ffffff;        /* 완전히 하얀 바탕 */
+      cursor: default;
+      /* 드래그 시 텍스트 선택 방지 */
+      -webkit-user-select: none;
+      user-select: none;
+      /* 트랙패드/스크롤 제스처 기본 동작 차단 */
+      overscroll-behavior: none;
+      touch-action: none;
     }
 
-    /* Name title — New Century Schoolbook Roman, 흰 박스 + 검정 텍스트 */
-    .name-title {
+    /* ───────── 좌측 하단 HUD ─────────
+       New Century Schoolbook Roman / 18pt / width 96% / tracking -10
+       (자간 -10 은 InDesign 1000-단위 기준 → -0.01em)
+       (가로폭 96% 는 transform scaleX(0.96) 으로 구현)
+    */
+    .hud {
       position: fixed;
-      top: 24px;
-      left: 28px;
+      left: 16px;
+      bottom: 14px;
       z-index: 10;
       pointer-events: none;
+      color: #000;
       font-family: 'NewCenturySchoolbook', 'Century Schoolbook', 'Times New Roman', Times, serif;
       font-weight: 400;
-      font-size: 15px;
-      color: #000;
-      line-height: 1;
-      letter-spacing: 0;
+      font-size: 18pt;
+      line-height: 1.05;
+      letter-spacing: -0.01em;          /* tracking -10 */
+      transform: scaleX(0.96);           /* horizontal scale 96% */
+      transform-origin: 0 100%;
+      white-space: nowrap;
+      font-feature-settings: "tnum" 1, "lnum" 1;  /* 숫자 폭 균일 (탭룰러) */
+      font-variant-numeric: tabular-nums lining-nums;
     }
-    .name-title .line {
-      display: table;   /* 내용물 너비에 맞게 딱 잘림 */
-    }
-    .name-title .line span {
-      display: inline;
-      background: #fff;
-      color: #000;
-      padding: 0 4px;
-      line-height: 1;
-      /* box-decoration-break로 줄바꿈 없는 텍스트에 자연스러운 박스 */
-      box-decoration-break: clone;
-      -webkit-box-decoration-break: clone;
-    }
-    .name-title .sub {
-      margin-top: 3px;
+    .hud .row {
+      display: block;
     }
   </style>
 </head>
 <body>
 
-  <img class="bg-img" src="./assets/sample2.png" alt="bg" />
-  <canvas id="paint-canvas"></canvas>
-  <canvas id="shape-canvas"></canvas>
-  <canvas id="ui-canvas"></canvas>
-
-  <div class="name-title">
-    <div class="line main"><span>Hyoeun Kim</span></div>
-    <div class="line sub"><span>Scenes without Scenes</span></div>
+  <div class="hud" id="hud">
+    <span class="row" id="row-distance">Distance 100%</span>
+    <span class="row" id="row-position">Position 000/000</span>
   </div>
 
   <script>
-    const paintCvs = document.getElementById("paint-canvas");
-    const paintCtx = paintCvs.getContext("2d");
-    const shapeCvs = document.getElementById("shape-canvas");
-    const shapeCtx = shapeCvs.getContext("2d");
-    const uiCvs = document.getElementById("ui-canvas");
-    const ui = uiCvs.getContext("2d");
+    /* ─────────────────────────────────────────────
+       상태값
+       ─────────────────────────────────────────────
+       distance : 확대율(%) — 드래그로 변경
+       posX/posY: 위치     — 휠/트랙패드 스와이프로 변경
+       ───────────────────────────────────────────── */
+    let distance = 100;     // %
+    let posX = 0;
+    let posY = 0;
 
-    let W, H;
-    const paintImg = new Image();
-    paintImg.src = "./assets/sample1.png";
-    let imgReady = false;
-    paintImg.onload = () => { imgReady = true; };
+    const rowDistance = document.getElementById("row-distance");
+    const rowPosition = document.getElementById("row-position");
 
-    function resize() {
-      W = window.innerWidth; H = window.innerHeight;
-      paintCvs.width = W; paintCvs.height = H;
-      shapeCvs.width = W; shapeCvs.height = H;
-      uiCvs.width = W; uiCvs.height = H;
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    /* ═══════════════════════════════════════
-       BRUSH PAINT REVEAL
-       ═══════════════════════════════════════ */
-    const trail = [];
-    const LIFETIME = 120, BRUSH_R = 130;
-    let mouseX = 0, mouseY = 0, prevMX = -999, prevMY = -999;
-
-    function addTrail(x0, y0, x1, y1, radiusBoost = 0) {
-      const dx = x1 - x0, dy = y1 - y0;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      // 더 촘촘하게 점을 뿌려서 부드러운 연결
-      const steps = Math.max(1, Math.floor(dist / 4));
-      const r = BRUSH_R + Math.min(dist, 40) * 0.4 + radiusBoost;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        trail.push({
-          x: x0 + dx * t,
-          y: y0 + dy * t,
-          age: 0,
-          r: r + (Math.random() - 0.5) * 10
-        });
-      }
+    /* ── 숫자 포매터 ──
+       Position은 000/000 형태로 항상 3자리 0-padding (음수면 - 부호 포함) */
+    function fmt3(n) {
+      const s = Math.trunc(n);
+      const sign = s < 0 ? "-" : "";
+      const abs = Math.abs(s).toString().padStart(3, "0");
+      return sign + abs;
     }
 
-    // 제자리 홀딩에서도 일렁임이 지속되도록 — 포인터 근처에
-    // 랜덤 오프셋으로 브러시 점을 계속 추가
-    function addStationaryShimmer(x, y) {
-      const count = 2;
-      for (let i = 0; i < count; i++) {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 22;
-        const px = x + Math.cos(ang) * dist;
-        const py = y + Math.sin(ang) * dist;
-        const r = BRUSH_R + (Math.random() - 0.5) * 24;
-        trail.push({ x: px, y: py, age: 0, r });
-      }
+    function renderHUD() {
+      // distance는 정수 % 로 표시
+      rowDistance.textContent = `Distance ${Math.round(distance)}%`;
+      rowPosition.textContent = `Position ${fmt3(posX)}/${fmt3(posY)}`;
     }
+    renderHUD();
 
-    function renderPaint() {
-      paintCtx.clearRect(0, 0, W, H);
-      if (!imgReady || trail.length === 0) return;
-      paintCtx.save();
-      for (let i = trail.length - 1; i >= 0; i--) {
-        const p = trail[i]; p.age++;
-        if (p.age > LIFETIME) { trail.splice(i, 1); continue; }
-        const life = p.age / LIFETIME;
-        // 부드러운 envelope
-        //   - 초반 15% 는 천천히 fade-in
-        //   - 중반 은 full
-        //   - 후반 은 아주 천천히 fade-out (ease-out)
-        let a;
-        if (life < 0.15) {
-          // ease-in cubic
-          const t = life / 0.15;
-          a = t * t * (3 - 2 * t);
-        } else {
-          // long ease-out
-          const t = (life - 0.15) / 0.85;
-          a = 1 - Math.pow(t, 1.4);
-        }
-        a *= 0.9;
-        if (a < 0.005) continue;
-        const g = paintCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
-        g.addColorStop(0,   `rgba(255,255,255,${a.toFixed(3)})`);
-        g.addColorStop(0.3, `rgba(255,255,255,${(a * 0.7).toFixed(3)})`);
-        g.addColorStop(0.6, `rgba(255,255,255,${(a * 0.3).toFixed(3)})`);
-        g.addColorStop(1,   `rgba(255,255,255,0)`);
-        paintCtx.fillStyle = g;
-        paintCtx.beginPath();
-        paintCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        paintCtx.fill();
-      }
-      paintCtx.globalCompositeOperation = "source-in";
-      paintCtx.drawImage(paintImg, 0, 0, W, H);
-      paintCtx.restore();
-    }
+    /* ─────────────────────────────────────────────
+       1) 드래그 → 확대 (Distance 변화)
+       ─────────────────────────────────────────────
+       좌클릭 누르고 끌면, 끌어내린 거리만큼 distance 증가
+       (위로 끌면 감소, 아래로 끌면 증가)
+       ───────────────────────────────────────────── */
+    let isDragging = false;
+    let dragStartY = 0;
+    let dragStartDistance = 100;
 
-    /* ═══════════════════════════════════════
-       FLOATING APPLES
-       ═══════════════════════════════════════ */
-    const apples = [];
-
-    function createApple(x, y) {
-      apples.push({
-        x, y,
-        vx: (Math.random() - 0.5) * 2.2,
-        vy: (Math.random() - 0.5) * 2.2 - 0.5,
-        size: 22 + Math.random() * 18,
-        rot: (Math.random() - 0.5) * 0.4,
-        rotSpeed: (Math.random() - 0.5) * 0.015,
-        birthTime: 0,
-        nSeedX: Math.random() * 1000,
-        nSeedY: Math.random() * 1000,
-      });
-    }
-
-    function updateApples() {
-      for (const a of apples) {
-        a.birthTime++;
-        a.nSeedX += 0.01;
-        a.nSeedY += 0.008;
-        const driftX = Math.sin(a.nSeedX) * 0.04 + Math.cos(a.nSeedX * 0.7) * 0.02;
-        const driftY = Math.cos(a.nSeedY) * 0.04 + Math.sin(a.nSeedY * 1.3) * 0.02;
-        a.vx += driftX;
-        a.vy += driftY;
-        a.vx *= 0.995;
-        a.vy *= 0.995;
-        const sp = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
-        const MAX = 1.8;
-        if (sp > MAX) {
-          a.vx = (a.vx / sp) * MAX;
-          a.vy = (a.vy / sp) * MAX;
-        }
-        a.x += a.vx;
-        a.y += a.vy;
-        a.rot += a.rotSpeed;
-        const pad = a.size;
-        if (a.x < pad) { a.x = pad; a.vx = Math.abs(a.vx) * 0.8; }
-        if (a.x > W - pad) { a.x = W - pad; a.vx = -Math.abs(a.vx) * 0.8; }
-        if (a.y < pad) { a.y = pad; a.vy = Math.abs(a.vy) * 0.8; }
-        if (a.y > H - pad) { a.y = H - pad; a.vy = -Math.abs(a.vy) * 0.8; }
-      }
-    }
-
-    function drawApple(ctx, a) {
-      const s = a.size;
-      let scale = 1;
-      if (a.birthTime < 30) {
-        const t = a.birthTime / 30;
-        scale = 1 + (Math.sin(t * Math.PI) * 0.15) * (1 - t * 0.5);
-        if (a.birthTime < 10) scale *= a.birthTime / 10;
-      }
-
-      ctx.save();
-      ctx.translate(a.x, a.y);
-      ctx.rotate(a.rot);
-      ctx.scale(scale, scale);
-
-      ctx.fillStyle = "#000";
-
-      // 사과 본체 — 두 개의 겹친 원으로 하트형 실루엣
-      ctx.beginPath();
-      ctx.ellipse(-s * 0.22, 0, s * 0.78, s * 0.85, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(s * 0.22, 0, s * 0.78, s * 0.85, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 상단 움푹한 부분
-      ctx.beginPath();
-      ctx.ellipse(0, -s * 0.7, s * 0.45, s * 0.2, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 꼭지 (줄기)
-      ctx.strokeStyle = "#000";
-      ctx.lineWidth = s * 0.08;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(0, -s * 0.78);
-      ctx.quadraticCurveTo(s * 0.08, -s * 1.0, s * 0.18, -s * 1.05);
-      ctx.stroke();
-
-      // 잎
-      ctx.fillStyle = "#000";
-      ctx.beginPath();
-      ctx.ellipse(s * 0.3, -s * 0.92, s * 0.22, s * 0.11, -0.6, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function renderShapes() {
-      shapeCtx.clearRect(0, 0, W, H);
-      for (const a of apples) drawApple(shapeCtx, a);
-    }
-
-    /* ═══════════════════════════════════════
-       TEXT MOTION — 계속 변화하는 계산/조직 모션
-
-       고정된 최종 상태 없음. 각 글자는 독립된
-       생애 사이클(등장 → 머무름 → 흩어짐 → 재등장)을
-       서로 다른 위상으로 반복한다. 매번 위치와
-       상태가 달라지며 텍스트는 "조직되었다가 흩어졌다가"
-       를 끊임없이 반복한다.
-
-       디자인:
-       - 파란색(#1a1fff) 글자
-       - 시안(#5ec8ff) 하이라이트 박스 (사진 참조)
-       - 글자가 나타날 때/사라질 때 십자 좌표 마커
-       - 글자 위 좌표 라벨이 깜빡깜빡
-       - 주변 스캔선이 지나감
-       ═══════════════════════════════════════ */
-    const SENTENCE = "Although we don't have a visual representation of the apple, we do have a complete 3D model with vectors included. In this way, memories are sometimes organized not by images but by coordinate information such as direction, distance, and structure.";
-    const CHARS = [...SENTENCE];
-
-    const TEXT_COLOR = "#1a1fff";
-    const HI_COLOR = "#5ec8ff";
-
-    let isHolding = false;
-    let holdX = 0, holdY = 0;
-    let holdFrame = 0;          // 홀딩 시작 이후 프레임 (fade-in 제어용)
-    let releaseFade = 1;        // 전체 페이드아웃용
-
-    // 각 글자의 사이클 상태
-    // life ∈ [0, CYCLE) 이 반복된다.
-    //   phase 해석:
-    //     [0, scanDur) → scan (십자 마커 커짐)
-    //     [scanDur, scanDur+appearDur) → appear (글자 팝업)
-    //     [..., stayEnd) → stay (글자 고정)
-    //     [stayEnd, stayEnd+disappearDur) → disappear (흩어짐)
-    //     [..., CYCLE) → gone (쉼)
-    let glyphs = [];
-
-    function buildGlyphs() {
-      glyphs = CHARS.map((ch, i) => {
-        // 글자 위치 오프셋 — 주변을 살짝 떠다니는 느낌을 위해 개별 지터
-        return {
-          ch,
-          // 사이클 길이 (글자마다 조금씩 다름)
-          cycle: 90 + Math.random() * 60,
-          // 시작 위상 — 전체가 동시에 뜨지 않도록
-          phase: Math.random() * 120 + i * 0.4,
-          // 각 구간 길이
-          scanDur: 6 + Math.random() * 4,
-          appearDur: 4,
-          stayDur: 25 + Math.random() * 35,
-          disappearDur: 6 + Math.random() * 4,
-          // 각 글자 위에 표시될 가상 좌표 라벨
-          coordX: 0,
-          coordY: 0,
-          // 사라지는 방향 (흩어질 때 오프셋)
-          scatterAng: Math.random() * Math.PI * 2,
-          // 미세한 정적 지터
-          jitterSeed: Math.random() * 1000,
-          // 이 글자에 잠깐 붙었다 사라지는 이웃 좌표 라벨 표시 여부
-          showLabel: Math.random() < 0.35,
-        };
-      });
-    }
-    buildGlyphs();
-
-    // 스캔 라인 (텍스트 블록을 주기적으로 훑고 지나가는 가로 바)
-    let scanLinePos = 0;
-
-    function resetTextActive() {
-      // 홀딩 시작 - fade in
-      holdFrame = 0;
-      releaseFade = 1;
-    }
-
-    function updateText() {
-      if (isHolding) {
-        holdFrame++;
-        releaseFade = Math.min(1, holdFrame / 8);
-      } else {
-        releaseFade -= 0.04;
-        if (releaseFade < 0) releaseFade = 0;
-      }
-      scanLinePos += 0.6;
-
-      // 각 글자 지터 시드 진행
-      for (const g of glyphs) g.jitterSeed += 0.03;
-    }
-
-    // 하나의 글자 사이클을 현재 frame에 대해 평가
-    function evalGlyph(g, frame) {
-      const t = ((frame + g.phase) % g.cycle + g.cycle) % g.cycle;
-      const scanEnd = g.scanDur;
-      const appearEnd = scanEnd + g.appearDur;
-      const stayEnd = appearEnd + g.stayDur;
-      const disapEnd = stayEnd + g.disappearDur;
-
-      if (t < scanEnd) {
-        // scan: 십자 마커가 커지고 있음, 글자 아직 없음
-        return {
-          state: "scan",
-          scanT: t / scanEnd,
-          charAlpha: 0,
-          scale: 0,
-          scatter: 0,
-        };
-      } else if (t < appearEnd) {
-        const p = (t - scanEnd) / g.appearDur;
-        const eased = 1 - Math.pow(1 - p, 3);
-        return {
-          state: "appear",
-          scanT: 1 - p,  // 마커는 사라져감
-          charAlpha: p,
-          scale: 0.4 + eased * 0.6,
-          scatter: 0,
-        };
-      } else if (t < stayEnd) {
-        return {
-          state: "stay",
-          scanT: 0,
-          charAlpha: 1,
-          scale: 1,
-          scatter: 0,
-        };
-      } else if (t < disapEnd) {
-        const p = (t - stayEnd) / g.disappearDur;
-        return {
-          state: "disappear",
-          scanT: 0,
-          charAlpha: 1 - p,
-          scale: 1 + p * 0.3,
-          scatter: p,
-        };
-      } else {
-        return {
-          state: "gone",
-          scanT: 0,
-          charAlpha: 0,
-          scale: 0,
-          scatter: 1,
-        };
-      }
-    }
-
-    function drawText() {
-      if (releaseFade <= 0.01) return;
-
-      const fontSize = 11;
-      const fontStr = `400 ${fontSize}px 'NewCenturySchoolbook', 'Century Schoolbook', 'Times New Roman', serif`;
-      ui.font = fontStr;
-      ui.textBaseline = "middle";
-      ui.textAlign = "left";
-
-      // 레이아웃 계산 — 짧은 maxWidth로 여러 줄 유지
-      const maxWidth = Math.min(W * 0.42, 340);
-      const lineHeight = fontSize * 1.8;
-
-      // 단어 단위 줄바꿈
-      const lines = [];
-      let cur = { chars: [], totalW: 0 };
-      let wordStart = 0;
-      let wordW = 0;
-
-      for (let i = 0; i < CHARS.length; i++) {
-        const ch = CHARS[i];
-        const w = ui.measureText(ch).width;
-
-        if (ch === " ") {
-          cur.chars.push({ idx: i, w });
-          cur.totalW += w;
-          wordStart = i + 1;
-          wordW = 0;
-        } else {
-          wordW += w;
-          if (cur.totalW + wordW > maxWidth && cur.chars.length > 0 && wordStart > 0 && CHARS[wordStart-1] === " ") {
-            while (cur.chars.length > 0 && CHARS[cur.chars[cur.chars.length-1].idx] === " ") {
-              cur.totalW -= cur.chars.pop().w;
-            }
-            lines.push(cur);
-            cur = { chars: [], totalW: 0 };
-            for (let k = wordStart; k <= i; k++) {
-              const kw = ui.measureText(CHARS[k]).width;
-              cur.chars.push({ idx: k, w: kw });
-              cur.totalW += kw;
-            }
-            wordW = cur.totalW;
-          } else {
-            cur.chars.push({ idx: i, w });
-            cur.totalW += w;
-          }
-        }
-      }
-      if (cur.chars.length) lines.push(cur);
-
-      const anchor = new Array(CHARS.length);
-      const totalH = lines.length * lineHeight;
-      const topY = holdY - totalH / 2 + lineHeight / 2;
-
-      let blockLeft = Infinity, blockRight = -Infinity;
-      for (let l = 0; l < lines.length; l++) {
-        const line = lines[l];
-        const lineStartX = holdX - line.totalW / 2;
-        let x = lineStartX;
-        const y = topY + l * lineHeight;
-        blockLeft = Math.min(blockLeft, lineStartX);
-        blockRight = Math.max(blockRight, lineStartX + line.totalW);
-        for (const c of line.chars) {
-          anchor[c.idx] = { x, y, w: c.w, line: l };
-          x += c.w;
-        }
-      }
-
-      const blockTop = topY - fontSize * 0.7;
-      const blockBot = topY + (lines.length - 1) * lineHeight + fontSize * 0.7;
-
-      // ── 각 글자별 사이클 렌더링 ──
-      for (let i = 0; i < CHARS.length; i++) {
-        const g = glyphs[i];
-        const a = anchor[i];
-        if (!a) continue;
-
-        // 미세 정적 지터
-        const jx = Math.sin(g.jitterSeed) * 0.3;
-        const jy = Math.cos(g.jitterSeed * 1.3) * 0.3;
-        const ax = a.x + a.w / 2 + jx;
-        const ay = a.y + jy;
-
-        const state = evalGlyph(g, holdFrame);
-
-        // 가상 좌표 라벨 계산
-        g.coordX = Math.floor((a.x - holdX) * 3 + 500);
-        g.coordY = Math.floor((a.y - holdY) * 3 + 500);
-
-        // 공백은 렌더 안 함
-        if (CHARS[i] === " ") continue;
-
-        // ── 스캔 마커 (+ 십자) ──
-        if (state.scanT > 0.02) {
-          ui.save();
-          ui.globalAlpha = releaseFade * state.scanT * 0.7;
-          ui.strokeStyle = TEXT_COLOR;
-          ui.lineWidth = 0.5;
-          const cs = 2.5 + state.scanT * 2.5;
-          ui.beginPath();
-          ui.moveTo(ax - cs, ay); ui.lineTo(ax + cs, ay);
-          ui.moveTo(ax, ay - cs); ui.lineTo(ax, ay + cs);
-          ui.stroke();
-          // 주변 작은 원
-          ui.globalAlpha = releaseFade * state.scanT * 0.3;
-          ui.beginPath();
-          ui.arc(ax, ay, 2 + state.scanT * 2, 0, Math.PI * 2);
-          ui.stroke();
-          ui.restore();
-        }
-
-        // ── 하이라이트 박스 (글자 뒤, 시안색) ──
-        if (state.charAlpha > 0.1) {
-          ui.save();
-          ui.globalAlpha = releaseFade * state.charAlpha * 0.85;
-          ui.fillStyle = HI_COLOR;
-          const bx = a.x - 0.5 + jx;
-          const by = a.y - fontSize * 0.55 + jy;
-          ui.fillRect(bx, by, a.w + 1, fontSize * 1.1);
-          ui.restore();
-        }
-
-        // ── 글자 본체 ──
-        if (state.charAlpha > 0.02) {
-          const scatterDist = state.scatter * 12;
-          const sx = ax + Math.cos(g.scatterAng) * scatterDist;
-          const sy = ay + Math.sin(g.scatterAng) * scatterDist;
-
-          ui.save();
-          ui.globalAlpha = releaseFade * state.charAlpha;
-          ui.translate(sx, sy);
-          ui.scale(state.scale, state.scale);
-          ui.fillStyle = TEXT_COLOR;
-          ui.font = fontStr;
-          ui.textAlign = "center";
-          ui.textBaseline = "middle";
-          ui.fillText(CHARS[i], 0, 0);
-          ui.restore();
-        }
-
-        // ── 흩어지는 파편 효과 (disappear 중) ──
-        if (state.state === "disappear") {
-          ui.save();
-          ui.globalAlpha = releaseFade * (1 - state.scatter) * 0.5;
-          ui.strokeStyle = TEXT_COLOR;
-          ui.lineWidth = 0.4;
-          const pd = state.scatter * 8;
-          ui.beginPath();
-          ui.moveTo(ax + Math.cos(g.scatterAng) * pd, ay + Math.sin(g.scatterAng) * pd);
-          ui.lineTo(ax + Math.cos(g.scatterAng) * (pd + 4), ay + Math.sin(g.scatterAng) * (pd + 4));
-          ui.stroke();
-          ui.restore();
-        }
-      }
-    }
-
-    /* ═══════════════════════════════════════
-       EVENTS
-       ═══════════════════════════════════════ */
-    uiCvs.addEventListener("mousemove", e => {
-      mouseX = e.clientX; mouseY = e.clientY;
-      if (prevMX > -900) {
-        // 홀딩 중에는 브러시 반경을 키워 더 강한 일렁임
-        addTrail(prevMX, prevMY, mouseX, mouseY, isHolding ? 15 : 0);
-      }
-      prevMX = mouseX; prevMY = mouseY;
-      if (isHolding) { holdX = mouseX; holdY = mouseY; }
-    });
-    uiCvs.addEventListener("mouseleave", () => { prevMX = -999; });
-
-    uiCvs.addEventListener("mousedown", e => {
-      isHolding = true;
-      holdX = e.clientX; holdY = e.clientY;
-      mouseX = e.clientX; mouseY = e.clientY;
-      resetTextActive();
-    });
-    uiCvs.addEventListener("mouseup", e => {
-      isHolding = false;
-      createApple(e.clientX, e.clientY);
+    window.addEventListener("mousedown", (e) => {
+      // 좌클릭만
+      if (e.button !== 0) return;
+      isDragging = true;
+      dragStartY = e.clientY;
+      dragStartDistance = distance;
+      document.body.style.cursor = "ns-resize";
     });
 
-    uiCvs.addEventListener("touchstart", e => {
-      e.preventDefault(); isHolding = true;
-      mouseX = e.touches[0].clientX; mouseY = e.touches[0].clientY;
-      holdX = mouseX; holdY = mouseY;
-      prevMX = mouseX; prevMY = mouseY;
-      resetTextActive();
-    });
-    uiCvs.addEventListener("touchmove", e => {
-      const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-      if (prevMX > -900) addTrail(prevMX, prevMY, tx, ty, isHolding ? 15 : 0);
-      mouseX = tx; mouseY = ty; prevMX = tx; prevMY = ty;
-      holdX = tx; holdY = ty;
-    });
-    uiCvs.addEventListener("touchend", () => {
-      isHolding = false; prevMX = -999;
-      createApple(mouseX, mouseY);
+    window.addEventListener("mousemove", (e) => {
+      if (!isDragging) return;
+      // 아래로 끌면 거리 ↑, 위로 끌면 거리 ↓ (1px = 1%)
+      const dy = e.clientY - dragStartY;
+      distance = Math.max(0, dragStartDistance + dy);
+      renderHUD();
     });
 
-    /* ═══════════════════════════════════════
-       LOOP
-       ═══════════════════════════════════════ */
-    function animate() {
-      // 홀딩 중에는 제자리에서도 일렁임 지속
-      if (isHolding) addStationaryShimmer(holdX, holdY);
+    window.addEventListener("mouseup", () => {
+      if (!isDragging) return;
+      isDragging = false;
+      document.body.style.cursor = "default";
+    });
 
-      renderPaint();
-      updateApples();
-      renderShapes();
-      ui.clearRect(0, 0, W, H);
-      updateText();
-      drawText();
-      requestAnimationFrame(animate);
+    /* ─────────────────────────────────────────────
+       2) 트랙패드 스와이프 / 마우스 휠 → 위치 (Position 변화)
+       ─────────────────────────────────────────────
+       wheel 이벤트는 맥 트랙패드의 두 손가락 스와이프도
+       함께 잡아준다 (deltaX, deltaY 모두 사용)
+       ───────────────────────────────────────────── */
+    window.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      // 자연스러운 패닝 방향: 스와이프한 만큼 캔버스가 그쪽으로 움직인다고 생각
+      posX -= e.deltaX;
+      posY -= e.deltaY;
+      renderHUD();
+    }, { passive: false });
+
+    /* ─────────────────────────────────────────────
+       3) 터치(모바일/태블릿) — 한 손가락 드래그 = 위치 이동,
+                                두 손가락 핀치 = 확대
+       ───────────────────────────────────────────── */
+    let touchMode = null;        // 'pan' | 'pinch' | null
+    let lastTouchX = 0, lastTouchY = 0;
+    let pinchStartDist = 0;
+    let pinchStartDistance = 100;
+
+    function touchDistance(t1, t2) {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
     }
-    animate();
+
+    window.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        touchMode = "pan";
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchMode = "pinch";
+        pinchStartDist = touchDistance(e.touches[0], e.touches[1]);
+        pinchStartDistance = distance;
+      }
+    }, { passive: false });
+
+    window.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      if (touchMode === "pan" && e.touches.length === 1) {
+        const t = e.touches[0];
+        posX += (t.clientX - lastTouchX);
+        posY += (t.clientY - lastTouchY);
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
+        renderHUD();
+      } else if (touchMode === "pinch" && e.touches.length === 2) {
+        const d = touchDistance(e.touches[0], e.touches[1]);
+        if (pinchStartDist > 0) {
+          distance = Math.max(0, pinchStartDistance * (d / pinchStartDist));
+          renderHUD();
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener("touchend", (e) => {
+      if (e.touches.length === 0) touchMode = null;
+      else if (e.touches.length === 1) {
+        touchMode = "pan";
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+      }
+    });
+
+    /* 컨텍스트 메뉴 차단(우클릭으로 동작이 끊기는 것 방지) */
+    window.addEventListener("contextmenu", (e) => e.preventDefault());
   </script>
+
 </body>
 </html>
