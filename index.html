@@ -676,10 +676,8 @@
       let volumeGlyphs = [];     // {el, basePos:{x,y}, spherePos:{x,y,z}, phase}
       let volumeStartTime = 0;
       let volumeRafId = 0;
-      // 화면을 떠다니는 위치 (인스턴스 자기 위치 기준 오프셋, lerp으로 천천히 이동)
+      // 화면을 떠다니는 위치 (이제는 이미지 박스 중앙으로 매 프레임 정렬됨)
       let volX = 0, volY = 0;
-      let volTargetX = 0, volTargetY = 0;
-      let volTargetTimer = 0;
 
       function buildVolumeText(text) {
         // 기존 정리
@@ -764,8 +762,6 @@
         }
 
         volumeStartTime = performance.now();
-        // 떠다니는 첫 목표 잡기
-        scheduleNextDriftTarget();
         // RAF 시작
         const tickVol = (now) => {
           if (!volumeRoot) return;       // 정리됨
@@ -775,22 +771,13 @@
         volumeRafId = requestAnimationFrame(tickVol);
       }
 
-      function scheduleNextDriftTarget() {
-        // 화면 안에서 천천히 이동할 다음 목적지 잡기
-        const margin = 180;
-        volTargetX = margin + Math.random() * (window.innerWidth  - margin * 2);
-        volTargetY = margin + Math.random() * (window.innerHeight - margin * 2);
-        // 4~8초 후 다시 새 목적지
-        clearTimeout(volTargetTimer);
-        volTargetTimer = setTimeout(scheduleNextDriftTarget, 4000 + Math.random() * 4000);
-      }
-
       function updateVolume(now) {
         const t = (now - volumeStartTime) / 1000;   // 초 단위
 
-        // 위치 lerp (느리게 떠다님)
-        volX += (volTargetX - volX) * 0.005;
-        volY += (volTargetY - volY) * 0.005;
+        // 위치: 이미지 박스의 현재 중심에 정확히 정렬 (윈도우 리사이즈에도 따라옴)
+        const r = wrap.getBoundingClientRect();
+        volX = r.left + r.width / 2;
+        volY = r.top  + r.height / 2;
         volumeRoot.style.left = `${volX}px`;
         volumeRoot.style.top  = `${volY}px`;
 
@@ -847,7 +834,6 @@
 
       function teardownVolumeText() {
         if (volumeRafId) { cancelAnimationFrame(volumeRafId); volumeRafId = 0; }
-        clearTimeout(volTargetTimer);
         if (volumeRoot && volumeRoot.parentNode) {
           volumeRoot.parentNode.removeChild(volumeRoot);
         }
