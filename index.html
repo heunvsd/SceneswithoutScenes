@@ -92,8 +92,8 @@
       left: 56%;
       top:  48%;
       transform: translate(-50%, -50%);
-      width: 160px;
-      height: 160px;
+      width: 120px;
+      height: 120px;
       z-index: 5;
       pointer-events: none;
       /* 디버그용 — 영역이 어디 있는지 잠깐 보고 싶을 때 outline 켜기 */
@@ -170,8 +170,41 @@
     let isDragging = false;
     let dragLastX = 0, dragLastY = 0;
 
+    // 프레임 순환용 — 이미지 영역에서 누르고 있는 동안 currentFrame 을 자동으로 ++
+    let frameLoopTimer = null;
+    const FRAME_INTERVAL_MS = 280;   // 한 프레임에서 다음 프레임까지의 간격
+
+    function isInsideReveal(x, y) {
+      const el = document.getElementById("reveal");
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }
+
+    function startFrameLoop() {
+      if (frameLoopTimer) return;
+      frameLoopTimer = setInterval(() => {
+        if (frames.length === 0) return;
+        currentFrame = (currentFrame + 1) % frames.length;
+      }, FRAME_INTERVAL_MS);
+    }
+    function stopFrameLoop() {
+      if (frameLoopTimer) {
+        clearInterval(frameLoopTimer);
+        frameLoopTimer = null;
+      }
+    }
+
     window.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;     // 좌클릭만
+
+      // 이미지 영역 안에서 누르면 → 프레임 순환만, Position 드래그는 시작 안 함
+      if (isInsideReveal(e.clientX, e.clientY)) {
+        startFrameLoop();
+        return;
+      }
+
+      // 그 외 영역 → 기존 Position 드래그
       isDragging = true;
       dragLastX = e.clientX;
       dragLastY = e.clientY;
@@ -189,10 +222,16 @@
     });
 
     window.addEventListener("mouseup", () => {
+      // 어떤 이유로든 마우스를 떼면 프레임 순환은 정지
+      stopFrameLoop();
+
       if (!isDragging) return;
       isDragging = false;
       document.body.style.cursor = "grab";
     });
+
+    // 창에서 마우스가 빠져나가도 프레임 순환 정지 (안전판)
+    window.addEventListener("blur", stopFrameLoop);
 
     /* ─────────────────────────────────────────────
        2) wheel 이벤트 분기
@@ -387,6 +426,42 @@
        함께 들어 있어서 다음 단계에서 모션/텍스트/관계로 자유롭게 확장 가능. */
     let currentItem = null;   // 시트에서 가져온 현재 행 — 추후 다른 모듈에서 참조
 
+    /* ─────────────────────────────────────────────
+       프레임 시스템 — 한 주제의 변형 이미지를 시리즈로 로드
+       ─────────────────────────────────────────────
+       시트 H80이 "79.png" 라면 다음 8장을 미리 로드:
+         frames[0] = 79.png
+         frames[1] = 79-1.png
+         frames[2] = 79-2.png
+         ...
+         frames[7] = 79-7.png
+       마우스를 영역에 누르고 있으면 인덱스가 자동 순환.
+       ───────────────────────────────────────────── */
+    const FRAME_COUNT = 8;          // 베이스 + 7장
+    const frames = [];               // HTMLImageElement 배열
+    let currentFrame = 0;            // 현재 보여줄 인덱스
+
+    function loadFrameSeries(baseFilename) {
+      // "79.png" → name="79", ext="png"
+      const dot = baseFilename.lastIndexOf(".");
+      const name = dot === -1 ? baseFilename : baseFilename.slice(0, dot);
+      const ext  = dot === -1 ? ""           : baseFilename.slice(dot);  // ".png"
+
+      frames.length = 0;
+      for (let i = 0; i < FRAME_COUNT; i++) {
+        const fname = (i === 0) ? `${name}${ext}` : `${name}-${i}${ext}`;
+        const img = new Image();
+        img.src = IMAGE_BASE_PATH + fname;
+        frames.push(img);
+      }
+      currentFrame = 0;
+
+      // tickReveal에서 frames[currentFrame].complete 를 체크해 그릴지 결정.
+      // (베이스 이미지가 로드되면 즉시 그리기 시작)
+      console.info(`[frames] loading ${FRAME_COUNT} frames for "${baseFilename}":`,
+                   frames.map(im => im.src));
+    }
+
     function applyItem(item) {
       if (!item) return;
       currentItem = item;
@@ -394,8 +469,7 @@
       // 이미지 — 파일명만 시트에 들어옴 (예: "79.png")
       const filename = item[SHEET_TARGET_COL_NAME];
       if (filename) {
-        revealImg.src = IMAGE_BASE_PATH + filename;
-        console.info(`[sheet] reveal image: ${revealImg.src}`);
+        loadFrameSeries(filename);
       } else {
         applyFallback();
       }
@@ -406,8 +480,8 @@
 
     /* fallback — fetch 실패, URL 미설정, 또는 행이 비어있을 때 */
     function applyFallback() {
-      revealImg.src = IMAGE_BASE_PATH + "79.png";
-      console.info("[sheet] fallback (./assets/79.png) 사용.");
+      loadFrameSeries("79.png");
+      console.info("[sheet] fallback (79.png 시리즈) 사용.");
     }
 
     if (!SHEET_CSV_URL) {
@@ -449,11 +523,7 @@
     const revCanvas  = document.getElementById("reveal-canvas");
     const revCtx     = revCanvas.getContext("2d");
 
-    // 이미지가 로드된 후에만 그리기 시작
-    let revImgLoaded = false;
-    revealImg.addEventListener("load", () => { revImgLoaded = true; });
-    // 혹시 이미 캐시되어 load 이벤트 못 잡을 때
-    if (revealImg.complete && revealImg.naturalWidth > 0) revImgLoaded = true;
+    // (이미지 로드 체크는 매 프레임 frames[currentFrame].complete 로 직접 함)
 
     // 캔버스 픽셀 해상도를 박스에 맞추기 (DPR 대응)
     function resizeRevealCanvas() {
@@ -542,7 +612,11 @@
       const W = rect.width, H = rect.height;
       revCtx.clearRect(0, 0, W, H);
 
-      if (revImgLoaded && trail.length > 0) {
+      // 현재 프레임 이미지 가져오기 (로드 안 됐으면 그리기 스킵)
+      const frameImg = frames[currentFrame];
+      const frameReady = frameImg && frameImg.complete && frameImg.naturalWidth > 0;
+
+      if (frameReady && trail.length > 0) {
         // 1) 모든 점을 부드러운 라디얼 그라디언트로 그리기
         //    (alpha 채널이 곧 마스크가 됨)
         for (let i = trail.length - 1; i >= 0; i--) {
@@ -592,7 +666,7 @@
 
         // 2) source-in: 지금까지 그려진 알파 영역 안쪽에만 이미지를 그림
         revCtx.globalCompositeOperation = "source-in";
-        revCtx.drawImage(revealImg, 0, 0, W, H);
+        revCtx.drawImage(frameImg, 0, 0, W, H);
         revCtx.globalCompositeOperation = "source-over";   // 원래대로
       }
 
