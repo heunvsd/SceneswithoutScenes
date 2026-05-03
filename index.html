@@ -438,7 +438,10 @@
        URL이 비어 있으면 fetch를 건너뛰고 fallback(./assets/79.png) 표시 →
        개발 중에도 화면이 정상 동작.
        ───────────────────────────────────────────── */
-    const SHEET_CSV_URL = "";   // ← 여기에 게시된 CSV URL을 붙여넣기
+    // 비공식이지만 오래 동작하는 gviz CSV 엔드포인트.
+    // 시트가 "링크가 있는 모든 사용자가 볼 수 있음" 권한이면 fetch 가능.
+    // 만약 동작 안 하면 정식 "웹에 게시" URL로 교체.
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1pintIO8VNpryzS56eqXaNjqzx5f3EeAV/gviz/tq?tqx=out:csv&gid=0";
 
     // 시트의 어느 행/열을 쓸지 — 1-based (스프레드시트 좌표 그대로)
     const SHEET_TARGET_ROW = 80;       // 80행
