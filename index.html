@@ -254,61 +254,63 @@
       user-select: none;
     }
 
-    /* 흰색 안개 그라데이션 — 패널 자체에 고정.
-       텍스트와 함께 스크롤되지 않음. 너비도 좁게. */
-    .expanded-panel-mist {
+    /* 마우스 스포트라이트 — 검정 배경 위에 흰 빛이 마우스를 따라 흐름.
+       이 빛이 이미지와 합성되어 그 자리만 밝아짐 → 텍스트 가독성 + 그래픽 인상.
+       lighten 블렌드: 두 픽셀 중 밝은 쪽을 선택 → 흰 빛은 그대로, 검정 영역도 부분적으로 밝아짐. */
+    .expanded-panel-spotlight {
       position: absolute;
-      /* 패널의 가운데 영역 — 좌우 더 안쪽으로, 위아래 더 좁게 */
-      left: 22%;
-      top:  22%;
-      width: 56%;
-      height: 56%;
+      inset: 0;
       pointer-events: none;
-      background: radial-gradient(ellipse 65% 75% at 50% 50%,
-        rgba(255,255,255,0.96) 0%,
-        rgba(255,255,255,0.92) 30%,
-        rgba(255,255,255,0.78) 55%,
-        rgba(255,255,255,0.40) 78%,
+      mix-blend-mode: lighten;   /* 이미지를 부분적으로 밝게 */
+      /* 빛은 JS 가 매 프레임 위치 갱신 — 인라인 background-image 로 */
+      background-position: 50% 50%;
+      background-repeat: no-repeat;
+      background-image: radial-gradient(circle 280px at 50% 50%,
+        rgba(255,255,255,0.85) 0%,
+        rgba(255,255,255,0.55) 25%,
+        rgba(255,255,255,0.25) 55%,
+        rgba(255,255,255,0.05) 80%,
         rgba(255,255,255,0)    100%);
     }
 
-    /* 텍스트 영역 — 안개 위에 떠 있고, 자체 스크롤 */
+    /* 텍스트 영역 — 이미지+스포트라이트 위에 difference 로 합성.
+       검정 영역 위 → 흰 글자
+       스포트라이트가 닿은 밝은 영역 위 → 자동으로 어두워짐
+       → 마우스가 텍스트 위를 지나갈 때 글자색이 바뀌는 그래픽 인상. */
     .expanded-panel-text-wrap {
       position: absolute;
-      /* 안개보다 살짝 작게, 가운데에 — 안개가 텍스트 가장자리에서 부드럽게 번짐 */
-      left: 25%;
-      top:  26%;
-      width: 50%;
-      height: 48%;
+      left: 12%;
+      top:  14%;
+      width: 76%;
+      height: 72%;
       overflow-y: auto;
       overflow-x: hidden;
       cursor: text;
-      /* 위/아래 페이드 — 텍스트가 자연스럽게 시작/사라지는 인상 */
       -webkit-mask-image: linear-gradient(to bottom,
         rgba(0,0,0,0) 0%,
-        rgba(0,0,0,1) 10%,
-        rgba(0,0,0,1) 82%,
+        rgba(0,0,0,1) 8%,
+        rgba(0,0,0,1) 88%,
         rgba(0,0,0,0) 100%);
               mask-image: linear-gradient(to bottom,
         rgba(0,0,0,0) 0%,
-        rgba(0,0,0,1) 10%,
-        rgba(0,0,0,1) 82%,
+        rgba(0,0,0,1) 8%,
+        rgba(0,0,0,1) 88%,
         rgba(0,0,0,0) 100%);
-      /* 스크롤바 숨김 */
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
     .expanded-panel-text-wrap::-webkit-scrollbar { display: none; }
 
     .expanded-panel-text {
-      padding: 8px 14px 40px 14px;
+      padding: 12px 18px 50px 18px;
       font-family: 'Eulyoo1945-Regular', 'Eyja-Regular', serif;
       font-size: 13px;
       line-height: 1.7;
-      color: #000;
+      color: #ffffff;
       letter-spacing: -0.01em;
       white-space: pre-wrap;
       word-break: keep-all;
+      mix-blend-mode: difference;
     }
   </style>
 </head>
@@ -1199,11 +1201,11 @@
       img.draggable = false;
       img.src = IMAGE_BASE_PATH + expandedFilename;
 
-      // 2) 흰색 안개 — 패널에 고정 (텍스트와 함께 스크롤되지 않음)
-      const mist = document.createElement("div");
-      mist.className = "expanded-panel-mist";
+      // 2) 마우스 스포트라이트 — 빛이 마우스 따라 흐르며 이미지와 lighten 합성
+      const spotlight = document.createElement("div");
+      spotlight.className = "expanded-panel-spotlight";
 
-      // 3) 텍스트 영역 — 자체 스크롤. 안개 위에 떠 있음.
+      // 3) 텍스트 영역 — 이미지+스포트라이트 위에 difference 로 합성
       const textWrap = document.createElement("div");
       textWrap.className = "expanded-panel-text-wrap";
       const txt = document.createElement("div");
@@ -1211,11 +1213,38 @@
       txt.textContent = text || "";
       textWrap.appendChild(txt);
 
-      // 쌓기 순서: 이미지(맨 아래) → 안개 → 텍스트(맨 위)
+      // 쌓기 순서: 이미지(맨 아래) → 스포트라이트 → 텍스트(맨 위)
       panel.appendChild(img);
-      panel.appendChild(mist);
+      panel.appendChild(spotlight);
       panel.appendChild(textWrap);
       document.body.appendChild(panel);
+
+      // 스포트라이트 위치 추적 (패널 내부 좌표, lerp 으로 부드럽게)
+      let spotTargetX = 50, spotTargetY = 50;   // 백분율
+      let spotCurrX   = 50, spotCurrY   = 50;
+      const updateSpotlightTarget = (e) => {
+        const r = panel.getBoundingClientRect();
+        spotTargetX = ((e.clientX - r.left) / r.width)  * 100;
+        spotTargetY = ((e.clientY - r.top)  / r.height) * 100;
+      };
+      panel.addEventListener("mousemove", updateSpotlightTarget);
+      // 마우스가 패널 밖이어도 부드럽게 끝까지 따라가다가 멈춤 — 일단 패널 안에서만 추적
+
+      let spotRafId = 0;
+      const tickSpotlight = () => {
+        // 현재 위치를 목표로 부드럽게 lerp
+        spotCurrX += (spotTargetX - spotCurrX) * 0.18;
+        spotCurrY += (spotTargetY - spotCurrY) * 0.18;
+        spotlight.style.backgroundImage =
+          `radial-gradient(circle 280px at ${spotCurrX.toFixed(2)}% ${spotCurrY.toFixed(2)}%, ` +
+          `rgba(255,255,255,0.85) 0%, ` +
+          `rgba(255,255,255,0.55) 25%, ` +
+          `rgba(255,255,255,0.25) 55%, ` +
+          `rgba(255,255,255,0.05) 80%, ` +
+          `rgba(255,255,255,0) 100%)`;
+        spotRafId = requestAnimationFrame(tickSpotlight);
+      };
+      spotRafId = requestAnimationFrame(tickSpotlight);
 
       // 이미지가 로드된 후 크기를 결정 (자연 비율 유지).
       // 더 작은 사이즈로: 가로 55vw / 세로 65vh
@@ -1300,6 +1329,7 @@
         cleanup: () => {
           window.removeEventListener("mousemove", onMove);
           window.removeEventListener("mouseup", onUp);
+          if (spotRafId) cancelAnimationFrame(spotRafId);
         },
       };
     }
