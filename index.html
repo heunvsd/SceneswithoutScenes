@@ -132,9 +132,11 @@
   <!-- 호버 감지용 보이지 않는 핫스팟 (화면 중앙 부근) -->
   <div class="hotspot" id="hotspot" aria-hidden="true"></div>
 
-  <!-- 마우스 위치를 따라가며 떠오르는 이미지 -->
+  <!-- 마우스 위치를 따라가며 떠오르는 이미지
+       src 는 시트 80행 H열(기억 주제) 값을 fetch 후 동적으로 주입.
+       fetch 전 빈 상태에서도 레이아웃이 깨지지 않도록 src 비워둠. -->
   <div class="reveal" id="reveal">
-    <img src="./assets/79.png" alt="" draggable="false" />
+    <img id="reveal-img" alt="" draggable="false" />
   </div>
 
   <div class="hud" id="hud">
@@ -305,11 +307,145 @@
     window.addEventListener("contextmenu", (e) => e.preventDefault());
 
     /* ─────────────────────────────────────────────
-       4) Reveal 이미지 (79-03.png)
-          - 핫스팟 위에 마우스가 들어오면 부드럽게 떠오름
-          - 빠져나가면 부드럽게 사라짐
-          - 마우스 위치를 lerp로 부드럽게 따라옴 (관성 효과)
-          - blur(18px → 0) + scale(0.85 → 1) + 미세한 rotation + opacity
+       5) Google Sheet 연동
+       ─────────────────────────────────────────────
+       흐름:
+         1. CSV 게시 URL을 fetch
+         2. CSV 파싱
+         3. 80행을 객체로 변환 — { "기억 형식": "...", "기억 조직 방식": "...",
+                                    "기억 주제": "79.png", ... }
+         4. "기억 주제" 값(파일명)을 ./assets/ 폴더 경로로 prefix → <img src>
+         5. 같은 행 객체는 currentItem 으로 보관 — 추후 모션/텍스트 모듈에서 참조
+
+       시트 게시 방법:
+         Google Sheets → 파일 → 공유 → 웹에 게시
+         → 형식: '쉼표로 구분된 값(.csv)'
+         → 시트: 해당 시트만 선택
+         → 게시 후 나오는 URL을 SHEET_CSV_URL 에 붙여넣기
+
+       URL이 비어 있으면 fetch를 건너뛰고 fallback(./assets/79.png) 표시 →
+       개발 중에도 화면이 정상 동작.
+       ───────────────────────────────────────────── */
+    const SHEET_CSV_URL = "";   // ← 여기에 게시된 CSV URL을 붙여넣기
+
+    // 시트의 어느 행/열을 쓸지 — 1-based (스프레드시트 좌표 그대로)
+    const SHEET_TARGET_ROW = 80;       // 80행
+    const SHEET_TARGET_COL_NAME = "기억 주제";   // H열 헤더
+
+    // 이미지 파일명을 어디 폴더에서 찾을지
+    const IMAGE_BASE_PATH = "./assets/";
+
+    const revealImg = document.getElementById("reveal-img");
+
+    /* 간단한 CSV 파서 — 셀 안의 콤마/줄바꿈/이스케이프된 따옴표 모두 처리 */
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"' && text[i + 1] === '"') {       // 이스케이프된 ""
+            cell += '"'; i++;
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            cell += ch;
+          }
+        } else {
+          if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ",") {
+            row.push(cell); cell = "";
+          } else if (ch === "\n") {
+            row.push(cell); cell = "";
+            rows.push(row); row = [];
+          } else if (ch === "\r") {
+            // 무시 (CRLF 처리)
+          } else {
+            cell += ch;
+          }
+        }
+      }
+      // 마지막 셀/행 flush
+      if (cell.length > 0 || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    /* 시트의 한 행 전체를 {헤더명: 값} 객체로 변환 */
+    function pickRowFromSheet(rows, targetRow) {
+      if (!rows || rows.length === 0) return null;
+      const header = rows[0];
+      // targetRow 는 1-based. 헤더가 1행이므로, 데이터행 80 → rows[79]
+      const dataRow = rows[targetRow - 1];
+      if (!dataRow) {
+        console.warn(`[sheet] ${targetRow}행이 비어 있습니다.`);
+        return null;
+      }
+      const obj = {};
+      for (let i = 0; i < header.length; i++) {
+        const key = (header[i] || "").trim();
+        if (!key) continue;
+        obj[key] = (dataRow[i] || "").trim();
+      }
+      return obj;
+    }
+
+    /* 행 데이터 → 화면 적용
+       지금은 이미지만 다루지만, 같은 객체에 "기억 형식", "기억 조직 방식" 등이
+       함께 들어 있어서 다음 단계에서 모션/텍스트/관계로 자유롭게 확장 가능. */
+    let currentItem = null;   // 시트에서 가져온 현재 행 — 추후 다른 모듈에서 참조
+
+    function applyItem(item) {
+      if (!item) return;
+      currentItem = item;
+
+      // 이미지 — 파일명만 시트에 들어옴 (예: "79.png")
+      const filename = item[SHEET_TARGET_COL_NAME];
+      if (filename) {
+        revealImg.src = IMAGE_BASE_PATH + filename;
+        console.info(`[sheet] reveal image: ${revealImg.src}`);
+      } else {
+        applyFallback();
+      }
+
+      // 디버깅 — 같은 행의 다른 값들도 콘솔에 보여줌 (다음 단계 확장 시 참고용)
+      console.info("[sheet] full row:", item);
+    }
+
+    /* fallback — fetch 실패, URL 미설정, 또는 행이 비어있을 때 */
+    function applyFallback() {
+      revealImg.src = IMAGE_BASE_PATH + "79.png";
+      console.info("[sheet] fallback (./assets/79.png) 사용.");
+    }
+
+    if (!SHEET_CSV_URL) {
+      // URL 미설정 — fallback 으로 화면은 정상 표시
+      applyFallback();
+    } else {
+      fetch(SHEET_CSV_URL)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.text();
+        })
+        .then(text => {
+          const rows = parseCSV(text);
+          const item = pickRowFromSheet(rows, SHEET_TARGET_ROW);
+          if (item) applyItem(item);
+          else      applyFallback();
+        })
+        .catch(err => {
+          console.warn("[sheet] fetch 실패 — fallback 사용:", err);
+          applyFallback();
+        });
+    }
+
+    /* ─────────────────────────────────────────────
+       6) Reveal 이미지 (마우스 호버 모션)
        ───────────────────────────────────────────── */
     const hotspot = document.getElementById("hotspot");
     const reveal  = document.getElementById("reveal");
