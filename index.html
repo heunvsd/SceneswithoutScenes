@@ -65,12 +65,16 @@
     /* 숫자만 자간을 강하게 줄여 영문 비례에 맞춤
        (트라이얼 Eyja의 기본 숫자 트래킹이 살짝 넓음) */
     .hud .num {
-      letter-spacing: -0.04em;
+      letter-spacing: -0.07em;
     }
     /* 영문(라벨) 다음에 오는 숫자와의 간격을 좁힘
        — 그냥 공백을 쓰면 너무 벌어져서 시각적으로 맞춰주는 보정 */
     .hud .num {
       margin-left: -0.22em;
+    }
+    /* 콜론(:) 다음에 오는 숫자는 살짝 띄움 — 콜론과 숫자가 들러붙지 않게 */
+    .hud .num.after-colon {
+      margin-left: 0.08em;
     }
   </style>
 </head>
@@ -78,7 +82,7 @@
 
   <div class="hud" id="hud">
     <span class="row">Distance <span class="num" id="num-distance">100%</span></span>
-    <span class="row">Position X:<span class="num" id="num-pos-x">000</span> Y:<span class="num" id="num-pos-y">000</span></span>
+    <span class="row">Position X:<span class="num after-colon" id="num-pos-x">000</span> Y:<span class="num after-colon" id="num-pos-y">000</span></span>
   </div>
 
   <script>
