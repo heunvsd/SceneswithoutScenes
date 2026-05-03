@@ -639,34 +639,16 @@
         if (typeTimer) { clearInterval(typeTimer); typeTimer = null; }
       }
 
-      // ── 텍스트 박스 펼침 애니메이션 ─────────────────
-      // open=1 이면 박스가 펼쳐진 상태, 0이면 닫힘.
-      // 매 프레임 lerp으로 부드럽게 보간.
-      let openTarget = 0;   // 0 또는 1
-      let openCurr   = 0;   // 현재 보간된 값
-
       // ── 클릭 홀드 상태 ────────────────────────────
       let isHolding = false;
+      // 부피 모드 진입 후엔 이미지(브러쉬 호버)와 모든 클릭 모션을 비활성화.
+      let isVolumeMode = false;
 
       function startHold() {
         if (isHolding) return;
+        if (isVolumeMode) return;     // 부피 모드 중엔 클릭 무시
         isHolding = true;
-        openTarget = 1;
-
-        // 부피 텍스트가 떠 있으면 정리 (이미지로 돌아옴)
-        teardownVolumeText();
-
-        // 프레임 순환 시작
-        if (!frameLoopTimer) {
-          frameLoopTimer = setInterval(() => {
-            if (frames.length > 0) {
-              currentFrame = (currentFrame + 1) % frames.length;
-            }
-          }, FRAME_INTERVAL_MS);
-        }
-        // 텍스트 타이핑 시작 (이미 다 타이핑된 상태면 그대로 둠)
-        if (typedLen === 0) startTyping();
-        else if (typedLen < fullText.length) startTyping();
+        // 클릭 홀드 동안엔 아무 동작도 하지 않음 — 호버로 드러난 이미지 상태 유지.
       }
       // ── 부피 텍스트 시스템 ─────────────────────────
       // 클릭을 뗐을 때 fullText를 글자 단위로 분해해 비대칭 구체 표면에 흩어 놓고
@@ -845,28 +827,14 @@
       function stopHold() {
         if (!isHolding) return;
         isHolding = false;
-        openTarget = 0;
 
-        if (frameLoopTimer) { clearInterval(frameLoopTimer); frameLoopTimer = null; }
-        stopTyping();
-        // 다음 홀드 때 처음부터 다시 타이핑되도록 리셋
-        // (박스가 완전히 닫히는 데 시간 걸리니, 약간 지연 후 리셋)
-        setTimeout(() => {
-          if (!isHolding) {
-            typedLen = 0;
-            renderTypedText();
-            currentFrame = 0;     // 이미지도 처음 프레임으로 리셋 (선택)
-          }
-        }, 500);
-
-        // 클릭을 떼면 부피 텍스트 모션 시작 (텍스트가 비어있지 않을 때만)
+        // 클릭을 떼면 즉시 부피 모드로 전환 (텍스트가 있을 때만)
         if (fullText && fullText.trim().length > 0) {
-          // 박스 닫힘이 거의 완료되는 시점 직전에 시작 — 자연스럽게 이어붙음
-          setTimeout(() => {
-            if (!isHolding && (!volumeRoot)) {
-              buildVolumeText(fullText);
-            }
-          }, 350);
+          isVolumeMode = true;       // 이후 호버/클릭 모두 무시
+          // 캔버스 즉시 클리어 (이미지 사라짐)
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          trail.length = 0;
+          buildVolumeText(fullText);
         }
       }
 
@@ -902,6 +870,12 @@
 
       // ── 매 프레임 업데이트 ───────────────────────
       function tick() {
+        // 부피 모드면 호버 트레일도 만들지 않고 캔버스에 아무것도 그리지 않음
+        if (isVolumeMode) {
+          requestAnimationFrame(tick);
+          return;
+        }
+
         const rect = imgArea.getBoundingClientRect();
 
         // 마우스가 영향권 안인지
@@ -972,17 +946,6 @@
           ctx.drawImage(frameImg, 0, 0, W, H);
           ctx.globalCompositeOperation = "source-over";
         }
-
-        // ── 텍스트 박스 펼침 보간 ──
-        // 닫힐 때보다 열릴 때를 살짝 빠르게 (느낌 좋음)
-        const lerpRate = openTarget > openCurr ? 0.08 : 0.06;
-        openCurr += (openTarget - openCurr) * lerpRate;
-        if (Math.abs(openTarget - openCurr) < 0.001) openCurr = openTarget;
-
-        const w = TEXT_BOX_W * openCurr;
-        const h = TEXT_BOX_H * openCurr;
-        textBox.style.width  = `${w}px`;
-        textBox.style.height = `${h}px`;
 
         requestAnimationFrame(tick);
       }
