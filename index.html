@@ -76,9 +76,66 @@
     .hud .num.after-colon {
       margin-left: 0.08em;
     }
+
+    /* ───────── Hover Image (79-03.png) ─────────
+       평소엔 보이지 않다가 마우스가 hotspot 영역에 들어오면
+       부드럽게 떠오르며 커서를 살짝 따라옴 (Immersive Garden 스타일).
+       hotspot 자체는 시각적으로 없음 (투명) — 사용자가 화면을
+       스캔하다가 우연히 발견하는 구조.
+    */
+    .hotspot {
+      position: fixed;
+      /* 화면 중앙 부근 — 너무 멀지 않은 곳에 약간 비스듬히.
+         translate(-50%,-50%)로 정확한 중심 정렬 */
+      left: 56%;
+      top: 48%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 280px;
+      z-index: 5;
+      pointer-events: auto;     /* hover 감지 */
+      cursor: grab;             /* 본문 기본 커서와 동일하게 유지 */
+    }
+    /* 이미지 컨테이너 — 부드러운 motion을 위해 pointer-events 차단 */
+    .reveal {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 6;
+      pointer-events: none;
+      will-change: transform, opacity, filter;
+      opacity: 0;
+      transition:
+        opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+        filter  0.9s cubic-bezier(0.16, 1, 0.3, 1);
+      filter: blur(18px);
+    }
+    .reveal.is-visible {
+      opacity: 1;
+      filter: blur(0);
+    }
+    .reveal img {
+      display: block;
+      width: 320px;             /* 이미지 표시 크기 */
+      height: auto;
+      max-width: 40vw;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+    }
+    /* 사용자가 hotspot 위에 있다는 미세한 시각적 단서 — 커서를 숨겼으니
+       대신 부드러운 그림자처럼 보이게 (필수는 아님). */
   </style>
 </head>
 <body>
+
+  <!-- 호버 감지용 보이지 않는 핫스팟 (화면 중앙 부근) -->
+  <div class="hotspot" id="hotspot" aria-hidden="true"></div>
+
+  <!-- 마우스 위치를 따라가며 떠오르는 이미지 -->
+  <div class="reveal" id="reveal">
+    <img src="./assets/79.png" alt="" draggable="false" />
+  </div>
 
   <div class="hud" id="hud">
     <span class="row">Distance <span class="num" id="num-distance">100%</span></span>
@@ -246,6 +303,71 @@
 
     /* 컨텍스트 메뉴 차단(우클릭으로 동작이 끊기는 것 방지) */
     window.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    /* ─────────────────────────────────────────────
+       4) Reveal 이미지 (79-03.png)
+          - 핫스팟 위에 마우스가 들어오면 부드럽게 떠오름
+          - 빠져나가면 부드럽게 사라짐
+          - 마우스 위치를 lerp로 부드럽게 따라옴 (관성 효과)
+          - blur(18px → 0) + scale(0.85 → 1) + 미세한 rotation + opacity
+       ───────────────────────────────────────────── */
+    const hotspot = document.getElementById("hotspot");
+    const reveal  = document.getElementById("reveal");
+
+    // 목표 좌표(target) — 마우스 실제 위치
+    // 현재 좌표(current) — 화면에 보이는 위치 (lerp로 따라감)
+    let tx = window.innerWidth * 0.56;
+    let ty = window.innerHeight * 0.48;
+    let cx = tx, cy = ty;
+
+    // 표시 상태
+    let isHovering = false;
+    // 등장 진행도 0→1 (스케일/회전 보간용)
+    let appear = 0;
+
+    // 어디서든 마우스 위치 추적 (호버 시작 전부터 자연스러운 시작점 잡기 위함)
+    window.addEventListener("mousemove", (e) => {
+      tx = e.clientX;
+      ty = e.clientY;
+    });
+
+    hotspot.addEventListener("mouseenter", () => {
+      isHovering = true;
+      reveal.classList.add("is-visible");
+    });
+    hotspot.addEventListener("mouseleave", () => {
+      isHovering = false;
+      reveal.classList.remove("is-visible");
+    });
+
+    // RAF 루프 — lerp으로 부드럽게 위치/스케일/회전 보간
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function tickReveal() {
+      // 위치 lerp — 0.12 정도면 적당한 관성 (값이 작을수록 더 미끈하게 따라옴)
+      cx = lerp(cx, tx, 0.12);
+      cy = lerp(cy, ty, 0.12);
+
+      // 등장 진행도 보간 (스프링처럼 부드럽게)
+      const target = isHovering ? 1 : 0;
+      appear = lerp(appear, target, 0.08);
+
+      // 스케일 0.85 → 1.0
+      const scale = 0.85 + appear * 0.15;
+      // 미세한 회전 — 마우스가 오른쪽으로 갈수록 살짝 기울어지는 패럴랙스 효과
+      const rot = (cx - window.innerWidth / 2) / window.innerWidth * 6;  // ±3deg
+      // 마우스 속도에 따른 추가적인 미세 오프셋 (드리프트 느낌)
+      const driftX = (tx - cx) * 0.3;
+      const driftY = (ty - cy) * 0.3;
+
+      reveal.style.transform =
+        `translate(${cx - 160 + driftX}px, ${cy - 160 + driftY}px) ` +
+        `scale(${scale.toFixed(3)}) ` +
+        `rotate(${rot.toFixed(2)}deg)`;
+
+      requestAnimationFrame(tickReveal);
+    }
+    requestAnimationFrame(tickReveal);
   </script>
 
 </body>
