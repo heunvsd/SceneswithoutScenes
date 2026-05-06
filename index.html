@@ -643,9 +643,85 @@
     const HOLD_PULSE_PERIOD_MS = 700;
 
     let mouseX = -9999, mouseY = -9999;
+
+    /* ─────────────────────────────────────────────
+       텍스트 궤적 시스템
+       - 사용자가 만진 인스턴스의 텍스트를 한 글자씩
+         마우스가 지나간 자리에 박아서 누적한다.
+       - 화면에는 보이지 않다가 캡처할 때 한꺼번에 그려진다.
+       - 좌표는 월드 좌표로 저장 → 줌/팬 후에도 같은 자리.
+       ───────────────────────────────────────────── */
+    const trailGlyphs = []; // [{worldX, worldY, char, angle}]
+    let pendingChars = "";  // 아직 박지 못한 글자들 (다음 위치에서 소비)
+    let lastStampX = -9999, lastStampY = -9999; // 마지막 글자 박은 화면 위치
+    const STAMP_INTERVAL = 14; // px — 이 간격마다 글자 한 개 박음 (커서 빠르면 여러 개)
+
+    // 인스턴스별 텍스트 소비 커서 — 어디까지 썼는지 기억
+    // (영향권 다시 들어와도 같은 자리에서 이어 쓰는 게 아니라,
+    //  영향권 들어올 때마다 그 텍스트를 처음부터 한 번 쭉 흘려보냄.
+    //  대신 끝나면 같은 텍스트를 처음부터 다시 시작 = 반복)
+    const instTextCursor = new Map(); // name → next char index
+
+    function feedFromInstance(inst) {
+      const text = (inst.getText && inst.getText()) || "";
+      if (!text) return;
+      // 진입 시 텍스트 한 사이클 + 구분 공백을 큐에 추가
+      pendingChars += text + "  ";
+    }
+
+    function consumeAt(clientX, clientY) {
+      // 큐가 비었지만 만진 인스턴스가 있으면 마지막 인스턴스 텍스트를 다시 채움 → 반복
+      if (pendingChars.length === 0 && lastTrajectoryName !== null) {
+        for (const inst of revealInstances) {
+          if (inst.name === lastTrajectoryName) {
+            const t = (inst.getText && inst.getText()) || "";
+            if (t) pendingChars += t + "  ";
+            break;
+          }
+        }
+      }
+      if (pendingChars.length === 0) return;
+      // 이전 위치가 없으면 시작점만 잡고 패스
+      if (lastStampX < -9000) {
+        lastStampX = clientX;
+        lastStampY = clientY;
+        return;
+      }
+      let dx = clientX - lastStampX;
+      let dy = clientY - lastStampY;
+      let dist = Math.hypot(dx, dy);
+      // 이동 거리가 STAMP_INTERVAL 이상이면 그 사이에 글자를 박는다
+      while (dist >= STAMP_INTERVAL && pendingChars.length > 0) {
+        const ratio = STAMP_INTERVAL / dist;
+        const sx = lastStampX + dx * ratio;
+        const sy = lastStampY + dy * ratio;
+        const angle = Math.atan2(dy, dx);
+        // 글자 한 개 꺼냄 (공백은 박지 않고 건너뜀 — 빈 자국이 되니까)
+        const ch = pendingChars[0];
+        pendingChars = pendingChars.slice(1);
+        if (ch && ch.trim().length > 0) {
+          // 화면 좌표 → 월드 좌표로 변환해서 저장
+          const w = screenToWorld(sx, sy);
+          trailGlyphs.push({
+            worldX: w.x,
+            worldY: w.y,
+            char: ch,
+            angle: angle,
+          });
+        }
+        // 다음 분할 시작점 갱신
+        lastStampX = sx;
+        lastStampY = sy;
+        dx = clientX - lastStampX;
+        dy = clientY - lastStampY;
+        dist = Math.hypot(dx, dy);
+      }
+    }
+
     window.addEventListener("mousemove", (e) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
+      consumeAt(e.clientX, e.clientY);
     });
 
     function createRevealInstance(config) {
@@ -1727,8 +1803,6 @@
 
     function recordTrajectory(inst) {
       const text = inst.getText ? inst.getText() : "";
-      // 같은 인스턴스를 떠나지 않고 계속 영향권 안에 있으면 한 번만 기록
-      // (영향권을 벗어났다 다시 들어오면 다른 항목으로 기록)
       if (lastTrajectoryName === inst.name) return;
       lastTrajectoryName = inst.name;
       trajectory.push({
@@ -1736,6 +1810,9 @@
         text: text,
         t: Date.now(),
       });
+      // 텍스트 궤적 시스템에도 이 인스턴스 텍스트를 큐에 추가
+      // → 마우스가 움직이면 한 글자씩 자국으로 박힘
+      feedFromInstance(inst);
       console.info(`[trajectory] entered ${inst.name}, total ${trajectory.length}`);
     }
 
@@ -1765,22 +1842,45 @@
     const captureBtn = document.getElementById("capture-btn");
 
     async function captureScreen() {
-      // 캔버스 + DOM 요소들을 합성해 한 장의 PNG로 만든다.
-      // SVG foreignObject 트릭으로 DOM을 이미지로 렌더링.
       const W = window.innerWidth;
       const H = window.innerHeight;
 
-      // 1) 빈 캔버스 준비
       const out = document.createElement("canvas");
       out.width = W;
       out.height = H;
       const octx = out.getContext("2d");
-      // 흰 배경
       octx.fillStyle = "#ffffff";
       octx.fillRect(0, 0, W, H);
 
-      // 2) 각 reveal 인스턴스의 캔버스를 화면 위치에 그대로 그려넣는다
-      //    canvas는 getBoundingClientRect로 화면 좌표를 정확히 안다.
+      // 0) 누적된 텍스트 궤적 글자들 — 카메라 변환을 적용해 화면 좌표로 그림
+      //    각 글자는 마우스 이동 방향을 따라 회전된 채 박혔으므로
+      //    그 회전 각도 그대로 캔버스에 새김
+      const scale = distance / 100;
+      const cx_view = W / 2;
+      const cy_view = H / 2;
+      octx.fillStyle = "#000000";
+      // 글리프는 카메라 스케일에 맞춰 크기도 같이 변함 → 화면에서 일관되게 보이도록
+      const baseFontPx = 13;
+      octx.textBaseline = "middle";
+      octx.textAlign = "center";
+      for (const g of trailGlyphs) {
+        // 월드 → 화면 좌표
+        const sx = (g.worldX - cx_view) * scale + cx_view + posX;
+        const sy = (g.worldY - cy_view) * scale + cy_view + posY;
+        if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
+        const fontPx = baseFontPx * scale;
+        if (fontPx < 4) continue; // 너무 작으면 스킵
+        octx.save();
+        octx.translate(sx, sy);
+        octx.rotate(g.angle);
+        octx.font = `${fontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
+        octx.fillText(g.char, 0, 0);
+        octx.restore();
+      }
+      octx.textAlign = "start";
+      octx.textBaseline = "top";
+
+      // 1) 각 reveal 인스턴스의 캔버스를 화면 위치 그대로 그림
       const revealCanvases = document.querySelectorAll(".reveal-img-area canvas");
       for (const c of revealCanvases) {
         const r = c.getBoundingClientRect();
@@ -1790,12 +1890,11 @@
         } catch (e) { /* tainted 등 무시 */ }
       }
 
-      // 3) 부피/decay 텍스트 글리프들을 글자 단위로 그려넣는다
-      //    (각 .text-volume-glyph / .text-decay-glyph 의 화면 위치와 transform 적용 후 위치)
+      // 2) 부피/decay 텍스트 글리프들
       const glyphs = document.querySelectorAll(".text-volume-glyph, .text-decay-glyph");
       octx.fillStyle = "#000000";
-      // 폰트는 실제 적용된 것을 사용 (Vivaldi)
-      octx.font = "13px Vivaldi, Eulyoo1945-Regular, serif";
+      const glyphFontPx = 13 * scale;
+      octx.font = `${glyphFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       octx.textBaseline = "top";
       for (const g of glyphs) {
         const r = g.getBoundingClientRect();
@@ -1808,37 +1907,36 @@
       }
       octx.globalAlpha = 1;
 
-      // 4) reveal-text-content (타이프된 텍스트 박스) 도 그려넣음
+      // 3) reveal-text-content (타이프된 텍스트 박스)
       const textBlocks = document.querySelectorAll(".reveal-text-content");
-      octx.font = "13px Vivaldi, Eulyoo1945-Regular, serif";
+      const textBoxFontPx = 13 * scale;
+      octx.font = `${textBoxFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       for (const tb of textBlocks) {
         const txt = tb.textContent;
         if (!txt) continue;
         const r = tb.getBoundingClientRect();
         if (r.width <= 0 || r.height <= 0) continue;
-        // 줄바꿈 처리
-        const lineHeight = 13 * 1.55;
-        const maxWidth = r.width - 32;
+        const lineHeight = textBoxFontPx * 1.55;
+        const maxWidth = r.width - 32 * scale;
         const words = txt.split(/(\s+)/);
         let line = "";
-        let y = r.top + 14;
+        let y = r.top + 14 * scale;
         for (const w of words) {
           const testLine = line + w;
           const m = octx.measureText(testLine);
           if (m.width > maxWidth && line.length > 0) {
-            octx.fillText(line, r.left + 16, y);
+            octx.fillText(line, r.left + 16 * scale, y);
             y += lineHeight;
             line = w.replace(/^\s+/, "");
           } else {
             line = testLine;
           }
         }
-        if (line) octx.fillText(line, r.left + 16, y);
+        if (line) octx.fillText(line, r.left + 16 * scale, y);
       }
 
-      // 5) HUD
+      // 4) HUD (카메라 변환과 무관하게 항상 같은 자리/크기)
       const hudEl = document.getElementById("hud");
-      const hudCS = window.getComputedStyle(hudEl);
       octx.font = "15px GravesendSansLight, sans-serif";
       octx.fillStyle = "#000000";
       const lines = hudEl.innerText.split("\n");
