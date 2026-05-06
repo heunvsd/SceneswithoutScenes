@@ -1815,10 +1815,16 @@
       const W = window.innerWidth;
       const H = window.innerHeight;
 
+      // 고해상도 캡처 — 디바이스 픽셀비 × 2 (최소 2배)
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const SF = Math.max(2, dpr * 2); // scale factor (캔버스가 화면의 SF 배)
+
       const out = document.createElement("canvas");
-      out.width = W;
-      out.height = H;
+      out.width = Math.round(W * SF);
+      out.height = Math.round(H * SF);
       const octx = out.getContext("2d");
+      // 모든 그리기에 SF 배율 적용 — 좌표는 화면 좌표 그대로 쓰면서 결과만 더 큰 픽셀로
+      octx.scale(SF, SF);
       octx.fillStyle = "#ffffff";
       octx.fillRect(0, 0, W, H);
 
