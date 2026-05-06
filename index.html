@@ -645,83 +645,53 @@
     let mouseX = -9999, mouseY = -9999;
 
     /* ─────────────────────────────────────────────
-       텍스트 궤적 시스템
-       - 사용자가 만진 인스턴스의 텍스트를 한 글자씩
-         마우스가 지나간 자리에 박아서 누적한다.
-       - 화면에는 보이지 않다가 캡처할 때 한꺼번에 그려진다.
-       - 좌표는 월드 좌표로 저장 → 줌/팬 후에도 같은 자리.
+       텍스트 궤적 시스템 (문장 단위, 폰트 자간 유지)
+       - 마우스 경로(점들)를 월드 좌표로 기록
+       - 사용자가 만진 인스턴스의 텍스트는 큐에 통째로 들어감
+       - 캡처 시점에 큐의 텍스트를 마우스 경로 위로 따라가며 그림
+         (글자 위치는 경로 곡선 위, 글자 간격/자간은 폰트 본래 값)
        ───────────────────────────────────────────── */
-    const trailGlyphs = []; // [{worldX, worldY, char, angle}]
-    let pendingChars = "";  // 아직 박지 못한 글자들 (다음 위치에서 소비)
-    let lastStampX = -9999, lastStampY = -9999; // 마지막 글자 박은 화면 위치
-    const STAMP_INTERVAL = 14; // px — 이 간격마다 글자 한 개 박음 (커서 빠르면 여러 개)
 
-    // 인스턴스별 텍스트 소비 커서 — 어디까지 썼는지 기억
-    // (영향권 다시 들어와도 같은 자리에서 이어 쓰는 게 아니라,
-    //  영향권 들어올 때마다 그 텍스트를 처음부터 한 번 쭉 흘려보냄.
-    //  대신 끝나면 같은 텍스트를 처음부터 다시 시작 = 반복)
-    const instTextCursor = new Map(); // name → next char index
+    // 마우스 경로 — 시간 순. 화면 좌표 누적 호 길이 + 월드 좌표 저장.
+    const pathPts = []; // [{worldX, worldY, sScreen}]
+    let totalArcLen = 0;
+    let lastPathScreenX = -9999, lastPathScreenY = -9999;
+
+    // 텍스트 큐 — 곡선 위에 그려질 텍스트 (인스턴스 만질 때마다 이어붙임)
+    let pendingText = "";
+
+    function addPathPoint(clientX, clientY) {
+      let segLen = 0;
+      if (lastPathScreenX > -9000) {
+        const dx = clientX - lastPathScreenX;
+        const dy = clientY - lastPathScreenY;
+        segLen = Math.hypot(dx, dy);
+        if (segLen < 1.5) return;
+      }
+      totalArcLen += segLen;
+      const w = screenToWorld(clientX, clientY);
+      pathPts.push({
+        worldX: w.x,
+        worldY: w.y,
+        sScreen: totalArcLen,
+      });
+      lastPathScreenX = clientX;
+      lastPathScreenY = clientY;
+    }
 
     function feedFromInstance(inst) {
       const text = (inst.getText && inst.getText()) || "";
       if (!text) return;
-      // 진입 시 텍스트 한 사이클 + 구분 공백을 큐에 추가
-      pendingChars += text + "  ";
-    }
-
-    function consumeAt(clientX, clientY) {
-      // 큐가 비었지만 만진 인스턴스가 있으면 마지막 인스턴스 텍스트를 다시 채움 → 반복
-      if (pendingChars.length === 0 && lastTrajectoryName !== null) {
-        for (const inst of revealInstances) {
-          if (inst.name === lastTrajectoryName) {
-            const t = (inst.getText && inst.getText()) || "";
-            if (t) pendingChars += t + "  ";
-            break;
-          }
-        }
-      }
-      if (pendingChars.length === 0) return;
-      // 이전 위치가 없으면 시작점만 잡고 패스
-      if (lastStampX < -9000) {
-        lastStampX = clientX;
-        lastStampY = clientY;
-        return;
-      }
-      let dx = clientX - lastStampX;
-      let dy = clientY - lastStampY;
-      let dist = Math.hypot(dx, dy);
-      // 이동 거리가 STAMP_INTERVAL 이상이면 그 사이에 글자를 박는다
-      while (dist >= STAMP_INTERVAL && pendingChars.length > 0) {
-        const ratio = STAMP_INTERVAL / dist;
-        const sx = lastStampX + dx * ratio;
-        const sy = lastStampY + dy * ratio;
-        const angle = Math.atan2(dy, dx);
-        // 글자 한 개 꺼냄 (공백은 박지 않고 건너뜀 — 빈 자국이 되니까)
-        const ch = pendingChars[0];
-        pendingChars = pendingChars.slice(1);
-        if (ch && ch.trim().length > 0) {
-          // 화면 좌표 → 월드 좌표로 변환해서 저장
-          const w = screenToWorld(sx, sy);
-          trailGlyphs.push({
-            worldX: w.x,
-            worldY: w.y,
-            char: ch,
-            angle: angle,
-          });
-        }
-        // 다음 분할 시작점 갱신
-        lastStampX = sx;
-        lastStampY = sy;
-        dx = clientX - lastStampX;
-        dy = clientY - lastStampY;
-        dist = Math.hypot(dx, dy);
-      }
+      // 줄바꿈/연속공백 정리, 인스턴스 사이엔 공백 두 칸
+      const norm = text.replace(/\s+/g, " ").trim();
+      if (pendingText.length > 0) pendingText += "  ";
+      pendingText += norm;
     }
 
     window.addEventListener("mousemove", (e) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
-      consumeAt(e.clientX, e.clientY);
+      addPathPoint(e.clientX, e.clientY);
     });
 
     function createRevealInstance(config) {
@@ -1852,33 +1822,98 @@
       octx.fillStyle = "#ffffff";
       octx.fillRect(0, 0, W, H);
 
-      // 0) 누적된 텍스트 궤적 글자들 — 카메라 변환을 적용해 화면 좌표로 그림
-      //    각 글자는 마우스 이동 방향을 따라 회전된 채 박혔으므로
-      //    그 회전 각도 그대로 캔버스에 새김
+      // 0) 누적된 마우스 경로(pathPts) 위에 pendingText를 따라 그림
+      //    글자 위치는 경로 위로 매핑되지만, 글자 간격은 폰트 본래 자간을 유지
+      //    (한 글자씩 이동하지 않고, 폰트가 알려주는 글자 너비만큼 호 길이를 진행)
       const scale = distance / 100;
       const cx_view = W / 2;
       const cy_view = H / 2;
-      octx.fillStyle = "#000000";
-      // 글리프는 카메라 스케일에 맞춰 크기도 같이 변함 → 화면에서 일관되게 보이도록
-      const baseFontPx = 13;
-      octx.textBaseline = "middle";
-      octx.textAlign = "center";
-      for (const g of trailGlyphs) {
-        // 월드 → 화면 좌표
-        const sx = (g.worldX - cx_view) * scale + cx_view + posX;
-        const sy = (g.worldY - cy_view) * scale + cy_view + posY;
-        if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
-        const fontPx = baseFontPx * scale;
-        if (fontPx < 4) continue; // 너무 작으면 스킵
-        octx.save();
-        octx.translate(sx, sy);
-        octx.rotate(g.angle);
-        octx.font = `${fontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
-        octx.fillText(g.char, 0, 0);
-        octx.restore();
+
+      // 월드 좌표 → 현재 화면 좌표 변환
+      function worldToScreen(wx, wy) {
+        return {
+          x: (wx - cx_view) * scale + cx_view + posX,
+          y: (wy - cy_view) * scale + cy_view + posY,
+        };
       }
-      octx.textAlign = "start";
-      octx.textBaseline = "top";
+
+      if (pendingText && pathPts.length >= 2) {
+        const fontPx = 13 * scale;
+        if (fontPx >= 4) {
+          octx.fillStyle = "#000000";
+          octx.font = `${fontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
+          octx.textBaseline = "middle";
+          octx.textAlign = "left";
+
+          // 경로 위 호 길이 s에서의 화면 좌표/접선 각도를 구하는 함수
+          // pathPts는 화면 누적 호 길이(sScreen)로 정렬되어 있음 — 이건 기록 시점 화면 길이
+          // 캡처 시점의 화면 호 길이도 거의 동일(줌 변화 시 보정됨) — 글자가 경로 위로 잘 따라가게
+          function sampleAt(s) {
+            // pathPts의 sScreen이 s를 둘러싸는 두 점을 찾아 보간
+            // 단순 선형 검색 (pathPts가 길어도 한 텍스트당 한 번만 캡처에서 도는 정도)
+            if (s <= pathPts[0].sScreen) {
+              const p0 = pathPts[0];
+              const p1 = pathPts[1] || p0;
+              const a = worldToScreen(p0.worldX, p0.worldY);
+              const b = worldToScreen(p1.worldX, p1.worldY);
+              return { x: a.x, y: a.y, ang: Math.atan2(b.y - a.y, b.x - a.x) };
+            }
+            for (let i = 1; i < pathPts.length; i++) {
+              if (pathPts[i].sScreen >= s) {
+                const p0 = pathPts[i - 1];
+                const p1 = pathPts[i];
+                const span = p1.sScreen - p0.sScreen;
+                const t = span > 0 ? (s - p0.sScreen) / span : 0;
+                const a = worldToScreen(p0.worldX, p0.worldY);
+                const b = worldToScreen(p1.worldX, p1.worldY);
+                return {
+                  x: a.x + (b.x - a.x) * t,
+                  y: a.y + (b.y - a.y) * t,
+                  ang: Math.atan2(b.y - a.y, b.x - a.x),
+                };
+              }
+            }
+            // s가 경로 끝을 넘어가면 마지막 점에서 멈춘 것처럼
+            const last = pathPts[pathPts.length - 1];
+            const prev = pathPts[pathPts.length - 2] || last;
+            const a = worldToScreen(prev.worldX, prev.worldY);
+            const b = worldToScreen(last.worldX, last.worldY);
+            return { x: b.x, y: b.y, ang: Math.atan2(b.y - a.y, b.x - a.x) };
+          }
+
+          // 사용 가능한 경로 화면 호 길이 (현재 줌이 다르면 약간 어긋날 수 있어도 시각적 흐름은 유지)
+          const pathScreenLen = pathPts[pathPts.length - 1].sScreen;
+
+          // pendingText를 path 위로 흘려보내며 그림. 경로 끝나면 다시 처음부터 (반복)
+          // 단, 같은 경로를 너무 많이 덮어 그리면 지저분해지니
+          // 텍스트가 경로보다 길면 텍스트 길이만큼만 한 사이클 그리고 끝.
+          let s = 0;
+          // 시작점에서 약간 들어가서 시작 (경로 첫 점에 글자가 몰리지 않게)
+          let i = 0;
+          let cycleGuard = 0;
+          while (i < pendingText.length && cycleGuard < pendingText.length * 3) {
+            cycleGuard++;
+            const ch = pendingText[i];
+            const chW = octx.measureText(ch).width;
+            // 공백은 그리지 않고 너비만 진행
+            if (ch !== " ") {
+              // 경로 길이를 넘어서면 종료 (반복 없이 한 번만)
+              if (s > pathScreenLen) break;
+              const sample = sampleAt(s);
+              octx.save();
+              octx.translate(sample.x, sample.y);
+              octx.rotate(sample.ang);
+              octx.fillText(ch, 0, 0);
+              octx.restore();
+            }
+            s += chW;
+            i++;
+          }
+
+          octx.textAlign = "start";
+          octx.textBaseline = "top";
+        }
+      }
 
       // 1) 각 reveal 인스턴스의 캔버스를 화면 위치 그대로 그림
       const revealCanvases = document.querySelectorAll(".reveal-img-area canvas");
@@ -1949,21 +1984,6 @@
       return out;
     }
 
-    function buildTrajectoryText() {
-      // 궤적의 텍스트들을 시간 순으로 빈 줄로 구분해 이어붙인다.
-      // 같은 인스턴스가 다시 등장해도 그대로 기록되었으니
-      // 만진 순서를 그대로 문장 흐름으로 보여줌.
-      const parts = [];
-      for (const item of trajectory) {
-        const t = (item.text || "").trim();
-        if (t) parts.push(t);
-      }
-      if (parts.length === 0) {
-        return "(no trajectory yet — move around and touch the images first.)";
-      }
-      return parts.join("\n\n");
-    }
-
     function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1982,9 +2002,7 @@
       captureBtn.classList.add("is-busy");
 
       try {
-        // 1) 화면 합성
         const canvas = await captureScreen();
-        // 2) PNG 다운로드
         const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         await new Promise((resolve) => {
           canvas.toBlob((blob) => {
@@ -1992,10 +2010,6 @@
             resolve();
           }, "image/png");
         });
-        // 3) 궤적 텍스트 다운로드
-        const text = buildTrajectoryText();
-        const txtBlob = new Blob([text], { type: "text/plain;charset=utf-8" });
-        downloadBlob(txtBlob, `trajectory-${stamp}.txt`);
       } catch (err) {
         console.error("[capture] failed:", err);
       } finally {
