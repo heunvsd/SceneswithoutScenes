@@ -169,6 +169,8 @@
       position: fixed;
       pointer-events: none;
       z-index: 4;
+      perspective: 700px;
+      perspective-origin: 50% 50%;
       will-change: transform;
     }
     .text-decay-stage {
@@ -177,6 +179,7 @@
       top:  50%;
       width: 0;
       height: 0;
+      transform-style: preserve-3d;
     }
     .text-decay-glyph {
       position: absolute;
@@ -530,8 +533,8 @@
     const POINT_LIFE = 140;
     const POINT_RADIUS = 75;
 
-    /* 28.png 전용 hold 페이드 루프 주기(ms) */
-    const HOLD_PULSE_PERIOD_MS = 1600;
+    /* 28.png 전용 hold 글리치 사이클 주기(ms) — 짧을수록 빨리 깜빡임 */
+    const HOLD_PULSE_PERIOD_MS = 520;
 
     let mouseX = -9999, mouseY = -9999;
     window.addEventListener("mousemove", (e) => {
@@ -664,12 +667,14 @@
         holdStartTime = performance.now();
 
         if (!frameLoopTimer) {
+          // holdPulse 인스턴스(28.png)는 frame도 더 빠르게 순환
+          const interval = holdPulse ? 90 : FRAME_INTERVAL_MS;
           frameLoopTimer = setInterval(() => {
             if (frames.length > 0) {
               const next = nextValidFrame(currentFrame);
               if (next !== -1) currentFrame = next;
             }
-          }, FRAME_INTERVAL_MS);
+          }, interval);
         }
       }
 
@@ -830,69 +835,70 @@
 
       /* 형상 좌표를 만들어내는 함수: 사람의 옆얼굴 실루엣을 닮은 점들 */
       function generateSilhouettePoints(count, variant) {
+        // 하트 형상 점들 — 매개변수식 하트 곡선 + 채워진 내부의 일부 점
+        // variant는 사이클마다 약간씩 다른 회전/스케일을 주기 위해서만 사용
         const points = [];
-        // variant 마다 살짝 다른 형상: 0=옆얼굴, 1=빈 의자, 2=프레임
-        // 정확하지 않게, 닮은 듯 아닌 듯한 윤곽
-        for (let i = 0; i < count; i++) {
-          const t = i / count;
-          let x, y;
-          if (variant === 0) {
-            // 옆얼굴: 이마-코-입-턱 곡선
-            const angle = t * Math.PI * 2;
-            // 머리 윗부분(둥근 형태) + 얼굴 라인(꺾임)
-            if (t < 0.5) {
-              // 머리 윗부분 - 타원
-              const a = t * 2; // 0~1
-              const aRad = a * Math.PI;
-              x = Math.cos(aRad - Math.PI / 2) * 55;
-              y = Math.sin(aRad - Math.PI / 2) * 70 - 10;
-            } else {
-              // 얼굴 라인: 이마 → 코 끝 → 입 → 턱
-              const a = (t - 0.5) * 2; // 0~1
-              const profile = [
-                {x:  55, y: -40},  // 이마
-                {x:  68, y: -15},  // 콧대
-                {x:  75, y:   5},  // 코끝
-                {x:  60, y:  20},  // 인중
-                {x:  62, y:  35},  // 입
-                {x:  48, y:  55},  // 턱
-                {x:  10, y:  70},  // 목 시작
-                {x: -55, y:  70},  // 목 뒤
-              ];
-              const seg = a * (profile.length - 1);
-              const i0 = Math.floor(seg);
-              const i1 = Math.min(profile.length - 1, i0 + 1);
-              const f = seg - i0;
-              x = profile[i0].x * (1 - f) + profile[i1].x * f;
-              y = profile[i0].y * (1 - f) + profile[i1].y * f;
-            }
-          } else if (variant === 1) {
-            // 빈 의자: 직사각형 윤곽 + 등받이
-            const segs = [
-              {x: -45, y:  50}, {x: -45, y:   0},  // 왼쪽 등받이
-              {x: -45, y: -45}, {x:  45, y: -45},  // 윗부분
-              {x:  45, y:   0}, {x:  45, y:  50},  // 오른쪽 등받이
-              {x:  35, y:  60}, {x: -35, y:  60},  // 다리 아래
-            ];
-            const seg = t * segs.length;
-            const i0 = Math.floor(seg) % segs.length;
-            const i1 = (i0 + 1) % segs.length;
-            const f = seg - Math.floor(seg);
-            x = segs[i0].x * (1 - f) + segs[i1].x * f;
-            y = segs[i0].y * (1 - f) + segs[i1].y * f;
-          } else {
-            // 프레임(액자)
-            const r = 60;
-            const a = t * Math.PI * 2;
-            const sq = Math.max(Math.abs(Math.cos(a)), Math.abs(Math.sin(a)));
-            x = (Math.cos(a) / sq) * r;
-            y = (Math.sin(a) / sq) * r * 0.85;
-          }
-          // 약간의 노이즈로 "정확하지 않게"
-          x += (Math.random() - 0.5) * 8;
-          y += (Math.random() - 0.5) * 8;
-          points.push({ x, y });
+        const baseScale = 4.2;
+        // 사이클마다 살짝 다른 무게중심 — 살아있는 느낌
+        const wobble = (variant * 0.13) % 0.4;
+
+        // 70%는 윤곽선 점, 30%는 내부 채움 점 → 평면 하트가 더 단단해 보임
+        const outlineCount = Math.floor(count * 0.72);
+        const fillCount = count - outlineCount;
+
+        // 윤곽선
+        for (let i = 0; i < outlineCount; i++) {
+          const t = i / outlineCount;
+          const a = t * Math.PI * 2;
+          // 클래식 매개변수 하트 곡선
+          // x = 16 sin³(t)
+          // y = 13 cos(t) − 5 cos(2t) − 2 cos(3t) − cos(4t)
+          const sx = 16 * Math.pow(Math.sin(a), 3);
+          const sy = -(13 * Math.cos(a)
+                     - 5  * Math.cos(2 * a)
+                     - 2  * Math.cos(3 * a)
+                     - 1  * Math.cos(4 * a));
+          let x = sx * baseScale;
+          let y = sy * baseScale - 5;
+          // 약간의 자연스러운 비뚤어짐
+          x += (Math.random() - 0.5) * 4;
+          y += (Math.random() - 0.5) * 4;
+          // 3D 깊이: 윤곽선 점은 표면이므로 z를 약간 두께감 있게 분포
+          const z = (Math.random() - 0.5) * 18;
+          points.push({ x, y, z });
         }
+
+        // 내부 채움 — 하트 안쪽에서 무작위 점
+        let placed = 0;
+        let safety = 0;
+        while (placed < fillCount && safety < fillCount * 30) {
+          safety++;
+          // 후보를 하트 바운딩 박스 안에서 뽑고, 하트 부등식으로 필터
+          const rx = (Math.random() - 0.5) * 2;  // -1 ~ 1
+          const ry = (Math.random() - 0.5) * 2;  // -1 ~ 1
+          // 표준 하트 부등식: (x² + y² − 1)³ − x²·y³ ≤ 0
+          // 여기서 y는 위가 양인 표준 좌표라 부호 뒤집어서 적용
+          const X = rx;
+          const Y = -ry; // 화면 좌표가 아래가 +이므로 반전
+          const lhs = Math.pow(X * X + Y * Y - 1, 3) - X * X * Y * Y * Y;
+          if (lhs <= 0) {
+            const x = rx * 65;
+            const y = ry * 60 - 5;
+            // 내부 점은 z를 더 다양하게 → 3D 볼륨감
+            const z = (Math.random() - 0.5) * 40;
+            points.push({ x, y, z });
+            placed++;
+          }
+        }
+        // 안전망: 못 채운 만큼 윤곽 점 추가
+        while (placed < fillCount) {
+          const a = Math.random() * Math.PI * 2;
+          const sx = 16 * Math.pow(Math.sin(a), 3);
+          const sy = -(13 * Math.cos(a) - 5 * Math.cos(2*a) - 2 * Math.cos(3*a) - Math.cos(4*a));
+          points.push({ x: sx * baseScale, y: sy * baseScale - 5, z: 0 });
+          placed++;
+        }
+
         return points;
       }
 
@@ -1052,7 +1058,7 @@
         decayStartTime = performance.now();
         decayLoopStart = decayStartTime;
         decayLoopCount = 0;
-        decayCycleDuration = 9000; // 첫 사이클: 9초
+        decayCycleDuration = 6500; // 첫 사이클: 6.5초
 
         const tickDecay = (now) => {
           if (!decayRoot) return;
@@ -1081,7 +1087,7 @@
           // 다음 루프
           decayLoopCount++;
           // 형성 시간 단축, 붕괴 가속 — 사이클이 짧아짐
-          decayCycleDuration = Math.max(4500, 9000 * Math.pow(0.85, decayLoopCount));
+          decayCycleDuration = Math.max(3500, 6500 * Math.pow(0.85, decayLoopCount));
           decayLoopStart = now;
           decayCachedSilhouette = null; // 새 형상 셔플
           cycleT = 0;
@@ -1116,11 +1122,43 @@
             const sp = decayCachedSilhouette[idxs[i]];
             decayGlyphs[i].silX = sp.x;
             decayGlyphs[i].silY = sp.y;
+            decayGlyphs[i].silZ = sp.z || 0;
           }
         }
 
+        // forming 페이즈에서 쓸 전역 3D 회전 — 모든 글리프가 같은 회전 적용
+        // 사이클 내에서 한 번 빙 돌도록
+        let formRotY = 0;       // 라디안
+        let formRotX = 0;
+        let heartbeatScale = 1; // 심장박동 펄스
+        if (cycleT >= formingEnd && cycleT < escapeStart) {
+          const u = (cycleT - formingEnd) / Math.max(0.0001, escapeStart - formingEnd);
+          // Y축 회전 — 0 → 2π (한 바퀴)
+          formRotY = u * Math.PI * 2;
+          // X축은 살짝만 기울이는 정도
+          formRotX = Math.sin(u * Math.PI) * 0.25;
+          // 심장박동: 사이클 내에 두 번 두근(빠르게 부풀고 줄어듦)
+          // u 에 대해 [0~0.18]에서 첫 비트, [0.32~0.45]에서 두 번째 비트, 나머지는 정상
+          const beat = (t0, t1, peak) => {
+            if (u < t0 || u > t1) return 0;
+            const v = (u - t0) / (t1 - t0);
+            // 빠른 어택, 천천히 릴리스
+            if (v < 0.25) return (v / 0.25) * peak;
+            return (1 - (v - 0.25) / 0.75) * peak;
+          };
+          heartbeatScale = 1 + beat(0.05, 0.22, 0.18) + beat(0.36, 0.50, 0.14);
+        } else if (cycleT >= escapeStart && cycleT < escapeEnd) {
+          // 형상이 무너지기 시작할 때도 회전이 계속 — 자연스럽게 멈추지 않게
+          const u = (cycleT - escapeStart) / (escapeEnd - escapeStart);
+          formRotY = Math.PI * 2 + u * Math.PI * 0.3;
+          formRotX = (1 - u) * 0.12;
+        }
+
+        const cosY = Math.cos(formRotY), sinY = Math.sin(formRotY);
+        const cosX = Math.cos(formRotX), sinX = Math.sin(formRotX);
+
         for (const g of decayGlyphs) {
-          let x, y, opacity;
+          let x, y, z = 0, opacity;
 
           if (cycleT < 0.10) {
             // scattered: 흩어진 위치, 매우 희미
@@ -1128,58 +1166,69 @@
             const drift = Math.sin(now * 0.001 + g.phase) * 6;
             x = g.scatterX + drift;
             y = g.scatterY + Math.cos(now * 0.001 + g.phase) * 4;
-            opacity = 0.08 + u * 0.07; // 0.08 → 0.15
+            opacity = 0.08 + u * 0.07;
           } else if (cycleT < formingEnd) {
-            // gathering: 흩어진 → 실루엣 형상
+            // gathering: 흩어진 → 하트 형상 (z 깊이까지)
             const u = (cycleT - 0.10) / (formingEnd - 0.10);
-            // easeOutCubic
             const eu = 1 - Math.pow(1 - u, 3);
-            const tx = g.silX;
-            const ty = g.silY;
-            x = g.scatterX * (1 - eu) + tx * eu;
-            y = g.scatterY * (1 - eu) + ty * eu;
-            opacity = 0.15 + eu * 0.55; // 0.15 → 0.70
+            x = g.scatterX * (1 - eu) + g.silX * eu;
+            y = g.scatterY * (1 - eu) + g.silY * eu;
+            z = g.silZ * eu;
+            opacity = 0.15 + eu * 0.55;
           } else if (cycleT < escapeStart) {
-            // forming: 형상 잠깐 유지, 약간의 떨림
-            const u = (cycleT - formingEnd) / Math.max(0.0001, escapeStart - formingEnd);
-            const tremor = Math.sin(now * 0.012 + g.phase) * 1.2;
-            x = g.silX + tremor;
-            y = g.silY + Math.cos(now * 0.011 + g.phase) * 1.2;
-            opacity = 0.85;
+            // forming: 하트가 3D로 한 바퀴 회전 + 심장박동 펄스
+            // (미세 떨림 제거)
+            const sx = g.silX * heartbeatScale;
+            const sy = g.silY * heartbeatScale;
+            const sz = g.silZ * heartbeatScale;
+            // X축 회전 적용 (y, z 변환)
+            const ry  = sy * cosX - sz * sinX;
+            const rz1 = sy * sinX + sz * cosX;
+            // Y축 회전 적용 (x, z 변환)
+            const rx  = sx * cosY + rz1 * sinY;
+            const rz2 = -sx * sinY + rz1 * cosY;
+            x = rx;
+            y = ry;
+            z = rz2;
+            // 깊이감 — 뒤에 있는 글자는 살짝 흐리게
+            const depthN = (z + 30) / 60;
+            opacity = 0.55 + Math.max(0, Math.min(1, depthN)) * 0.40;
           } else if (cycleT < escapeEnd) {
-            // escape: 핵심 단어 먼저 빠짐
+            // escape: 핵심 단어 먼저 빠짐. 나머지는 회전을 유지하면서 자기 자리
             const u = (cycleT - escapeStart) / (escapeEnd - escapeStart);
             if (g.isCore) {
-              // 핵심 단어 이탈
-              const eu = u * u; // easeIn
-              const flyDist = g.escapeSpeed * eu * 1.4;
+              const eu = u * u;
+              const flyDist = g.escapeSpeed * eu * 1.6;
               x = g.silX + g.escapeDX * flyDist;
-              y = g.silY + g.escapeDY * flyDist - eu * 30; // 살짝 위로
+              y = g.silY + g.escapeDY * flyDist - eu * 30;
+              z = g.silZ * (1 - eu);
               opacity = (1 - eu) * 0.85;
             } else {
-              // 비핵심: 약간 떨리며 자기 자리 유지, 형상이 무너지기 시작
-              const tremor = Math.sin(now * 0.018 + g.phase) * (2 + u * 4);
-              x = g.silX + tremor;
-              y = g.silY + Math.cos(now * 0.016 + g.phase) * (2 + u * 3);
-              opacity = 0.85 - u * 0.15;
+              // 회전 잔여
+              const sx = g.silX, sy = g.silY, sz = g.silZ;
+              const ry  = sy * cosX - sz * sinX;
+              const rz1 = sy * sinX + sz * cosX;
+              const rx  = sx * cosY + rz1 * sinY;
+              const rz2 = -sx * sinY + rz1 * cosY;
+              x = rx;
+              y = ry;
+              z = rz2;
+              const depthN = (z + 30) / 60;
+              opacity = (0.55 + Math.max(0, Math.min(1, depthN)) * 0.40) * (1 - u * 0.15);
             }
           } else if (cycleT < collapseEnd) {
-            // collapse: 글자 단위로 가속 이탈, 뒤로 갈수록 빨라짐
+            // collapse: 가속 이탈
             const u = (cycleT - collapseStart) / (collapseEnd - collapseStart);
-            // 가속 곡선 — 뒤로 갈수록 더 빨리
-            const accel = Math.pow(u, 2.4);
-            // 글자별로 약간 다른 시작 (시차)
             const startOffset = g.wordIdxRand * 0.25;
             const localU = Math.max(0, (u - startOffset) / Math.max(0.0001, 1 - startOffset));
             const localAccel = Math.pow(localU, 2.4);
-            // 핵심 단어는 이미 이탈 → 더 멀리
             const baseDist = g.escapeSpeed * (g.isCore ? 2.0 : 1.4);
             const flyDist = baseDist * localAccel * (1 + decayLoopCount * 0.25);
             x = g.silX + g.escapeDX * flyDist;
             y = g.silY + g.escapeDY * flyDist - localAccel * 18;
+            z = g.silZ * (1 - localAccel);
             opacity = (1 - localAccel) * 0.78;
             if (g.isCore) {
-              // 이미 이탈 상태에서 더 빠르게
               const extra = (cycleT - escapeEnd) / Math.max(0.0001, collapseEnd - escapeEnd);
               const ext = extra * extra * 1.8;
               x += g.escapeDX * g.escapeSpeed * ext;
@@ -1187,13 +1236,19 @@
               opacity = Math.max(0, opacity - extra * 0.3);
             }
           } else {
-            // silence: 완전 공백
+            // silence
             x = g.silX + g.escapeDX * 600;
             y = g.silY + g.escapeDY * 600;
+            z = 0;
             opacity = 0;
           }
 
-          g.el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+          // 깊이에 따라 살짝 스케일 변화 — 더 입체적으로
+          const scale = 0.85 + Math.max(0, Math.min(1, (z + 40) / 80)) * 0.30;
+
+          g.el.style.transform =
+            `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px) ` +
+            `scale(${scale.toFixed(3)})`;
           g.el.style.opacity = opacity.toFixed(3);
         }
       }
@@ -1300,16 +1355,80 @@
         const frameImg = frames[currentFrame];
         const frameReady = frameImg && frameImg.complete && frameImg.naturalWidth > 0;
 
-        // hold 중인 28.png는 알파가 사인파처럼 페이드
+        // hold 중인 28.png 전용 글리치 모션 파라미터
+        // 단순 페이드가 아니라: 빠른 깜빡임 + RGB 분리 + 스캔라인 절단 + 위치 흔들림 + 스케일 펄스
         let holdAlpha = 1;
+        let glitchOffsetX = 0, glitchOffsetY = 0;
+        let glitchScale = 1;
+        let glitchSliceY = -1;     // -1이면 슬라이스 비활성
+        let glitchSliceH = 0;
+        let glitchSliceShift = 0;
+        let glitchChromaR = 0, glitchChromaB = 0;
+        let glitchHardCut = false; // 한 사이클의 짧은 순간 완전히 사라지는 깜빡임
+
         if (holdPulse && isHolding) {
-          const elapsedHold = performance.now() - holdStartTime;
+          const now = performance.now();
+          const elapsedHold = now - holdStartTime;
           const phase = (elapsedHold % HOLD_PULSE_PERIOD_MS) / HOLD_PULSE_PERIOD_MS;
-          // 0~1 → 사인 0~1: 한 사이클당 fade-out → fade-in 한 번
-          holdAlpha = 0.5 + 0.5 * Math.cos(phase * Math.PI * 2);
+
+          // 알파: 톱니파 비슷한 빠른 깜빡임 (확 어두워졌다 확 밝아짐)
+          // phase 0~0.15 : 갑자기 dim
+          // phase 0.15~0.55 : 다시 회복
+          // phase 0.55~0.65 : 한 번 더 짧게 dim
+          // phase 0.65~1.0 : 밝게 유지하며 미세 떨림
+          if (phase < 0.15) {
+            holdAlpha = 0.18 + (phase / 0.15) * 0.55;
+          } else if (phase < 0.55) {
+            holdAlpha = 0.73 + ((phase - 0.15) / 0.40) * 0.27;
+          } else if (phase < 0.65) {
+            const u = (phase - 0.55) / 0.10;
+            holdAlpha = 1.0 - Math.sin(u * Math.PI) * 0.55;
+          } else {
+            holdAlpha = 0.92 + Math.sin(phase * 60) * 0.06;
+          }
+
+          // 사이클 내 짧은 hard cut (한 번씩 완전히 사라짐)
+          // 매 사이클 시작 직후 짧은 구간
+          if (phase < 0.04) glitchHardCut = true;
+          // 사이클 후반 어딘가에 한 번 더 짧게
+          if (phase > 0.58 && phase < 0.605) glitchHardCut = true;
+
+          // 위치 흔들림: 빠른 노이즈성 진동 — 사이클당 6~8회 흔들리는 듯
+          glitchOffsetX = Math.sin(elapsedHold * 0.045) * 6
+                        + Math.sin(elapsedHold * 0.13) * 3;
+          glitchOffsetY = Math.cos(elapsedHold * 0.038) * 4
+                        + Math.cos(elapsedHold * 0.17) * 2;
+
+          // 스케일 펄스 — 사이클마다 한 번 살짝 부풀고 줄어듦
+          glitchScale = 1 + Math.sin(phase * Math.PI * 2) * 0.06;
+
+          // 슬라이스(스캔라인 끊김): 사이클당 두 번 정도, 짧은 순간만 발동
+          // pseudo-random: 사이클 인덱스 기반 시드
+          const cycleIdx = Math.floor(elapsedHold / HOLD_PULSE_PERIOD_MS);
+          const seedA = (Math.sin(cycleIdx * 12.9898) * 43758.5453) % 1;
+          const seedB = (Math.sin(cycleIdx * 78.233 + 1.7) * 43758.5453) % 1;
+          const sa = Math.abs(seedA);
+          const sb = Math.abs(seedB);
+          // 첫 슬라이스: phase 0.20~0.30
+          if (phase > 0.20 && phase < 0.30) {
+            glitchSliceY = sa * H;
+            glitchSliceH = 6 + sa * 18;
+            glitchSliceShift = (sa - 0.5) * 30;
+          }
+          // 두 번째 슬라이스: phase 0.70~0.78
+          else if (phase > 0.70 && phase < 0.78) {
+            glitchSliceY = sb * H;
+            glitchSliceH = 4 + sb * 14;
+            glitchSliceShift = (sb - 0.5) * 24;
+          }
+
+          // RGB 크로마틱 분리 — 흔들림에 비례
+          const chromaAmt = (Math.abs(glitchOffsetX) + Math.abs(glitchOffsetY)) * 0.18;
+          glitchChromaR = chromaAmt;
+          glitchChromaB = -chromaAmt;
         }
 
-        if (frameReady && trail.length > 0) {
+        if (frameReady && trail.length > 0 && !glitchHardCut) {
           for (let i = trail.length - 1; i >= 0; i--) {
             const p = trail[i];
             p.age++;
@@ -1325,7 +1444,6 @@
               const t = (life - 0.35) / 0.65;
               alpha = Math.pow(1 - t, 2.2) * 0.7;
             }
-            // hold pulse 적용 (28.png 전용)
             alpha *= holdAlpha;
             if (alpha < 0.005) continue;
 
@@ -1348,7 +1466,54 @@
             ctx.fill();
           }
           ctx.globalCompositeOperation = "source-in";
-          ctx.drawImage(frameImg, 0, 0, W, H);
+
+          if (holdPulse && isHolding) {
+            // 글리치 모드: 변형된 transform으로 메인 이미지 + 크로마틱 분리 + 슬라이스 시프트
+            const cx = W / 2, cy = H / 2;
+
+            // 1) 메인 본체 (스케일 + 오프셋)
+            ctx.save();
+            ctx.translate(cx + glitchOffsetX, cy + glitchOffsetY);
+            ctx.scale(glitchScale, glitchScale);
+            ctx.translate(-cx, -cy);
+            ctx.drawImage(frameImg, 0, 0, W, H);
+            ctx.restore();
+
+            // 2) 크로마틱 분리 (R 채널 시뮬레이션 - 빨강 톤으로 살짝 옆에 한 번 더)
+            if (Math.abs(glitchChromaR) > 0.5) {
+              ctx.save();
+              ctx.globalCompositeOperation = "lighter";
+              ctx.globalAlpha = 0.35;
+              ctx.translate(cx + glitchOffsetX + glitchChromaR, cy + glitchOffsetY);
+              ctx.scale(glitchScale, glitchScale);
+              ctx.translate(-cx, -cy);
+              ctx.drawImage(frameImg, 0, 0, W, H);
+              ctx.restore();
+
+              ctx.save();
+              ctx.globalCompositeOperation = "lighter";
+              ctx.globalAlpha = 0.35;
+              ctx.translate(cx + glitchOffsetX + glitchChromaB, cy + glitchOffsetY);
+              ctx.scale(glitchScale, glitchScale);
+              ctx.translate(-cx, -cy);
+              ctx.drawImage(frameImg, 0, 0, W, H);
+              ctx.restore();
+            }
+
+            // 3) 슬라이스 시프트 (스캔라인 끊김) — 가로 띠 한 줄을 옆으로 밀어냄
+            if (glitchSliceY >= 0 && glitchSliceH > 0) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(0, glitchSliceY, W, glitchSliceH);
+              ctx.clip();
+              ctx.translate(glitchSliceShift, 0);
+              ctx.drawImage(frameImg, 0, 0, W, H);
+              ctx.restore();
+            }
+          } else {
+            ctx.drawImage(frameImg, 0, 0, W, H);
+          }
+
           ctx.globalCompositeOperation = "source-over";
         }
 
