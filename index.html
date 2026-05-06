@@ -835,15 +835,15 @@
 
       /* 형상 좌표를 만들어내는 함수: 사람의 옆얼굴 실루엣을 닮은 점들 */
       function generateSilhouettePoints(count, variant) {
-        // 부피감 있는 하트 — 윤곽선 + 내부 채움 + 두꺼운 z 분포
+        // 정확한 하트 형상 — 윤곽선과 내부를 균일 분포로
         const points = [];
         const baseScale = 4.2;
 
-        // 60% 윤곽, 40% 내부 (내부 비율을 늘려 부피감 강화)
-        const outlineCount = Math.floor(count * 0.60);
+        // 50% 윤곽선(또렷하게), 50% 내부 채움(균일하게)
+        const outlineCount = Math.floor(count * 0.50);
         const fillCount = count - outlineCount;
 
-        // 윤곽선 — 두 겹(앞/뒤)으로 나눠서 두께를 줌
+        // 윤곽선 — 매개변수 곡선 위 균일 간격으로 배치 (노이즈 거의 없이)
         for (let i = 0; i < outlineCount; i++) {
           const t = i / outlineCount;
           const a = t * Math.PI * 2;
@@ -852,18 +852,14 @@
                      - 5  * Math.cos(2 * a)
                      - 2  * Math.cos(3 * a)
                      - 1  * Math.cos(4 * a));
-          let x = sx * baseScale;
-          let y = sy * baseScale - 5;
-          x += (Math.random() - 0.5) * 3;
-          y += (Math.random() - 0.5) * 3;
-          // 윤곽선은 두 면(앞/뒤)으로 — 두께감 있는 하트의 측면
-          // 절반은 앞면, 절반은 뒷면
-          const front = (i % 2 === 0);
-          const z = (front ? 1 : -1) * (28 + Math.random() * 14);
+          const x = sx * baseScale;
+          const y = sy * baseScale - 5;
+          // 윤곽선은 z를 살짝만 — 두께가 너무 크면 형상이 흐려짐
+          const z = (Math.random() - 0.5) * 10;
           points.push({ x, y, z });
         }
 
-        // 내부 채움 — 3D 볼륨감을 위해 하트 부등식 안 + z를 표면이 곡면이 되도록
+        // 내부 채움 — 하트 부등식 안쪽에 균일 분포
         let placed = 0;
         let safety = 0;
         while (placed < fillCount && safety < fillCount * 30) {
@@ -876,13 +872,7 @@
           if (lhs <= 0) {
             const x = rx * 65;
             const y = ry * 60 - 5;
-            // 내부 점은 곡면 — 중앙은 두껍고, 가장자리로 갈수록 얇게
-            // 거리(0~1)에 반비례한 z 분포
-            const r2 = X * X + Y * Y; // 0 (중심) ~ 1 정도
-            const surfaceZ = Math.sqrt(Math.max(0, 1 - r2)) * 38;
-            // 앞/뒤 두 면 + 약간의 노이즈
-            const side = Math.random() < 0.5 ? 1 : -1;
-            const z = side * (surfaceZ * (0.6 + Math.random() * 0.4));
+            const z = (Math.random() - 0.5) * 14;
             points.push({ x, y, z });
             placed++;
           }
@@ -1024,26 +1014,17 @@
           const baseX = it.lineX + offsetX;
           const baseY = it.lineY + offsetY;
 
-          // 흩어진 시작 위치 — 3D 구 위에 분포 (z 깊이 포함)
-          // 화면을 둘러싼 큰 구의 한 점에서 시작
+          // 흩어진 시작 위치 — 차분하게 가까운 거리에서, 3D 구 위에 분포
           const scatterTheta = Math.random() * Math.PI * 2;
           const scatterPhi = Math.acos(2 * Math.random() - 1);
-          const scatterDist = 280 + Math.random() * 220;
+          const scatterDist = 140 + Math.random() * 100;
           const scatterX = scatterDist * Math.sin(scatterPhi) * Math.cos(scatterTheta);
-          const scatterY = scatterDist * Math.cos(scatterPhi) * 0.65;
-          const scatterZ = scatterDist * Math.sin(scatterPhi) * Math.sin(scatterTheta) * 0.7;
+          const scatterY = scatterDist * Math.cos(scatterPhi) * 0.6;
+          const scatterZ = scatterDist * Math.sin(scatterPhi) * Math.sin(scatterTheta) * 0.6;
 
-          // 빨려들어올 때 곡선 경로용 — 각 글자마다 다른 경로 곡률
+          // 곡선 경로 곡률 (가더링용)
           const curveSeed = Math.random() * Math.PI * 2;
-          const curveAmt = 60 + Math.random() * 80;
-
-          // 텀블링(자기 회전) — 이탈할 때 종이조각처럼 돌면서 날아감
-          const tumbleRateX = (Math.random() - 0.5) * 720; // deg/s
-          const tumbleRateY = (Math.random() - 0.5) * 720;
-          const tumbleRateZ = (Math.random() - 0.5) * 540;
-          const tumbleStartX = Math.random() * 360;
-          const tumbleStartY = Math.random() * 360;
-          const tumbleStartZ = Math.random() * 360;
+          const curveAmt = 30 + Math.random() * 40;
 
           decayGlyphs.push({
             el,
@@ -1053,12 +1034,10 @@
             baseX, baseY,
             scatterX, scatterY, scatterZ,
             curveSeed, curveAmt,
-            tumbleRateX, tumbleRateY, tumbleRateZ,
-            tumbleStartX, tumbleStartY, tumbleStartZ,
             phase: Math.random() * Math.PI * 2,
             wordIdxRand: Math.random(),
-            // 글자별 시간 오프셋 — gathering이 한꺼번에 안 일어나게
-            arrivalDelay: Math.random() * 0.35, // 0~0.35 사이클 단위
+            // 글자별 시간 오프셋 — 한꺼번에 안 모이게
+            arrivalDelay: Math.random() * 0.4,
           });
         }
 
@@ -1066,7 +1045,7 @@
         decayStartTime = performance.now();
         decayLoopStart = decayStartTime;
         decayLoopCount = 0;
-        decayCycleDuration = 6500; // 첫 사이클: 6.5초
+        decayCycleDuration = 8500; // 첫 사이클: 8.5초 (차분하게 길게)
 
         const tickDecay = (now) => {
           if (!decayRoot) return;
@@ -1095,32 +1074,25 @@
           // 다음 루프
           decayLoopCount++;
           // 형성 시간 단축, 붕괴 가속 — 사이클이 짧아짐
-          decayCycleDuration = Math.max(3500, 6500 * Math.pow(0.85, decayLoopCount));
+          decayCycleDuration = Math.max(6500, 8500 * Math.pow(0.93, decayLoopCount));
           decayLoopStart = now;
           decayCachedSilhouette = null; // 새 형상 셔플
           cycleT = 0;
         }
 
-        // 페이즈 분배 (루프가 진행될수록 형상 시간↓, 붕괴 시간↓)
-        // 0.00 - 0.10 : scattered
-        // 0.10 - 0.40 : gathering (점점 짧아짐)
-        // 0.40 - 0.50 : forming (잠깐 완성)
-        // 0.50 - 0.62 : escape (핵심 단어 이탈)
-        // 0.62 - 0.92 : collapse (모든 글자 가속 이탈)
-        // 0.92 - 1.00 : silence
-        const decayLoopFactor = Math.pow(0.88, decayLoopCount);
-        const formingEnd = 0.40 + 0.10 * decayLoopFactor; // 점점 빨리 끝남
-        const escapeStart = formingEnd;
-        const escapeEnd   = escapeStart + 0.12 * decayLoopFactor;
-        const collapseStart = escapeEnd;
-        const collapseEnd   = 0.92;
+        // 페이즈 분배 — 차분한 사이클
+        // 0.00 - 0.45 : gathering   (글자들이 곡선 경로로 모여들어 하트 형성)
+        // 0.45 - 0.85 : breathing   (하트가 천천히 회전 + 부드러운 호흡 / 가장 길게)
+        // 0.85 - 1.00 : dissolve    (천천히 페이드 아웃, 흩어지지 않음)
+        const formingEnd = 0.45;
+        const breathingEnd = 0.85;
 
         // 실루엣 좌표 보장
         if (!decayCachedSilhouette) {
-          const variant = (decayLoopCount + decayCachedVariant + 1) % 3;
+          const variant = decayLoopCount % 3;
           decayCachedVariant = variant;
           decayCachedSilhouette = generateSilhouettePoints(decayGlyphs.length, variant);
-          // 글자에 형상 점 매핑 (단어 순서대로 나란히 두면 단어가 형상에 줄지어 박힘 → 셔플)
+          // 글자에 형상 점 매핑
           const idxs = decayGlyphs.map((_, i) => i);
           for (let i = idxs.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1134,45 +1106,34 @@
           }
         }
 
-        // 모든 페이즈에서 회전이 살아있도록 — 사이클 전체에 걸쳐 회전이 가속
-        // gathering 끝 ~ collapse 까지 회전 적용
-        // formRotY: 사이클 진행도에 따라 누적 (점점 빨라짐)
+        // 회전 — 사이클 전체에 걸쳐 천천히 일정 속도로 (역동적이지 않게)
+        // gathering부터 시작해서 breathing 동안 한 바퀴 정도, 매우 부드럽게
         let formRotY = 0;
         let formRotX = 0;
-        let heartbeatScale = 1;
+        let breathScale = 1;
 
-        if (cycleT < 0.10) {
-          // scattered — 회전 0
-        } else if (cycleT < formingEnd) {
-          // gathering 단계에서도 살짝 회전 시작
-          const u = (cycleT - 0.10) / (formingEnd - 0.10);
-          formRotY = u * 0.6;
-          formRotX = Math.sin(u * Math.PI) * 0.15;
-        } else if (cycleT < escapeStart) {
-          // forming: 한 바퀴 회전 + 심장박동
-          const u = (cycleT - formingEnd) / Math.max(0.0001, escapeStart - formingEnd);
-          formRotY = 0.6 + u * Math.PI * 2;
-          formRotX = Math.sin(u * Math.PI + 0.5) * 0.30;
-          const beat = (t0, t1, peak) => {
-            if (u < t0 || u > t1) return 0;
-            const v = (u - t0) / (t1 - t0);
-            if (v < 0.25) return (v / 0.25) * peak;
-            return (1 - (v - 0.25) / 0.75) * peak;
-          };
-          heartbeatScale = 1 + beat(0.05, 0.22, 0.20) + beat(0.36, 0.50, 0.16);
-        } else if (cycleT < collapseEnd) {
-          // escape & collapse: 회전이 점점 빨라짐 (원심력 효과)
-          const u = (cycleT - escapeStart) / (collapseEnd - escapeStart);
-          // 가속 회전: u² 곡선
-          const spinAccel = u + u * u * 3.5;
-          formRotY = 0.6 + Math.PI * 2 + spinAccel * Math.PI * 2;
-          formRotX = (1 - u) * 0.20;
+        if (cycleT < formingEnd) {
+          // gathering: 회전 없거나 아주 살짝
+          const u = cycleT / formingEnd;
+          formRotY = u * 0.3;
+          formRotX = Math.sin(u * Math.PI) * 0.08;
+        } else if (cycleT < breathingEnd) {
+          // breathing: 차분한 회전 (한 바퀴 살짝 안 되게)
+          const u = (cycleT - formingEnd) / (breathingEnd - formingEnd);
+          formRotY = 0.3 + u * Math.PI * 1.6;
+          formRotX = Math.sin(u * Math.PI) * 0.18;
+          // 부드러운 호흡 — 사인파 한 번
+          breathScale = 1 + Math.sin(u * Math.PI * 2) * 0.05;
+        } else {
+          // dissolve: 회전 멈추듯 매우 천천히
+          const u = (cycleT - breathingEnd) / (1 - breathingEnd);
+          formRotY = 0.3 + Math.PI * 1.6 + u * 0.15;
+          formRotX = (1 - u) * 0.10;
         }
 
         const cosY = Math.cos(formRotY), sinY = Math.sin(formRotY);
         const cosX = Math.cos(formRotX), sinX = Math.sin(formRotX);
 
-        // 회전 변환 적용 함수
         function applyRotation(sx, sy, sz) {
           const ry  = sy * cosX - sz * sinX;
           const rz1 = sy * sinX + sz * cosX;
@@ -1183,149 +1144,68 @@
 
         for (const g of decayGlyphs) {
           let x, y, z = 0, opacity;
-          // 글자 자체 회전(텀블링) 각도 (deg)
-          let tumX = 0, tumY = 0, tumZ = 0;
 
-          if (cycleT < 0.10) {
-            // scattered: 3D 구의 한 점에서 살짝 떠다님 (z 포함)
-            const u = cycleT / 0.10;
-            const drift = Math.sin(now * 0.0012 + g.phase) * 5;
-            const drift2 = Math.cos(now * 0.0011 + g.phase) * 4;
-            x = g.scatterX + drift;
-            y = g.scatterY + drift2;
-            z = g.scatterZ;
-            opacity = 0.05 + u * 0.10;
-          } else if (cycleT < formingEnd) {
-            // gathering: 곡선 경로(베지에 같은) + 글자별 시간차
-            // 각 글자가 자기 arrivalDelay만큼 늦게 출발하고, 곡선으로 빨려들어옴
-            const rawU = (cycleT - 0.10) / (formingEnd - 0.10);
-            // 각 글자마다 다른 진행도 — 늦게 출발하고 더 빨리 도달
+          if (cycleT < formingEnd) {
+            // gathering: 차분히 모여들어 하트 형성
+            // 각 글자마다 시간차(arrivalDelay)
+            const rawU = cycleT / formingEnd;
             const localU = Math.max(0, Math.min(1,
               (rawU - g.arrivalDelay * 0.5) / (1 - g.arrivalDelay * 0.5)
             ));
-            // easeInOutCubic — 시작/끝 모두 부드럽게
+            // easeInOutCubic
             const eu = localU < 0.5
               ? 4 * localU * localU * localU
               : 1 - Math.pow(-2 * localU + 2, 3) / 2;
 
-            // 직선 보간 + 곡선 편차
-            // 베지에 풍의 곡선: 중간(eu=0.5)에서 가장 큰 편차, 끝점에서 0
+            // 직선 보간 + 부드러운 곡선 편차
             const lx = g.scatterX * (1 - eu) + g.silX * eu;
             const ly = g.scatterY * (1 - eu) + g.silY * eu;
             const lz = g.scatterZ * (1 - eu) + g.silZ * eu;
 
-            // 곡선 편차 — sin(eu·π)는 0→1→0 형태
             const curveBlend = Math.sin(eu * Math.PI);
             const cx_off = Math.cos(g.curveSeed) * g.curveAmt * curveBlend;
-            const cy_off = Math.sin(g.curveSeed) * g.curveAmt * curveBlend;
-            const cz_off = Math.cos(g.curveSeed * 1.7) * g.curveAmt * 0.6 * curveBlend;
+            const cy_off = Math.sin(g.curveSeed) * g.curveAmt * curveBlend * 0.7;
+            const cz_off = Math.cos(g.curveSeed * 1.7) * g.curveAmt * 0.5 * curveBlend;
 
-            // 회전 적용 (gathering 후반부에 회전이 살짝 살아있음)
             const rotated = applyRotation(lx + cx_off, ly + cy_off, lz + cz_off);
             x = rotated.x;
             y = rotated.y;
             z = rotated.z;
 
-            // opacity — 멀리 있을 땐 희미, 가까워질수록 진해짐
-            opacity = 0.10 + eu * 0.65;
-          } else if (cycleT < escapeStart) {
-            // forming: 회전 + 심장박동 (떨림 없이 깔끔하게)
-            const sx = g.silX * heartbeatScale;
-            const sy = g.silY * heartbeatScale;
-            const sz = g.silZ * heartbeatScale;
+            opacity = 0.05 + eu * 0.75;
+          } else if (cycleT < breathingEnd) {
+            // breathing: 하트가 모인 채로 천천히 회전 + 호흡
+            const sx = g.silX * breathScale;
+            const sy = g.silY * breathScale;
+            const sz = g.silZ * breathScale;
             const r = applyRotation(sx, sy, sz);
             x = r.x; y = r.y; z = r.z;
-            const depthN = (z + 40) / 80;
-            opacity = 0.55 + Math.max(0, Math.min(1, depthN)) * 0.40;
-          } else if (cycleT < escapeEnd) {
-            // escape: 핵심 단어들이 위로 떠올라 증발
-            // 나머지는 아직 하트 자리에서 회전 중 (다만 살짝 부풀어 오름 = 임박감)
-            const u = (cycleT - escapeStart) / (escapeEnd - escapeStart);
-            if (g.isCore) {
-              // 위로 솟구치며 사라짐 — y 음수 방향(위), 약간 전방(z+)
-              const eu = u * u; // ease-in
-              // 회전된 위치에서 출발해 위로 솟음
-              const r = applyRotation(g.silX, g.silY, g.silZ);
-              const liftY = -120 * eu;
-              const liftZ = 30 * eu;
-              x = r.x + (Math.random() - 0.5) * 0.5; // 거의 0 — 옆으로 안 새고 위로만
-              y = r.y + liftY;
-              z = r.z + liftZ;
-              // 위로 갈수록 흐려지면서 살짝 작아짐
-              opacity = (1 - eu) * 0.85;
-              // 텀블링 시작
-              const dt = u * 0.5;
-              tumX = g.tumbleStartX + g.tumbleRateX * dt;
-              tumY = g.tumbleStartY + g.tumbleRateY * dt;
-              tumZ = g.tumbleStartZ + g.tumbleRateZ * dt;
-            } else {
-              // 비핵심: 회전 유지, 하트 약간 들썩임 (불안정해짐)
-              const wobble = 1 + Math.sin(u * Math.PI * 2) * 0.04;
-              const r = applyRotation(g.silX * wobble, g.silY * wobble, g.silZ * wobble);
-              x = r.x; y = r.y; z = r.z;
-              const depthN = (z + 40) / 80;
-              opacity = (0.55 + Math.max(0, Math.min(1, depthN)) * 0.40);
-            }
-          } else if (cycleT < collapseEnd) {
-            // collapse: 회전의 접선 방향으로 튕겨나감 + 텀블링
-            // 회전이 빨라지면서 원심력으로 흩어지는 효과
-            const u = (cycleT - collapseStart) / (collapseEnd - collapseStart);
-            const startOffset = g.wordIdxRand * 0.30;
-            const localU = Math.max(0, (u - startOffset) / Math.max(0.0001, 1 - startOffset));
-            // 가속 곡선
-            const localAccel = Math.pow(localU, 2.0);
-
-            // 현재 회전된 위치를 기준점으로
-            const rPos = applyRotation(g.silX, g.silY, g.silZ);
-
-            // 접선 방향(원심) — 회전축이 Y라면 접선은 (cosY, 0, -sinY) 같은 형태
-            // 위치의 xz 평면 사영의 방사 방향(원심)을 사용
-            const radial = Math.hypot(rPos.x, rPos.z);
-            const rx = radial > 0.01 ? rPos.x / radial : 0;
-            const rz = radial > 0.01 ? rPos.z / radial : 0;
-
-            // 핵심 단어는 이미 escape에서 위로 갔으니 더 빨리/멀리
-            const speedMul = g.isCore ? 2.4 : 1.6;
-            const baseDist = 200 * speedMul * (1 + decayLoopCount * 0.3);
-            const flyR = baseDist * localAccel;
-
-            // y는 살짝 위로 떠오르며(중력 반대로 보이지만 사라지는 느낌)
-            const flyY = -localAccel * 60 * (g.isCore ? 1.4 : 1.0);
-
-            x = rPos.x + rx * flyR;
-            y = rPos.y + flyY;
-            z = rPos.z + rz * flyR;
-
-            // 핵심 단어는 escape에서 시작한 lift 더해줌
-            if (g.isCore) {
-              y -= 120; // escape 끝의 위치에서 이어짐
-            }
-
-            opacity = (1 - localAccel) * 0.78;
-
-            // 텀블링 — collapse 동안 빠르게 회전
-            const dt = (cycleT - collapseStart) * decayCycleDuration / 1000;
-            tumX = g.tumbleStartX + g.tumbleRateX * dt;
-            tumY = g.tumbleStartY + g.tumbleRateY * dt;
-            tumZ = g.tumbleStartZ + g.tumbleRateZ * dt;
+            // 깊이에 따른 opacity — 너무 크지 않게
+            const depthN = (z + 30) / 60;
+            opacity = 0.65 + Math.max(0, Math.min(1, depthN)) * 0.30;
           } else {
-            // silence
-            x = 0; y = 0; z = 0;
-            opacity = 0;
+            // dissolve: 위치는 거의 그대로, opacity만 천천히 줄어듦
+            const u = (cycleT - breathingEnd) / (1 - breathingEnd);
+            const r = applyRotation(g.silX, g.silY, g.silZ);
+            x = r.x; y = r.y; z = r.z;
+            // 글자별 미세한 시간차로 사라짐 — 일제히 끝나지 않게
+            const startOffset = g.wordIdxRand * 0.4;
+            const localU = Math.max(0, Math.min(1,
+              (u - startOffset * 0.5) / (1 - startOffset * 0.5)
+            ));
+            const fadeEu = 1 - Math.pow(1 - localU, 2.0);
+            const depthN = (z + 30) / 60;
+            const baseOp = 0.65 + Math.max(0, Math.min(1, depthN)) * 0.30;
+            opacity = baseOp * (1 - fadeEu);
           }
 
-          // 깊이에 따라 스케일 — 더 강한 원근감
-          const depthScaleN = Math.max(0, Math.min(1, (z + 60) / 120));
-          const scale = 0.75 + depthScaleN * 0.45;
+          // 깊이에 따른 스케일 — 차분한 원근
+          const depthScaleN = Math.max(0, Math.min(1, (z + 40) / 80));
+          const scale = 0.85 + depthScaleN * 0.30;
 
-          // 텀블링 회전 transform 추가
-          let transform =
+          g.el.style.transform =
             `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px) ` +
             `scale(${scale.toFixed(3)})`;
-          if (tumX !== 0 || tumY !== 0 || tumZ !== 0) {
-            transform += ` rotateX(${tumX.toFixed(1)}deg) rotateY(${tumY.toFixed(1)}deg) rotateZ(${tumZ.toFixed(1)}deg)`;
-          }
-          g.el.style.transform = transform;
           g.el.style.opacity = opacity.toFixed(3);
         }
       }
