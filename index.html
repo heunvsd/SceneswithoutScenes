@@ -909,6 +909,44 @@
 
       const ctx = canvas.getContext("2d");
 
+      // 오버레이 이미지 (선택) — 베이스 이미지 위에 같은 마스크로 reveal되며,
+      // holdPulse가 켜져 있으면 알파 펄스가 이 이미지에만 적용됨.
+      let overlayImg = null;
+      const overlayFilename = config.overlayFilename || null;
+      if (overlayFilename) {
+        const oi = new Image();
+        try { oi.crossOrigin = "anonymous"; } catch(e) {}
+        oi.onerror = () => { oi._broken = true; };
+        oi.onload = () => {
+          // 오버레이 이미지의 색상도 인스턴스 팔레트에 합침
+          try {
+            const extra = extractPaletteFromImage(oi, 8);
+            if (extra.length > 0 && instance && instance.name) {
+              const cur = instancePalettes.get(instance.name) || [];
+              // 단순 병합 — 중복 키 제거
+              const seen = new Set(cur.map(c => `${c.r},${c.g},${c.b}`));
+              for (const c of extra) {
+                const k = `${c.r},${c.g},${c.b}`;
+                if (!seen.has(k)) { cur.push(c); seen.add(k); }
+              }
+              instancePalettes.set(instance.name, cur);
+              console.info(`[palette] ${instance.name} (+overlay):`, cur);
+              reapplyPaletteToOutro();
+            }
+          } catch (e) {
+            console.warn("[palette] overlay extract failed:", e);
+          }
+        };
+        oi.src = IMAGE_BASE_PATH + overlayFilename;
+        overlayImg = oi;
+      }
+
+      // 마스크/합성을 위한 오프스크린 캔버스 (재사용)
+      let maskCanvas = null;
+      let maskCtx = null;
+      let compCanvas = null;
+      let compCtx = null;
+
       function resizeCanvas() {
         // 캔버스 백킹 픽셀은 항상 줌 영향 안 받는 본래 크기(size) 기준으로 잡는다.
         // 이렇게 해야 #world의 transform: scale() 이 캔버스 element를 비례적으로
@@ -1932,6 +1970,23 @@
         }
 
         if (frameReady && trail.length > 0) {
+          // ─────────────────────────────────────────
+          // 1단계: 트레일을 오프스크린 마스크 캔버스에 한 번만 그림
+          //        (그래야 base / overlay 두 레이어에 같은 마스크 재사용 가능)
+          // ─────────────────────────────────────────
+          if (!maskCanvas) {
+            maskCanvas = document.createElement("canvas");
+            maskCtx = maskCanvas.getContext("2d");
+          }
+          const dprForMask = Math.min(window.devicePixelRatio || 1, 2);
+          if (maskCanvas.width !== Math.round(W * dprForMask) ||
+              maskCanvas.height !== Math.round(H * dprForMask)) {
+            maskCanvas.width  = Math.round(W * dprForMask);
+            maskCanvas.height = Math.round(H * dprForMask);
+            maskCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+          }
+          maskCtx.clearRect(0, 0, W, H);
+
           for (let i = trail.length - 1; i >= 0; i--) {
             const p = trail[i];
             p.age++;
@@ -1947,8 +2002,8 @@
               const t = (life - 0.35) / 0.65;
               alpha = Math.pow(1 - t, 2.2) * 0.7;
             }
-            // hold pulse 적용 (28.png 전용)
-            alpha *= holdAlpha;
+            // ※ 여기서는 holdAlpha를 곱하지 않음 — 마스크는 base/overlay 공통.
+            //   holdPulse는 overlay 이미지 그릴 때만 적용한다.
             if (alpha < 0.005) continue;
 
             const drift = p.driftAmt * Math.sin(p.driftSeed + p.age * 0.025);
@@ -1957,57 +2012,97 @@
             const py = p.y + drift2 * 0.6;
             const r  = p.radius;
 
-            const grad = ctx.createRadialGradient(px, py, 0, px, py, r);
+            const grad = maskCtx.createRadialGradient(px, py, 0, px, py, r);
             grad.addColorStop(0,    `rgba(0,0,0,${alpha})`);
             grad.addColorStop(0.18, `rgba(0,0,0,${alpha * 0.92})`);
             grad.addColorStop(0.40, `rgba(0,0,0,${alpha * 0.65})`);
             grad.addColorStop(0.65, `rgba(0,0,0,${alpha * 0.30})`);
             grad.addColorStop(0.85, `rgba(0,0,0,${alpha * 0.08})`);
             grad.addColorStop(1,    `rgba(0,0,0,0)`);
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(px, py, r, 0, Math.PI * 2);
-            ctx.fill();
+            maskCtx.fillStyle = grad;
+            maskCtx.beginPath();
+            maskCtx.arc(px, py, r, 0, Math.PI * 2);
+            maskCtx.fill();
           }
-          ctx.globalCompositeOperation = "source-in";
-          // 09.png 전용: hold 중 저해상도 모핑 루프
-          if (holdLowRes && isHolding) {
-            const elapsedHoldLR = performance.now() - holdStartTime;
-            const phaseLR = (elapsedHoldLR % HOLD_LOWRES_PERIOD_MS) / HOLD_LOWRES_PERIOD_MS;
-            // 한 사이클 동안: 고해상 → 저해상 → 고해상 (코사인 보간)
-            const tLR = (1 - Math.cos(phaseLR * Math.PI * 2)) / 2; // 0..1..0
-            // 비선형 보간으로 저해상 구간이 더 인상적으로 머무름
-            const eased = Math.pow(tLR, 1.6);
-            const pixSize = Math.max(2, Math.round(
-              HOLD_LOWRES_MAX_PX - (HOLD_LOWRES_MAX_PX - HOLD_LOWRES_MIN_PX) * eased
-            ));
 
-            if (!lowResCanvas) {
-              lowResCanvas = document.createElement("canvas");
-              lowResCtx = lowResCanvas.getContext("2d");
+          // ─────────────────────────────────────────
+          // 2단계: 합성용 오프스크린에 마스크 → 이미지 source-in 으로 잘라서
+          //        본 캔버스에 차례로 그려 올림 (base 먼저, overlay 나중)
+          // ─────────────────────────────────────────
+          if (!compCanvas) {
+            compCanvas = document.createElement("canvas");
+            compCtx = compCanvas.getContext("2d");
+          }
+          if (compCanvas.width !== Math.round(W * dprForMask) ||
+              compCanvas.height !== Math.round(H * dprForMask)) {
+            compCanvas.width  = Math.round(W * dprForMask);
+            compCanvas.height = Math.round(H * dprForMask);
+            compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+          }
+
+          // 한 레이어를 마스크와 source-in 으로 합성해 본 캔버스에 그리는 헬퍼
+          function compositeLayer(layerImg, layerAlpha, useLowRes) {
+            if (!layerImg || layerImg._broken || !layerImg.complete || layerImg.naturalWidth === 0) return;
+            // 합성 캔버스 초기화 → 마스크 그리기 → source-in 으로 이미지 합성
+            compCtx.save();
+            compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+            compCtx.clearRect(0, 0, W, H);
+            compCtx.globalCompositeOperation = "source-over";
+            compCtx.drawImage(maskCanvas, 0, 0, W, H);
+            compCtx.globalCompositeOperation = "source-in";
+
+            if (useLowRes) {
+              // 09.png 전용: 저해상도 픽셀 모핑
+              const elapsedHoldLR = performance.now() - holdStartTime;
+              const phaseLR = (elapsedHoldLR % HOLD_LOWRES_PERIOD_MS) / HOLD_LOWRES_PERIOD_MS;
+              const tLR = (1 - Math.cos(phaseLR * Math.PI * 2)) / 2;
+              const eased = Math.pow(tLR, 1.6);
+              const pixSize = Math.max(2, Math.round(
+                HOLD_LOWRES_MAX_PX - (HOLD_LOWRES_MAX_PX - HOLD_LOWRES_MIN_PX) * eased
+              ));
+              if (!lowResCanvas) {
+                lowResCanvas = document.createElement("canvas");
+                lowResCtx = lowResCanvas.getContext("2d");
+              }
+              const iw = layerImg.naturalWidth || pixSize;
+              const ih = layerImg.naturalHeight || pixSize;
+              const ratio = iw / ih;
+              let lw, lh;
+              if (ratio >= 1) { lw = pixSize; lh = Math.max(2, Math.round(pixSize / ratio)); }
+              else            { lh = pixSize; lw = Math.max(2, Math.round(pixSize * ratio)); }
+              lowResCanvas.width  = lw;
+              lowResCanvas.height = lh;
+              lowResCtx.imageSmoothingEnabled = true;
+              lowResCtx.clearRect(0, 0, lw, lh);
+              lowResCtx.drawImage(layerImg, 0, 0, lw, lh);
+              const prevSmoothing = compCtx.imageSmoothingEnabled;
+              compCtx.imageSmoothingEnabled = false;
+              compCtx.drawImage(lowResCanvas, 0, 0, W, H);
+              compCtx.imageSmoothingEnabled = prevSmoothing;
+            } else {
+              compCtx.drawImage(layerImg, 0, 0, W, H);
             }
-            // 이미지 종횡비 유지 — 짧은 변을 pixSize 로
-            const iw = frameImg.naturalWidth || pixSize;
-            const ih = frameImg.naturalHeight || pixSize;
-            const ratio = iw / ih;
-            let lw, lh;
-            if (ratio >= 1) { lw = pixSize; lh = Math.max(2, Math.round(pixSize / ratio)); }
-            else            { lh = pixSize; lw = Math.max(2, Math.round(pixSize * ratio)); }
+            compCtx.restore();
 
-            lowResCanvas.width  = lw;
-            lowResCanvas.height = lh;
-            lowResCtx.imageSmoothingEnabled = true;
-            lowResCtx.clearRect(0, 0, lw, lh);
-            lowResCtx.drawImage(frameImg, 0, 0, lw, lh);
-
-            const prevSmoothing = ctx.imageSmoothingEnabled;
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(lowResCanvas, 0, 0, W, H);
-            ctx.imageSmoothingEnabled = prevSmoothing;
-          } else {
-            ctx.drawImage(frameImg, 0, 0, W, H);
+            // 본 캔버스에 합성된 레이어를 layerAlpha 로 올림
+            const prevAlpha = ctx.globalAlpha;
+            ctx.globalAlpha = Math.max(0, Math.min(1, layerAlpha));
+            ctx.drawImage(compCanvas, 0, 0, W, H);
+            ctx.globalAlpha = prevAlpha;
           }
-          ctx.globalCompositeOperation = "source-over";
+
+          // base 레이어 — 항상 알파 1, holdPulse 영향 받지 않음
+          compositeLayer(frameImg, 1, holdLowRes && isHolding);
+          // overlay 레이어 — 있으면 base 위에 올라감. holdPulse 적용.
+          if (overlayImg) {
+            const overlayAlpha = (holdPulse && isHolding) ? holdAlpha : 1;
+            compositeLayer(overlayImg, overlayAlpha, false);
+          } else if (holdPulse && isHolding) {
+            // overlayImg가 없는데 holdPulse만 켜져 있다면(예전 동작 호환):
+            // base에도 펄스가 적용되도록 한 번 더 알파 곱해 그려준다.
+            // 실제로 28은 overlayImg를 갖게 되니 이 분기는 거의 쓰이지 않음.
+            // (별도 처리 없음 — base는 위에서 이미 알파 1로 그려졌으므로)
+          }
         }
 
         requestAnimationFrame(tick);
@@ -2043,13 +2138,17 @@
       framesCount: 4,
       root,
     });
-    /* 28.png 인스턴스 — 단일 프레임. hold 시 알파 페이드 펄스, 떼면 하트(decay) 텍스트 모션 */
+    /* 28.png 인스턴스 — 단일 프레임 베이스 + 28-1.png 오버레이.
+       hold 시 알파 페이드 펄스는 오버레이(28-1.png)에만 적용,
+       베이스(28.png)는 그대로 같은 마스크로 함께 reveal됨.
+       떼면 하트(decay) 텍스트 모션. */
     const inst28 = createRevealInstance({
       leftPct: 20, topPct: 30, size: REVEAL_SIZE,
       sheetRow: 29,
       name: "28",
       root,
       framesCount: 1,
+      overlayFilename: "28-1.png",
       holdPulse: true,
       outroMode: "decay",
     });
