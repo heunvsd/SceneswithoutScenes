@@ -155,7 +155,7 @@
     .reveal-text-content {
       padding: 14px 16px;
       font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
-      font-size: 20px;
+      font-size: 16px;
       line-height: 1.55;
       color: #000000;
       white-space: pre-wrap;
@@ -205,7 +205,7 @@
       left: 0;
       top:  0;
       font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
-      font-size: 20px;
+      font-size: 16px;
       line-height: 1;
       color: #000000;
       white-space: pre;
@@ -244,7 +244,7 @@
       left: 0;
       top:  0;
       font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
-      font-size: 20px;
+      font-size: 16px;
       line-height: 1;
       color: #000000;
       white-space: pre;
@@ -276,7 +276,7 @@
       left: 0;
       top:  0;
       font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
-      font-size: 20px;
+      font-size: 16px;
       line-height: 1;
       color: #000000;
       white-space: pre;
@@ -356,7 +356,7 @@
     .expanded-panel-text {
       padding: 12px 18px 50px 18px;
       font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
-      font-size: 20px;
+      font-size: 16px;
       line-height: 1.7;
       color: #000000;
       white-space: pre-wrap;
@@ -661,6 +661,9 @@
     /* ─────────────────────────────────────────────
        Reveal 인스턴스 시스템
        ───────────────────────────────────────────── */
+
+    /* 모든 인스턴스에서 공통으로 쓸 이미지 사이즈 — 어셋이 모두 동일 크기로 들어옴 */
+    const REVEAL_SIZE = 190;
 
     const FRAME_COUNT = 8;
     const FRAME_INTERVAL_MS = 280;
@@ -1137,7 +1140,7 @@
 
         // 한 줄 너비를 잡아 줄바꿈 처리: 박스 폭 ~ 360px
         const LINE_WIDTH = 360;
-        const LINE_HEIGHT = 28;
+        const LINE_HEIGHT = 24;
 
         // 글자별 폭 미리 계산
         const charWidths = [];
@@ -1459,14 +1462,14 @@
 
         const charWidths = [];
         for (const ch of text) {
-          measure.textContent = ch === " " ? " " : ch;
+          measure.textContent = ch === " " ? " " : ch;
           charWidths.push(measure.getBoundingClientRect().width);
         }
         document.body.removeChild(measure);
 
         // 단어 단위 줄바꿈 (한 줄 폭 ~ 360px)
         const LINE_WIDTH  = 360;
-        const LINE_HEIGHT = 28;
+        const LINE_HEIGHT = 24;
 
         // 단어 인덱스 추출
         const words = [];
@@ -1814,15 +1817,16 @@
        시트 데이터 → 인스턴스에 적용
        ───────────────────────────────────────────── */
     const root = document.getElementById("reveal-root");
+    /* 79 인스턴스 — 79.png + 79-1, 79-2, 79-3 만 루프 (총 4프레임) */
     const inst79 = createRevealInstance({
-      leftPct: 60, topPct: 35, size: 120,
+      leftPct: 60, topPct: 35, size: REVEAL_SIZE,
       sheetRow: 80,
       name: "79",
-      framesCount: 5, // 79.png + 79-1 ~ 79-4 만 루프
+      framesCount: 4,
       root,
     });
     const inst10 = createRevealInstance({
-      leftPct: 28, topPct: 65, size: 170,
+      leftPct: 28, topPct: 65, size: REVEAL_SIZE,
       sheetRow: 11,
       name: "10",
       interactive: false,
@@ -1831,7 +1835,7 @@
     });
     /* 28.png 인스턴스 — hold 시 페이드 루프, 떼면 붕괴 텍스트 모션 */
     const inst28 = createRevealInstance({
-      leftPct: 18, topPct: 22, size: 170,
+      leftPct: 18, topPct: 22, size: REVEAL_SIZE,
       sheetRow: 29,
       name: "28",
       root,
@@ -1840,7 +1844,7 @@
     });
     /* 09.png 인스턴스 — hold 시 저해상도 모핑 루프, 떼면 ripple(파동) 텍스트 모션 */
     const inst09 = createRevealInstance({
-      leftPct: 75, topPct: 70, size: 150,
+      leftPct: 75, topPct: 70, size: REVEAL_SIZE,
       sheetRow: 10,
       name: "09",
       root,
@@ -2119,7 +2123,7 @@
       }
 
       if (pendingText && pathPts.length >= 2) {
-        const fontPx = 20 * scale;
+        const fontPx = 16 * scale;
         if (fontPx >= 4) {
           octx.fillStyle = "#000000";
           octx.font = `${fontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
@@ -2208,7 +2212,7 @@
       // 2) 부피/decay/ripple 텍스트 글리프들
       const glyphs = document.querySelectorAll(".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph");
       octx.fillStyle = "#000000";
-      const glyphFontPx = 20 * scale;
+      const glyphFontPx = 16 * scale;
       octx.font = `${glyphFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       octx.textBaseline = "top";
       for (const g of glyphs) {
@@ -2224,7 +2228,7 @@
 
       // 3) reveal-text-content (타이프된 텍스트 박스)
       const textBlocks = document.querySelectorAll(".reveal-text-content");
-      const textBoxFontPx = 20 * scale;
+      const textBoxFontPx = 16 * scale;
       octx.font = `${textBoxFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       for (const tb of textBlocks) {
         const txt = tb.textContent;
