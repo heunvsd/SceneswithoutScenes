@@ -950,24 +950,7 @@
         try { oi.crossOrigin = "anonymous"; } catch(e) {}
         oi.onerror = () => { oi._broken = true; };
         oi.onload = () => {
-          // 오버레이 이미지의 색상도 인스턴스 팔레트에 합침
-          try {
-            const extra = extractPaletteFromImage(oi, 8);
-            if (extra.length > 0 && instance && instance.name) {
-              const cur = instancePalettes.get(instance.name) || [];
-              // 단순 병합 — 중복 키 제거
-              const seen = new Set(cur.map(c => `${c.r},${c.g},${c.b}`));
-              for (const c of extra) {
-                const k = `${c.r},${c.g},${c.b}`;
-                if (!seen.has(k)) { cur.push(c); seen.add(k); }
-              }
-              instancePalettes.set(instance.name, cur);
-              console.info(`[palette] ${instance.name} (+overlay):`, cur);
-              reapplyPaletteToOutro();
-            }
-          } catch (e) {
-            console.warn("[palette] overlay extract failed:", e);
-          }
+          // 사용자의 요청에 따라 오버레이 이미지는 팔레트 색상 추출에서 제외합니다.
         };
         oi.src = IMAGE_BASE_PATH + overlayFilename;
         overlayImg = oi;
@@ -1897,6 +1880,9 @@
         if (fullText && fullText.trim().length > 0) {
           isVolumeMode = true;
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (baseCtx && baseCanvas) {
+            baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+          }
           trail.length = 0;
           if (outroMode === "decay") {
             buildDecayText(fullText);
@@ -2227,13 +2213,13 @@
        가장자리가 흰 바탕으로 완전히 뭉개져 직사각형 형태가 보이지 않음.
        떼면 하트(decay) 텍스트 모션. */
     const inst28 = createRevealInstance({
-      leftPct: 20, topPct: 30, size: 240,
+      leftPct: 20, topPct: 30, size: REVEAL_SIZE,
       sheetRow: 29,
       name: "28",
       root,
       framesCount: 1,
       overlayFilename: "28-1.png",
-      baseScale: 2.6,
+      baseScale: 3.3,
       baseVignette: true,
       holdPulse: true,
       outroMode: "decay",
