@@ -899,14 +899,47 @@
       textInner.className = "reveal-text-content";
       textBox.appendChild(textInner);
 
+      // imgArea — 오버레이 캔버스가 들어가는 영역 (마우스 hit-test 영역도 이쪽)
+      // 사이즈는 size × size 그대로
       const imgArea = document.createElement("div");
       imgArea.className = "reveal-img-area";
       imgArea.style.zIndex = "2";
       const canvas = document.createElement("canvas");
       imgArea.appendChild(canvas);
 
+      // 베이스 전용 별도 캔버스 — baseScale 옵션이 있으면 imgArea보다 더 큰 영역에 그림.
+      // wrap의 중심 기준으로 펼쳐지지만 wrap 박스 밖으로도 넘쳐 보임 (overflow: visible)
+      const baseScale = (typeof config.baseScale === "number" && config.baseScale > 0)
+        ? config.baseScale : 1;
+      const baseSize = Math.round(size * baseScale);
+      let baseCanvas = null;
+      let baseCtx = null;
+      let baseArea = null;
+      if (baseScale !== 1) {
+        baseArea = document.createElement("div");
+        baseArea.className = "reveal-base-area";
+        baseArea.style.position = "absolute";
+        baseArea.style.left = `${(size - baseSize) / 2}px`;
+        baseArea.style.top  = `${(size - baseSize) / 2}px`;
+        baseArea.style.width  = `${baseSize}px`;
+        baseArea.style.height = `${baseSize}px`;
+        baseArea.style.pointerEvents = "none";
+        baseArea.style.zIndex = "1";
+        baseCanvas = document.createElement("canvas");
+        baseCanvas.style.position = "absolute";
+        baseCanvas.style.inset = "0";
+        baseCanvas.style.width  = "100%";
+        baseCanvas.style.height = "100%";
+        baseArea.appendChild(baseCanvas);
+        baseCtx = baseCanvas.getContext("2d");
+      }
+
       wrap.appendChild(textBox);
+      // 베이스 영역은 오버레이 imgArea 보다 뒤(z-index 낮음) — 시각적 순서
+      if (baseArea) wrap.appendChild(baseArea);
       wrap.appendChild(imgArea);
+      // wrap이 자기보다 큰 자식(베이스)을 넘치게 보여주도록
+      wrap.style.overflow = "visible";
       root.appendChild(wrap);
 
       const ctx = canvas.getContext("2d");
@@ -957,6 +990,12 @@
         canvas.width  = Math.round(size * dpr);
         canvas.height = Math.round(size * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // 베이스 캔버스도 자기 사이즈(baseSize) 기준으로 백킹 픽셀 잡기
+        if (baseCanvas && baseCtx) {
+          baseCanvas.width  = Math.round(baseSize * dpr);
+          baseCanvas.height = Math.round(baseSize * dpr);
+          baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
       }
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
@@ -1958,6 +1997,7 @@
 
         const W = drawW, H = drawH;
         ctx.clearRect(0, 0, W, H);
+        if (baseCtx) baseCtx.clearRect(0, 0, baseSize, baseSize);
 
         const frameImg = frames[currentFrame];
         const frameReady = frameImg && frameImg.complete && frameImg.naturalWidth > 0;
@@ -1972,104 +2012,102 @@
         }
 
         if (frameReady && trail.length > 0) {
+          const dprForMask = Math.min(window.devicePixelRatio || 1, 2);
+
           // ─────────────────────────────────────────
-          // 1단계: 트레일을 오프스크린 마스크 캔버스에 한 번만 그림
-          //        (그래야 base / overlay 두 레이어에 같은 마스크 재사용 가능)
+          // 마스크 + 합성 캔버스를 한 번 만들어 두고 재사용.
+          // 사이즈가 다른 캔버스(오버레이용 size, 베이스용 baseSize)에 모두 쓸 수 있도록
+          // 사이즈 받아서 빌드하는 함수 형태로 일반화한다.
           // ─────────────────────────────────────────
           if (!maskCanvas) {
             maskCanvas = document.createElement("canvas");
             maskCtx = maskCanvas.getContext("2d");
           }
-          const dprForMask = Math.min(window.devicePixelRatio || 1, 2);
-          if (maskCanvas.width !== Math.round(W * dprForMask) ||
-              maskCanvas.height !== Math.round(H * dprForMask)) {
-            maskCanvas.width  = Math.round(W * dprForMask);
-            maskCanvas.height = Math.round(H * dprForMask);
-            maskCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
-          }
-          maskCtx.clearRect(0, 0, W, H);
-
-          for (let i = trail.length - 1; i >= 0; i--) {
-            const p = trail[i];
-            p.age++;
-            if (p.age >= p.maxAge) { trail.splice(i, 1); continue; }
-
-            const life = p.age / p.maxAge;
-            let alpha;
-            if (life < 0.35) {
-              const t = life / 0.35;
-              const eased = t * t * t * (t * (t * 6 - 15) + 10);
-              alpha = eased * 0.7;
-            } else {
-              const t = (life - 0.35) / 0.65;
-              alpha = Math.pow(1 - t, 2.2) * 0.7;
-            }
-            // ※ 여기서는 holdAlpha를 곱하지 않음 — 마스크는 base/overlay 공통.
-            //   holdPulse는 overlay 이미지 그릴 때만 적용한다.
-            if (alpha < 0.005) continue;
-
-            const drift = p.driftAmt * Math.sin(p.driftSeed + p.age * 0.025);
-            const drift2= p.driftAmt * Math.cos(p.driftSeed * 1.3 + p.age * 0.02);
-            const px = p.x + drift  * 0.6;
-            const py = p.y + drift2 * 0.6;
-            const r  = p.radius;
-
-            const grad = maskCtx.createRadialGradient(px, py, 0, px, py, r);
-            grad.addColorStop(0,    `rgba(0,0,0,${alpha})`);
-            grad.addColorStop(0.18, `rgba(0,0,0,${alpha * 0.92})`);
-            grad.addColorStop(0.40, `rgba(0,0,0,${alpha * 0.65})`);
-            grad.addColorStop(0.65, `rgba(0,0,0,${alpha * 0.30})`);
-            grad.addColorStop(0.85, `rgba(0,0,0,${alpha * 0.08})`);
-            grad.addColorStop(1,    `rgba(0,0,0,0)`);
-            maskCtx.fillStyle = grad;
-            maskCtx.beginPath();
-            maskCtx.arc(px, py, r, 0, Math.PI * 2);
-            maskCtx.fill();
-          }
-
-          // ─────────────────────────────────────────
-          // 2단계: 합성용 오프스크린에 마스크 → 이미지 source-in 으로 잘라서
-          //        본 캔버스에 차례로 그려 올림 (base 먼저, overlay 나중)
-          // ─────────────────────────────────────────
           if (!compCanvas) {
             compCanvas = document.createElement("canvas");
             compCtx = compCanvas.getContext("2d");
           }
-          if (compCanvas.width !== Math.round(W * dprForMask) ||
-              compCanvas.height !== Math.round(H * dprForMask)) {
-            compCanvas.width  = Math.round(W * dprForMask);
-            compCanvas.height = Math.round(H * dprForMask);
-            compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+
+          // 트레일 → 마스크 캔버스 그리기
+          // boxW, boxH: 그릴 박스 크기. offsetX, offsetY: 트레일 좌표(imgArea 기준)를
+          //              이 박스 좌표계로 옮길 평행이동 값.
+          function buildMask(boxW, boxH, offsetX, offsetY) {
+            if (maskCanvas.width !== Math.round(boxW * dprForMask) ||
+                maskCanvas.height !== Math.round(boxH * dprForMask)) {
+              maskCanvas.width  = Math.round(boxW * dprForMask);
+              maskCanvas.height = Math.round(boxH * dprForMask);
+            }
+            maskCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+            maskCtx.clearRect(0, 0, boxW, boxH);
+
+            for (const p of trail) {
+              const life = p.age / p.maxAge;
+              let alpha;
+              if (life < 0.35) {
+                const t = life / 0.35;
+                const eased = t * t * t * (t * (t * 6 - 15) + 10);
+                alpha = eased * 0.7;
+              } else {
+                const t = (life - 0.35) / 0.65;
+                alpha = Math.pow(1 - t, 2.2) * 0.7;
+              }
+              if (alpha < 0.005) continue;
+              const drift  = p.driftAmt * Math.sin(p.driftSeed + p.age * 0.025);
+              const drift2 = p.driftAmt * Math.cos(p.driftSeed * 1.3 + p.age * 0.02);
+              const px = p.x + drift  * 0.6 + offsetX;
+              const py = p.y + drift2 * 0.6 + offsetY;
+              const r  = p.radius;
+              const grad = maskCtx.createRadialGradient(px, py, 0, px, py, r);
+              grad.addColorStop(0,    `rgba(0,0,0,${alpha})`);
+              grad.addColorStop(0.18, `rgba(0,0,0,${alpha * 0.92})`);
+              grad.addColorStop(0.40, `rgba(0,0,0,${alpha * 0.65})`);
+              grad.addColorStop(0.65, `rgba(0,0,0,${alpha * 0.30})`);
+              grad.addColorStop(0.85, `rgba(0,0,0,${alpha * 0.08})`);
+              grad.addColorStop(1,    `rgba(0,0,0,0)`);
+              maskCtx.fillStyle = grad;
+              maskCtx.beginPath();
+              maskCtx.arc(px, py, r, 0, Math.PI * 2);
+              maskCtx.fill();
+            }
           }
 
-          // 비율을 유지하면서 W×H 박스 안에 가운데 정렬해 contain-fit 으로 그리는 헬퍼
-          // (이미지가 정사각형이 아니어도 늘어나지 않음)
-          function drawContain(target, img, srcW, srcH) {
+          // 트레일 글자별 age 증가/만료 처리는 여기서 한 번만
+          for (let i = trail.length - 1; i >= 0; i--) {
+            const p = trail[i];
+            p.age++;
+            if (p.age >= p.maxAge) trail.splice(i, 1);
+          }
+
+          // 비율을 유지하면서 box 안에 가운데 정렬해 contain-fit 으로 그리는 헬퍼
+          function drawContain(target, img, boxW, boxH, srcW, srcH) {
             const iw = srcW || img.naturalWidth || 1;
             const ih = srcH || img.naturalHeight || 1;
-            const s = Math.min(W / iw, H / ih);
+            const s = Math.min(boxW / iw, boxH / ih);
             const dw = iw * s;
             const dh = ih * s;
-            const dx = (W - dw) / 2;
-            const dy = (H - dh) / 2;
+            const dx = (boxW - dw) / 2;
+            const dy = (boxH - dh) / 2;
             target.drawImage(img, dx, dy, dw, dh);
           }
 
-          // 한 레이어를 마스크와 source-in 으로 합성해 본 캔버스에 그리는 헬퍼
-          // vignette: true 이면 합성 후 가장자리 알파를 원형 그라데이션으로 깎아내
-          //           본 캔버스에 그릴 때 자연스럽게 흰 바탕으로 페이드되어 보이게 함
-          function compositeLayer(layerImg, layerAlpha, useLowRes, vignette) {
+          // 한 레이어를 마스크와 source-in 으로 합성해 targetCtx 에 그리는 헬퍼.
+          // boxW × boxH 은 그릴 박스(타깃 캔버스) 크기.
+          // vignetteStrength: 0=없음, 1=기본, >1=더 강함 (안쪽이 작아지고 페이드가 더 부드러움)
+          function compositeLayer(targetCtx, layerImg, boxW, boxH, layerAlpha, useLowRes, vignetteStrength) {
             if (!layerImg || layerImg._broken || !layerImg.complete || layerImg.naturalWidth === 0) return;
-            // 합성 캔버스 초기화 → 마스크 그리기 → source-in 으로 이미지 합성
-            compCtx.save();
+            // compCanvas 사이즈 맞추기
+            if (compCanvas.width !== Math.round(boxW * dprForMask) ||
+                compCanvas.height !== Math.round(boxH * dprForMask)) {
+              compCanvas.width  = Math.round(boxW * dprForMask);
+              compCanvas.height = Math.round(boxH * dprForMask);
+            }
             compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
-            compCtx.clearRect(0, 0, W, H);
+            compCtx.clearRect(0, 0, boxW, boxH);
             compCtx.globalCompositeOperation = "source-over";
-            compCtx.drawImage(maskCanvas, 0, 0, W, H);
+            compCtx.drawImage(maskCanvas, 0, 0, boxW, boxH);
             compCtx.globalCompositeOperation = "source-in";
 
             if (useLowRes) {
-              // 09.png 전용: 저해상도 픽셀 모핑 — 비율 유지
               const elapsedHoldLR = performance.now() - holdStartTime;
               const phaseLR = (elapsedHoldLR % HOLD_LOWRES_PERIOD_MS) / HOLD_LOWRES_PERIOD_MS;
               const tLR = (1 - Math.cos(phaseLR * Math.PI * 2)) / 2;
@@ -2084,7 +2122,6 @@
               const iw = layerImg.naturalWidth || pixSize;
               const ih = layerImg.naturalHeight || pixSize;
               const ratio = iw / ih;
-              // pixSize 는 짧은 변 기준 — 긴 변은 비율 따라 늘어남 (저해상 다운샘플 캔버스)
               let lw, lh;
               if (ratio >= 1) { lh = pixSize; lw = Math.max(2, Math.round(pixSize * ratio)); }
               else            { lw = pixSize; lh = Math.max(2, Math.round(pixSize / ratio)); }
@@ -2095,53 +2132,61 @@
               lowResCtx.drawImage(layerImg, 0, 0, lw, lh);
               const prevSmoothing = compCtx.imageSmoothingEnabled;
               compCtx.imageSmoothingEnabled = false;
-              // 박스에 비율 유지 contain-fit
-              drawContain(compCtx, lowResCanvas, lw, lh);
+              drawContain(compCtx, lowResCanvas, boxW, boxH, lw, lh);
               compCtx.imageSmoothingEnabled = prevSmoothing;
             } else {
-              // 박스에 비율 유지 contain-fit
-              drawContain(compCtx, layerImg);
+              drawContain(compCtx, layerImg, boxW, boxH);
             }
 
-            // 비네팅 — 합성된 레이어의 알파를 가장자리에서 부드럽게 깎아낸다.
-            // destination-in 으로 원형 그라데이션(중앙 불투명 → 가장자리 투명)을 곱함.
-            if (vignette) {
-              const cx = W / 2, cy = H / 2;
-              // 안쪽 반경(완전 또렷): 캔버스 짧은 변의 ~32%
-              // 바깥 반경(완전 투명): 캔버스 짧은 변의 ~52%
-              const minSide = Math.min(W, H);
-              const innerR = minSide * 0.32;
-              const outerR = minSide * 0.52;
+            // 비네팅 — 강도(vignetteStrength)에 따라 안쪽 반경/페이드 곡선 조절
+            if (vignetteStrength && vignetteStrength > 0) {
+              const cx = boxW / 2, cy = boxH / 2;
+              const minSide = Math.min(boxW, boxH);
+              // strength가 클수록 안쪽 또렷 영역이 줄고 바깥 페이드가 더 부드럽게
+              const innerR = minSide * Math.max(0.05, 0.32 - 0.18 * Math.min(1.5, vignetteStrength - 1));
+              const outerR = minSide * Math.min(0.55, 0.52);
               const vg = compCtx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
               vg.addColorStop(0,   "rgba(0,0,0,1)");
-              vg.addColorStop(0.6, "rgba(0,0,0,0.55)");
+              // strength↑ → 중간 알파를 더 낮춰 부드러운 그라데이션
+              const midAlpha = vignetteStrength >= 2 ? 0.30 : 0.55;
+              vg.addColorStop(0.6, `rgba(0,0,0,${midAlpha})`);
               vg.addColorStop(1,   "rgba(0,0,0,0)");
               compCtx.globalCompositeOperation = "destination-in";
               compCtx.fillStyle = vg;
-              compCtx.fillRect(0, 0, W, H);
+              compCtx.fillRect(0, 0, boxW, boxH);
             }
 
-            compCtx.restore();
-
-            // 본 캔버스에 합성된 레이어를 layerAlpha 로 올림
-            const prevAlpha = ctx.globalAlpha;
-            ctx.globalAlpha = Math.max(0, Math.min(1, layerAlpha));
-            ctx.drawImage(compCanvas, 0, 0, W, H);
-            ctx.globalAlpha = prevAlpha;
+            // 타겟에 합성된 레이어를 layerAlpha 로 올림
+            const prevAlpha = targetCtx.globalAlpha;
+            targetCtx.globalAlpha = Math.max(0, Math.min(1, layerAlpha));
+            targetCtx.drawImage(compCanvas, 0, 0, boxW, boxH);
+            targetCtx.globalAlpha = prevAlpha;
           }
 
-          // base 레이어 — 항상 알파 1, holdPulse 영향 받지 않음
-          // baseVignette 옵션이 켜져 있으면 흰 바탕으로 자연스럽게 페이드되도록 비네팅 적용
-          compositeLayer(frameImg, 1, holdLowRes && isHolding, baseVignette);
-          // overlay 레이어 — 있으면 base 위에 올라감. holdPulse 적용. 비네팅 없음(또렷하게)
+          // ─────────────────────────────────────────
+          // 베이스 레이어 그리기
+          //   - baseCtx 가 있으면 더 큰 베이스 캔버스에, 트레일 좌표는
+          //     imgArea 좌표계 → 베이스 좌표계 로 평행이동(중심이 같으므로 (baseSize-size)/2 만큼)
+          //   - baseCtx 가 없으면 일반 ctx에 그대로 (기존 동작)
+          // ─────────────────────────────────────────
+          const baseTargetCtx = baseCtx || ctx;
+          const baseBoxW = baseCtx ? baseSize : W;
+          const baseBoxH = baseCtx ? baseSize : H;
+          const baseOff  = baseCtx ? (baseSize - size) / 2 : 0;
+          // 베이스용 마스크 (트레일 좌표 평행이동)
+          buildMask(baseBoxW, baseBoxH, baseOff, baseOff);
+          // baseVignette가 켜져 있으면 강한(2) 비네팅, 아니면 옵션에 따라
+          const vignStr = baseVignette ? (baseCtx ? 2.2 : 1) : 0;
+          compositeLayer(baseTargetCtx, frameImg, baseBoxW, baseBoxH,
+                         1, holdLowRes && isHolding, vignStr);
+
+          // ─────────────────────────────────────────
+          // 오버레이 레이어 그리기 — imgArea 좌표계 그대로
+          // ─────────────────────────────────────────
           if (overlayImg) {
+            buildMask(W, H, 0, 0);
             const overlayAlpha = (holdPulse && isHolding) ? holdAlpha : 1;
-            compositeLayer(overlayImg, overlayAlpha, false, false);
-          } else if (holdPulse && isHolding) {
-            // overlayImg가 없는데 holdPulse만 켜져 있다면(예전 동작 호환):
-            // base에도 펄스가 적용되도록 한 번 더 알파 곱해 그려준다.
-            // 실제로 28은 overlayImg를 갖게 되니 이 분기는 거의 쓰이지 않음.
-            // (별도 처리 없음 — base는 위에서 이미 알파 1로 그려졌으므로)
+            compositeLayer(ctx, overlayImg, W, H, overlayAlpha, false, 0);
           }
         }
 
@@ -2181,7 +2226,8 @@
     /* 28.png 인스턴스 — 단일 프레임 베이스 + 28-1.png 오버레이.
        hold 시 알파 페이드 펄스는 오버레이(28-1.png)에만 적용,
        베이스(28.png)는 그대로 같은 마스크로 함께 reveal됨.
-       베이스에는 원형 비네팅을 적용해 가장자리가 흰 바탕으로 자연스럽게 페이드.
+       베이스는 baseScale 로 훨씬 크게 그려지고, 강한 원형 비네팅으로
+       가장자리가 흰 바탕으로 완전히 뭉개져 직사각형 형태가 보이지 않음.
        떼면 하트(decay) 텍스트 모션. */
     const inst28 = createRevealInstance({
       leftPct: 20, topPct: 30, size: REVEAL_SIZE,
@@ -2190,6 +2236,7 @@
       root,
       framesCount: 1,
       overlayFilename: "28-1.png",
+      baseScale: 2.6,
       baseVignette: true,
       holdPulse: true,
       outroMode: "decay",
@@ -2620,7 +2667,10 @@
       }
 
       // 1) 각 reveal 인스턴스의 캔버스를 화면 위치 그대로 그림
-      const revealCanvases = document.querySelectorAll(".reveal-img-area canvas");
+      //    베이스 캔버스(reveal-base-area)도 포함 — z-index 순으로 베이스가 뒤, 오버레이가 앞
+      const revealCanvases = document.querySelectorAll(
+        ".reveal-base-area canvas, .reveal-img-area canvas"
+      );
       for (const c of revealCanvases) {
         const r = c.getBoundingClientRect();
         if (r.width <= 0 || r.height <= 0) continue;
