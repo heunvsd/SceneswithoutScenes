@@ -699,6 +699,9 @@
 
     // 텍스트 큐 — 곡선 위에 그려질 텍스트 (인스턴스 만질 때마다 이어붙임)
     let pendingText = "";
+    // 텍스트 큐 세그먼트 — 글자별 출처 추적용. 캡쳐 시 그라데이션 색 보간에 사용.
+    // [{ text: "...", instName: "79"|null }, ...]
+    const pendingSegments = [];
 
     function addPathPoint(clientX, clientY) {
       let segLen = 0;
@@ -724,8 +727,142 @@
       if (!text) return;
       // 줄바꿈/연속공백 정리, 인스턴스 사이엔 공백 두 칸
       const norm = text.replace(/\s+/g, " ").trim();
-      if (pendingText.length > 0) pendingText += "  ";
+      if (pendingText.length > 0) {
+        // 인스턴스 사이 공백 두 칸 — 출처 없음으로 표시
+        pendingSegments.push({ text: "  ", instName: null });
+        pendingText += "  ";
+      }
+      pendingSegments.push({ text: norm, instName: inst.name || null });
       pendingText += norm;
+    }
+
+    /* ─────────────────────────────────────────────
+       이미지 → 대표 색상 팔레트 추출
+       흰색에 가까운 톤(밝기 매우 높거나 채도 매우 낮음) 제외
+       ───────────────────────────────────────────── */
+    function rgbToHsl(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0, s = 0;
+      const l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)); break;
+          case g: h = ((b - r) / d + 2); break;
+          case b: h = ((r - g) / d + 4); break;
+        }
+        h /= 6;
+      }
+      return [h, s, l];
+    }
+
+    function extractPaletteFromImage(img, maxColors = 8) {
+      // 작은 캔버스에 다운샘플 해서 픽셀 카운트
+      const targetSize = 60;
+      const ratio = img.naturalWidth / img.naturalHeight || 1;
+      let w, h;
+      if (ratio >= 1) { w = targetSize; h = Math.max(1, Math.round(targetSize / ratio)); }
+      else            { h = targetSize; w = Math.max(1, Math.round(targetSize * ratio)); }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const cx = c.getContext("2d");
+      try {
+        cx.drawImage(img, 0, 0, w, h);
+      } catch (e) {
+        return [];
+      }
+      let data;
+      try {
+        data = cx.getImageData(0, 0, w, h).data;
+      } catch (e) {
+        // CORS 등으로 픽셀 읽기 실패 시 빈 팔레트
+        return [];
+      }
+      // 색을 거친 양자화 후 빈도 카운트 (HSL 기반 필터)
+      const buckets = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+        if (a < 200) continue; // 거의 투명한 픽셀 무시
+        const [hh, ss, ll] = rgbToHsl(r, g, b);
+        // 흰색·연한 베이지 톤 제외: 밝기 너무 높음 OR 채도 매우 낮음
+        if (ll > 0.85) continue;
+        if (ss < 0.18 && ll > 0.55) continue; // 거의 회색이며 밝은 색
+        if (ll < 0.06) continue;               // 거의 검정도 제외 (글이 안 보임)
+        // 양자화 — 24단계 정도
+        const qr = (r >> 4) << 4;
+        const qg = (g >> 4) << 4;
+        const qb = (b >> 4) << 4;
+        const key = `${qr},${qg},${qb}`;
+        const cur = buckets.get(key);
+        if (cur) { cur.count++; cur.r += r; cur.g += g; cur.b += b; }
+        else buckets.set(key, { count: 1, r, g, b });
+      }
+      const arr = Array.from(buckets.values())
+        .sort((a, b) => b.count - a.count);
+      const top = arr.slice(0, maxColors).map(o => ({
+        r: Math.round(o.r / o.count),
+        g: Math.round(o.g / o.count),
+        b: Math.round(o.b / o.count),
+      }));
+      return top;
+    }
+
+    // 인스턴스 이름 → 팔레트 (캡쳐 시 궤적 텍스트가 참조)
+    const instancePalettes = new Map();
+
+    // 폴백 팔레트 (이미지 미로드 시) — 따뜻하고 차분한 톤
+    const FALLBACK_PALETTE = [
+      { r: 180, g: 90,  b: 80  },
+      { r: 130, g: 100, b: 140 },
+      { r: 90,  g: 120, b: 150 },
+      { r: 160, g: 130, b: 90  },
+    ];
+
+    function getPaletteFor(name) {
+      const p = instancePalettes.get(name);
+      if (p && p.length > 0) return p;
+      return FALLBACK_PALETTE;
+    }
+
+    // 두 RGB 색을 t(0~1)로 보간 — HSL 공간에서 보간하면 더 부드러움
+    function lerpRgbViaHsl(c1, c2, t) {
+      const h1 = rgbToHsl(c1.r, c1.g, c1.b);
+      const h2 = rgbToHsl(c2.r, c2.g, c2.b);
+      // hue는 짧은 쪽으로 보간
+      let dh = h2[0] - h1[0];
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+      const h = (h1[0] + dh * t + 1) % 1;
+      const s = h1[1] + (h2[1] - h1[1]) * t;
+      const l = h1[2] + (h2[2] - h1[2]) * t;
+      return hslToRgb(h, s, l);
+    }
+
+    function hslToRgb(h, s, l) {
+      let r, g, b;
+      if (s === 0) { r = g = b = l; }
+      else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+      return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255),
+      };
     }
 
     window.addEventListener("mousemove", (e) => {
@@ -796,7 +933,26 @@
         for (let i = 0; i < framesCount; i++) {
           const fname = (i === 0) ? `${name}${ext}` : `${name}-${i}${ext}`;
           const img = new Image();
+          // 같은 도메인 어셋이지만 만약을 위해 crossOrigin 시도
+          // (file:// 환경에서는 무시되며, 같은 origin이면 영향 없음)
+          try { img.crossOrigin = "anonymous"; } catch(e) {}
           img.onerror = () => { img._broken = true; };
+          if (i === 0) {
+            img.onload = () => {
+              try {
+                const palette = extractPaletteFromImage(img, 8);
+                if (palette.length > 0 && instance && instance.name) {
+                  instancePalettes.set(instance.name, palette);
+                  console.info(`[palette] ${instance.name}:`, palette);
+                  // 팔레트가 늦게 들어와도 outro 모션이 이미 떠 있으면
+                  // 나중에 다시 색을 칠해줘야 자연스러움 — outro 글리프에 적용
+                  reapplyPaletteToOutro();
+                }
+              } catch (e) {
+                console.warn("[palette] extract failed:", e);
+              }
+            };
+          }
           img.src = IMAGE_BASE_PATH + fname;
           frames.push(img);
         }
@@ -879,6 +1035,51 @@
       let lowResCanvas = null;
       let lowResCtx = null;
 
+      // ─────────────────────────────────────────
+      // 인스턴스 팔레트 기반 글자 색칠
+      // 글자 인덱스 i / 전체 N 에 따라 팔레트 색을 부드럽게 보간 → 그라데이션
+      // ─────────────────────────────────────────
+      function pickGradColorForIndex(palette, i, N) {
+        if (!palette || palette.length === 0) return { r: 0, g: 0, b: 0 };
+        if (palette.length === 1) return palette[0];
+        // 팔레트 위에서 위치 계산 — 0..palette.length-1
+        const t = N <= 1 ? 0 : (i / (N - 1)) * (palette.length - 1);
+        const idx = Math.floor(t);
+        const frac = t - idx;
+        const c1 = palette[idx];
+        const c2 = palette[Math.min(idx + 1, palette.length - 1)];
+        return lerpRgbViaHsl(c1, c2, frac);
+      }
+      function rgbToCss(c) {
+        return `rgb(${c.r},${c.g},${c.b})`;
+      }
+      function colorizeGlyphs(glyphs) {
+        const palette = getPaletteFor(config.name || "");
+        const N = glyphs.length;
+        if (N === 0 || palette.length === 0) return;
+        if (palette.length === 1) {
+          const c = palette[0];
+          const css = `rgb(${c.r},${c.g},${c.b})`;
+          for (let i = 0; i < N; i++) glyphs[i].el.style.color = css;
+          return;
+        }
+        for (let i = 0; i < N; i++) {
+          // 글자 위치(0..1)를 팔레트 위치(0..palette.length-1)로 매핑
+          const t = (i / Math.max(1, N - 1)) * (palette.length - 1);
+          const pi = Math.floor(t);
+          const pf = t - pi;
+          const c1 = palette[pi];
+          const c2 = palette[Math.min(pi + 1, palette.length - 1)];
+          const c = lerpRgbViaHsl(c1, c2, pf);
+          glyphs[i].el.style.color = `rgb(${c.r},${c.g},${c.b})`;
+        }
+      }
+      function reapplyPaletteToOutro() {
+        if (volumeGlyphs && volumeGlyphs.length > 0) colorizeGlyphs(volumeGlyphs);
+        if (decayGlyphs  && decayGlyphs.length  > 0) colorizeGlyphs(decayGlyphs);
+        if (rippleGlyphs && rippleGlyphs.length > 0) colorizeGlyphs(rippleGlyphs);
+      }
+
       let volumeRoot = null;
       let volumeStage = null;
       let volumeGlyphs = [];
@@ -956,6 +1157,9 @@
             flowSeed: Math.random() * 1000,
           });
         }
+
+        // 팔레트 기반 그라데이션 색 부여
+        colorizeGlyphs(volumeGlyphs);
 
         volumeStartTime = performance.now();
         const tickVol = (now) => {
@@ -1241,6 +1445,9 @@
             arrivalDelay: Math.random() * 0.4,
           });
         }
+
+        // 팔레트 기반 그라데이션 색 부여
+        colorizeGlyphs(decayGlyphs);
 
         // 실루엣 점도 미리 만들어 둠 (루프마다 셔플)
         decayStartTime = performance.now();
@@ -1533,6 +1740,9 @@
             jitterSeed: Math.random() * 1000,
           });
         }
+
+        // 팔레트 기반 그라데이션 색 부여
+        colorizeGlyphs(rippleGlyphs);
 
         rippleStartTime = performance.now();
         const tickRipple = (now) => {
@@ -2118,7 +2328,6 @@
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 16 * scale;
         if (fontPx >= 4) {
-          octx.fillStyle = "#000000";
           octx.font = `${fontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
@@ -2162,10 +2371,85 @@
           // 사용 가능한 경로 화면 호 길이
           const pathScreenLen = pathPts[pathPts.length - 1].sScreen;
 
+          // ─────────────────────────────────────
+          // 색 그라데이션을 위한 글자별 출처 매핑 테이블
+          // pendingSegments를 따라 loop 길이만큼 ownerName 배열 만듦.
+          // 각 글자에 대해, 그 글자가 해당 인스턴스 텍스트 안에서 어느 위치(0~1)인지도
+          // 기록 → 인스턴스 팔레트 안에서의 그라데이션 위치로 사용.
+          // ─────────────────────────────────────
+          const loopText = pendingText + "  ";
+          // 각 글자 i 에 대해 { name, posInSeg (0..1) } 또는 null
+          const ownerInfo = new Array(loopText.length);
+          {
+            let cursor = 0;
+            for (const seg of pendingSegments) {
+              const start = cursor;
+              const len = seg.text.length;
+              for (let k = 0; k < len; k++) {
+                ownerInfo[start + k] = seg.instName
+                  ? { name: seg.instName, t: len > 1 ? k / (len - 1) : 0 }
+                  : null;
+              }
+              cursor += len;
+            }
+            // 끝의 "  " 두 칸은 null
+            for (; cursor < loopText.length; cursor++) ownerInfo[cursor] = null;
+          }
+
+          // 인접한 글자(인스턴스 경계, null 영역)에서도 색이 끊기지 않도록
+          // 좌우로 가장 가까운 owner를 찾아 보간 비율을 계산하는 헬퍼.
+          // 결과: { c1, c2, mix } — 두 색을 mix(0..1)로 섞어 쓰면 됨.
+          function colorForGlyphAt(globalIdx) {
+            const N = ownerInfo.length;
+            const idx = ((globalIdx % N) + N) % N;
+            // 자기 자리 owner
+            const here = ownerInfo[idx];
+            if (here) {
+              const palette = getPaletteFor(here.name);
+              if (palette.length === 1) return palette[0];
+              // here.t (0..1) 위치에 해당하는 팔레트 색을 부드럽게 보간
+              const tp = here.t * (palette.length - 1);
+              const pi = Math.floor(tp);
+              const pf = tp - pi;
+              const c1 = palette[pi];
+              const c2 = palette[Math.min(pi + 1, palette.length - 1)];
+              return lerpRgbViaHsl(c1, c2, pf);
+            }
+            // 자기 자리가 비었으면(인스턴스 사이 공백): 좌우의 가장 가까운 owner를 찾아
+            // 두 색을 거리 비율로 보간 — 인스턴스 사이 부드러운 그라데이션
+            let leftOff = -1, leftOwner = null;
+            for (let off = 1; off <= 64; off++) {
+              const li = idx - off;
+              if (li < 0) break;
+              if (ownerInfo[li]) { leftOff = off; leftOwner = ownerInfo[li]; break; }
+            }
+            let rightOff = -1, rightOwner = null;
+            for (let off = 1; off <= 64; off++) {
+              const ri = idx + off;
+              if (ri >= N) break;
+              if (ownerInfo[ri]) { rightOff = off; rightOwner = ownerInfo[ri]; break; }
+            }
+            function endColor(owner, atEnd) {
+              const pal = getPaletteFor(owner.name);
+              if (pal.length === 1) return pal[0];
+              return atEnd ? pal[pal.length - 1] : pal[0];
+            }
+            if (leftOwner && rightOwner) {
+              const cL = endColor(leftOwner, true);
+              const cR = endColor(rightOwner, false);
+              const total = leftOff + rightOff;
+              const mix = total > 0 ? leftOff / total : 0.5;
+              return lerpRgbViaHsl(cL, cR, mix);
+            }
+            if (leftOwner)  return endColor(leftOwner, true);
+            if (rightOwner) return endColor(rightOwner, false);
+            return { r: 0, g: 0, b: 0 };
+          }
+
           // pendingText를 path 위로 흘려보내며 그림.
           // 텍스트가 짧으면 경로 끝까지 반복해서 채움(공백으로 구분).
           if (pendingText.length > 0) {
-            const loop = pendingText + "  ";
+            const loop = loopText;
             let s = 0;
             let i = 0;
             let safety = 0;
@@ -2176,6 +2460,8 @@
               const chW = octx.measureText(ch).width || 4;
               if (ch !== " ") {
                 const sample = sampleAt(s);
+                const col = colorForGlyphAt(i);
+                octx.fillStyle = `rgb(${col.r},${col.g},${col.b})`;
                 octx.save();
                 octx.translate(sample.x, sample.y);
                 octx.rotate(sample.ang);
@@ -2204,7 +2490,6 @@
 
       // 2) 부피/decay/ripple 텍스트 글리프들
       const glyphs = document.querySelectorAll(".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph");
-      octx.fillStyle = "#000000";
       const glyphFontPx = 16 * scale;
       octx.font = `${glyphFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       octx.textBaseline = "top";
@@ -2215,6 +2500,7 @@
         if (!isFinite(op) || op <= 0.01) continue;
         if (r.left > W || r.right < 0 || r.top > H || r.bottom < 0) continue;
         octx.globalAlpha = op;
+        octx.fillStyle = cs.color || "#000000";
         octx.fillText(g.textContent, r.left, r.top);
       }
       octx.globalAlpha = 1;
