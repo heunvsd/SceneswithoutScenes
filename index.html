@@ -2042,6 +2042,19 @@
             compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
           }
 
+          // 비율을 유지하면서 W×H 박스 안에 가운데 정렬해 contain-fit 으로 그리는 헬퍼
+          // (이미지가 정사각형이 아니어도 늘어나지 않음)
+          function drawContain(target, img, srcW, srcH) {
+            const iw = srcW || img.naturalWidth || 1;
+            const ih = srcH || img.naturalHeight || 1;
+            const s = Math.min(W / iw, H / ih);
+            const dw = iw * s;
+            const dh = ih * s;
+            const dx = (W - dw) / 2;
+            const dy = (H - dh) / 2;
+            target.drawImage(img, dx, dy, dw, dh);
+          }
+
           // 한 레이어를 마스크와 source-in 으로 합성해 본 캔버스에 그리는 헬퍼
           // vignette: true 이면 합성 후 가장자리 알파를 원형 그라데이션으로 깎아내
           //           본 캔버스에 그릴 때 자연스럽게 흰 바탕으로 페이드되어 보이게 함
@@ -2056,7 +2069,7 @@
             compCtx.globalCompositeOperation = "source-in";
 
             if (useLowRes) {
-              // 09.png 전용: 저해상도 픽셀 모핑
+              // 09.png 전용: 저해상도 픽셀 모핑 — 비율 유지
               const elapsedHoldLR = performance.now() - holdStartTime;
               const phaseLR = (elapsedHoldLR % HOLD_LOWRES_PERIOD_MS) / HOLD_LOWRES_PERIOD_MS;
               const tLR = (1 - Math.cos(phaseLR * Math.PI * 2)) / 2;
@@ -2071,9 +2084,10 @@
               const iw = layerImg.naturalWidth || pixSize;
               const ih = layerImg.naturalHeight || pixSize;
               const ratio = iw / ih;
+              // pixSize 는 짧은 변 기준 — 긴 변은 비율 따라 늘어남 (저해상 다운샘플 캔버스)
               let lw, lh;
-              if (ratio >= 1) { lw = pixSize; lh = Math.max(2, Math.round(pixSize / ratio)); }
-              else            { lh = pixSize; lw = Math.max(2, Math.round(pixSize * ratio)); }
+              if (ratio >= 1) { lh = pixSize; lw = Math.max(2, Math.round(pixSize * ratio)); }
+              else            { lw = pixSize; lh = Math.max(2, Math.round(pixSize / ratio)); }
               lowResCanvas.width  = lw;
               lowResCanvas.height = lh;
               lowResCtx.imageSmoothingEnabled = true;
@@ -2081,10 +2095,12 @@
               lowResCtx.drawImage(layerImg, 0, 0, lw, lh);
               const prevSmoothing = compCtx.imageSmoothingEnabled;
               compCtx.imageSmoothingEnabled = false;
-              compCtx.drawImage(lowResCanvas, 0, 0, W, H);
+              // 박스에 비율 유지 contain-fit
+              drawContain(compCtx, lowResCanvas, lw, lh);
               compCtx.imageSmoothingEnabled = prevSmoothing;
             } else {
-              compCtx.drawImage(layerImg, 0, 0, W, H);
+              // 박스에 비율 유지 contain-fit
+              drawContain(compCtx, layerImg);
             }
 
             // 비네팅 — 합성된 레이어의 알파를 가장자리에서 부드럽게 깎아낸다.
