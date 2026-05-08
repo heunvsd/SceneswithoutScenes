@@ -42,26 +42,20 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #ffffff;        /* 완전히 하얀 바탕 */
+      background: #ffffff;
       cursor: grab;
-      /* 드래그 시 텍스트 선택 방지 */
       -webkit-user-select: none;
       user-select: none;
-      /* 트랙패드/스크롤 제스처 기본 동작 차단 */
       overscroll-behavior: none;
       touch-action: none;
     }
 
-    /* ───────── 월드 컨테이너 (카메라 변환을 받음) ─────────
-       Position(팬)과 Distance(줌)을 실제 transform으로 적용해서
-       공간 자체가 움직이고 확대되게 함
-    */
     #world {
       position: fixed;
       inset: 0;
       transform-origin: 50% 50%;
       will-change: transform;
-      pointer-events: none; /* 자식들이 개별적으로 받음 */
+      pointer-events: none;
     }
     #reveal-root {
       position: absolute;
@@ -84,16 +78,9 @@
       z-index: 100;
       transition: transform 0.18s ease, opacity 0.18s ease;
     }
-    #capture-btn:hover {
-      transform: scale(1.18);
-    }
-    #capture-btn:active {
-      transform: scale(0.92);
-    }
-    #capture-btn.is-busy {
-      opacity: 0.5;
-      pointer-events: none;
-    }
+    #capture-btn:hover { transform: scale(1.18); }
+    #capture-btn:active { transform: scale(0.92); }
+    #capture-btn.is-busy { opacity: 0.5; pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ───────── */
     .hud {
@@ -110,9 +97,7 @@
       white-space: nowrap;
       text-transform: uppercase;
     }
-    .hud .row {
-      display: block;
-    }
+    .hud .row { display: block; }
 
     /* ───────── Reveal Image ───────── */
     .reveal {
@@ -132,7 +117,6 @@
       height: 100%;
       pointer-events: none;
     }
-    /* 펼쳐지는 흰 텍스트 박스 */
     .reveal-text-box {
       position: absolute;
       left: 0;
@@ -161,7 +145,6 @@
       white-space: pre-wrap;
       word-break: keep-all;
     }
-    /* 타자기 커서 */
     .reveal-text-content .caret {
       display: inline-block;
       width: 0.5em;
@@ -213,16 +196,7 @@
       will-change: transform, opacity;
     }
 
-    /* ───────── 붕괴(decay) 텍스트 모션 ─────────
-       28.png 전용. 떼면 출현. 페이즈:
-       1) scattered (멀리 흩어짐)
-       2) gathering (형상으로 끌려옴)
-       3) forming   (잠깐 완성에 가까운 상태)
-       4) escape    (핵심 단어들이 먼저 이탈)
-       5) collapse  (글자 단위로 가속 이탈)
-       6) silence   (잠깐 공백)
-       다시 1로. 루프마다 형성시간 단축, 붕괴 가속.
-    */
+    /* ───────── 붕괴(decay) 텍스트 모션 ───────── */
     .text-decay {
       position: fixed;
       pointer-events: none;
@@ -252,11 +226,7 @@
       will-change: transform, opacity;
     }
 
-    /* ───────── Ripple(파동) 텍스트 모션 ─────────
-       09.png 전용. 떼면 출현. 글자들이 본래 위치에 있되
-       사인파가 좌→우로 흘러가며 위아래로 일렁이고,
-       가벼운 회전과 알파 파동으로 물결처럼 보이게.
-    */
+    /* ───────── Ripple(파동) 텍스트 모션 ───────── */
     .text-ripple {
       position: fixed;
       pointer-events: none;
@@ -282,6 +252,42 @@
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
+    }
+
+    /* ───────── 문장 단위 호흡 텍스트 (hold 중에만 표시) ─────────
+       alightworld.online 의 시적·명상적 호흡감 참고.
+       문장이 한 덩어리로 떠오르고, 한참 머물며 미세하게 일렁이고,
+       다음 문장으로 부드럽게 페이드. 흑백 미니멀, 자간 본래대로.
+       문장(블록) 단위라 글자가 따로 흩어지지 않음.
+    */
+    .text-sentence {
+      position: fixed;
+      pointer-events: none;
+      z-index: 4;
+      will-change: transform;
+    }
+    .text-sentence-stage {
+      position: absolute;
+      left: 50%;
+      top:  50%;
+      width: 0;
+      height: 0;
+      will-change: transform;
+    }
+    .text-sentence-block {
+      position: absolute;
+      left: 0;
+      top:  0;
+      font-family: 'Vivaldi', 'Eulyoo1945-Regular', serif;
+      font-size: 17px;
+      line-height: 1.55;
+      color: #000000;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      text-align: center;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity, filter;
+      letter-spacing: normal;
     }
 
     /* ───────── 확장 패널 ───────── */
@@ -382,7 +388,7 @@
     /* ─────────────────────────────────────────────
        상태값
        ───────────────────────────────────────────── */
-    let distance = 100;     // %
+    let distance = 100;
     let posX = 0;
     let posY = 0;
 
@@ -403,20 +409,16 @@
       numDistance.textContent = `${Math.round(distance)}%`;
       numPosX.textContent = fmt3(posX);
       numPosY.textContent = fmt3(posY);
-      // 카메라 변환 — Position은 공간 이동, Distance는 확대 비율
       const scale = distance / 100;
       worldEl.style.transform =
         `translate(${posX}px, ${posY}px) scale(${scale.toFixed(4)})`;
     }
     renderHUD();
 
-    /* 화면(client) 좌표 → 월드 좌표 변환 */
     function screenToWorld(clientX, clientY) {
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2;
       const scale = distance / 100;
-      // world transform: translate(posX, posY) scale(scale) (origin 중앙)
-      // 역변환
       return {
         x: (clientX - cx - posX) / scale + cx,
         y: (clientY - cy - posY) / scale + cy,
@@ -424,7 +426,7 @@
     }
 
     /* ─────────────────────────────────────────────
-       1) 마우스 드래그 (잡고 끌기) → Position
+       1) 마우스 드래그 → Position
        ───────────────────────────────────────────── */
     let isDragging = false;
     let dragLastX = 0, dragLastY = 0;
@@ -490,18 +492,13 @@
        2) wheel 이벤트 분기
        ───────────────────────────────────────────── */
     function applyZoomAt(clientX, clientY, factor) {
-      // 마우스 커서를 고정점으로 줌
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2;
       const oldScale = distance / 100;
       const newDistance = Math.max(5, distance * factor);
       const newScale = newDistance / 100;
-      // 마우스 위치의 월드 좌표가 줌 전후로 같도록 posX/posY 조정
-      // screen = (world - center) * scale + center + pos
-      // world = (screen - center - pos) / scale + center
       const worldX = (clientX - cx - posX) / oldScale + cx;
       const worldY = (clientY - cy - posY) / oldScale + cy;
-      // 이 worldX/Y가 줌 후에도 같은 screen 위치가 되도록
       posX = clientX - cx - (worldX - cx) * newScale;
       posY = clientY - cy - (worldY - cy) * newScale;
       distance = newDistance;
@@ -530,7 +527,7 @@
     }, { passive: false });
 
     /* ─────────────────────────────────────────────
-       3) 터치(모바일/태블릿)
+       3) 터치
        ───────────────────────────────────────────── */
     let touchMode = null;
     let lastTouchX = 0, lastTouchY = 0;
@@ -567,7 +564,6 @@
       } else if (touchMode === "pinch" && e.touches.length === 2) {
         const d = touchDistance(e.touches[0], e.touches[1]);
         if (pinchStartDist > 0) {
-          // 두 손가락 중심점 기준으로 줌
           const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
           const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
           const targetDistance = Math.max(5, pinchStartDistance * (d / pinchStartDist));
@@ -599,8 +595,6 @@
 
     const IMAGE_BASE_PATH = "./assets/";
 
-    const revealImg = document.getElementById("reveal-img");
-
     function parseCSV(text) {
       const rows = [];
       let row = [];
@@ -609,26 +603,15 @@
       for (let i = 0; i < text.length; i++) {
         const ch = text[i];
         if (inQuotes) {
-          if (ch === '"' && text[i + 1] === '"') {
-            cell += '"'; i++;
-          } else if (ch === '"') {
-            inQuotes = false;
-          } else {
-            cell += ch;
-          }
+          if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { cell += ch; }
         } else {
-          if (ch === '"') {
-            inQuotes = true;
-          } else if (ch === ",") {
-            row.push(cell); cell = "";
-          } else if (ch === "\n") {
-            row.push(cell); cell = "";
-            rows.push(row); row = [];
-          } else if (ch === "\r") {
-            // 무시
-          } else {
-            cell += ch;
-          }
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ",") { row.push(cell); cell = ""; }
+          else if (ch === "\n") { row.push(cell); cell = ""; rows.push(row); row = []; }
+          else if (ch === "\r") { /* 무시 */ }
+          else { cell += ch; }
         }
       }
       if (cell.length > 0 || row.length > 0) {
@@ -659,7 +642,6 @@
        Reveal 인스턴스 시스템
        ───────────────────────────────────────────── */
 
-    /* 모든 인스턴스에서 공통으로 쓸 이미지 사이즈 — 어셋이 모두 동일 크기로 들어옴 */
     const REVEAL_SIZE = 190;
 
     const FRAME_COUNT = 8;
@@ -671,30 +653,19 @@
     const POINT_LIFE = 140;
     const POINT_RADIUS = 75;
 
-    /* 28.png 전용 hold 페이드 루프 주기(ms) — 빠른 페이드 */
     const HOLD_PULSE_PERIOD_MS = 700;
-    /* 09.png 전용 hold 저해상도 모핑 루프 주기(ms) */
     const HOLD_LOWRES_PERIOD_MS = 1400;
-    /* 09.png 저해상도 모핑 픽셀 사이즈 범위 */
     const HOLD_LOWRES_MIN_PX = 6;
     const HOLD_LOWRES_MAX_PX = 90;
 
     let mouseX = -9999, mouseY = -9999;
 
     /* ─────────────────────────────────────────────
-       텍스트 궤적 시스템 (문장 단위, 폰트 자간 유지)
-       - 마우스 경로(점들)를 월드 좌표로 기록
-       - 사용자가 만진 인스턴스의 텍스트는 큐에 통째로 들어감
-       - 캡처 시점에 큐의 텍스트를 마우스 경로 위로 따라가며 그림
-         (글자 위치는 경로 곡선 위, 글자 간격/자간은 폰트 본래 값)
+       텍스트 궤적 시스템 (캡처용)
        ───────────────────────────────────────────── */
-
-    // 마우스 경로 — 시간 순. 화면 좌표 누적 호 길이 + 월드 좌표 저장.
-    const pathPts = []; // [{worldX, worldY, sScreen}]
+    const pathPts = [];
     let totalArcLen = 0;
     let lastPathScreenX = -9999, lastPathScreenY = -9999;
-
-    // 텍스트 큐 — 곡선 위에 그려질 텍스트 (인스턴스 만질 때마다 이어붙임)
     let pendingText = "";
 
     function addPathPoint(clientX, clientY) {
@@ -707,11 +678,7 @@
       }
       totalArcLen += segLen;
       const w = screenToWorld(clientX, clientY);
-      pathPts.push({
-        worldX: w.x,
-        worldY: w.y,
-        sScreen: totalArcLen,
-      });
+      pathPts.push({ worldX: w.x, worldY: w.y, sScreen: totalArcLen });
       lastPathScreenX = clientX;
       lastPathScreenY = clientY;
     }
@@ -719,12 +686,8 @@
     function feedFromInstance(inst) {
       const text = (inst.getText && inst.getText()) || "";
       if (!text) return;
-      // 줄바꿈/연속공백 정리, 인스턴스 사이엔 공백 두 칸
       const norm = text.replace(/\s+/g, " ").trim();
-      if (pendingText.length > 0) {
-        // 인스턴스 사이 공백 두 칸
-        pendingText += "  ";
-      }
+      if (pendingText.length > 0) pendingText += "  ";
       pendingText += norm;
     }
 
@@ -739,13 +702,11 @@
       const interactive = config.interactive !== false;
       const expandable  = config.expandable === true;
       const framesCount = (config.framesCount != null) ? config.framesCount : FRAME_COUNT;
-      /* hold 중에 알파가 사인파처럼 페이드 루프되는지 (28.png 전용) */
       const holdPulse   = config.holdPulse === true;
-      /* hold 중에 저해상도 모핑 루프(픽셀화) 적용 (09.png 전용) */
       const holdLowRes  = config.holdLowRes === true;
-      /* base 이미지에 원형 비네팅 적용 (가장자리가 흰 바탕으로 부드럽게 페이드) */
+      /* hold 중에 문장 단위 호흡 텍스트를 띄울지 — alightworld 영감 */
+      const holdSentence = config.holdSentence === true;
       const baseVignette = config.baseVignette === true;
-      /* 떼면 보여줄 outro 모션 종류: "volume" (기본) | "decay" | "ripple" */
       const outroMode   = config.outroMode || "volume";
 
       const wrap = document.createElement("div");
@@ -762,16 +723,12 @@
       textInner.className = "reveal-text-content";
       textBox.appendChild(textInner);
 
-      // imgArea — 오버레이 캔버스가 들어가는 영역 (마우스 hit-test 영역도 이쪽)
-      // 사이즈는 size × size 그대로
       const imgArea = document.createElement("div");
       imgArea.className = "reveal-img-area";
       imgArea.style.zIndex = "2";
       const canvas = document.createElement("canvas");
       imgArea.appendChild(canvas);
 
-      // 베이스 전용 별도 캔버스 — baseScale 옵션이 있으면 imgArea보다 더 큰 영역에 그림.
-      // wrap의 중심 기준으로 펼쳐지지만 wrap 박스 밖으로도 넘쳐 보임 (overflow: visible)
       const baseScale = (typeof config.baseScale === "number" && config.baseScale > 0)
         ? config.baseScale : 1;
       const baseSize = Math.round(size * baseScale);
@@ -798,17 +755,14 @@
       }
 
       wrap.appendChild(textBox);
-      // 베이스 영역은 오버레이 imgArea 보다 뒤(z-index 낮음) — 시각적 순서
       if (baseArea) wrap.appendChild(baseArea);
       wrap.appendChild(imgArea);
-      // wrap이 자기보다 큰 자식(베이스)을 넘치게 보여주도록
       wrap.style.overflow = "visible";
       root.appendChild(wrap);
 
       const ctx = canvas.getContext("2d");
 
-      // 오버레이 이미지 (선택) — 베이스 이미지 위에 같은 마스크로 reveal되며,
-      // holdPulse가 켜져 있으면 알파 펄스가 이 이미지에만 적용됨.
+      // 오버레이 이미지 (이번 수정에서는 28-1.png 안 씀, 호환성을 위해 옵션은 유지)
       let overlayImg = null;
       const overlayFilename = config.overlayFilename || null;
       if (overlayFilename) {
@@ -819,21 +773,16 @@
         overlayImg = oi;
       }
 
-      // 마스크/합성을 위한 오프스크린 캔버스 (재사용)
       let maskCanvas = null;
       let maskCtx = null;
       let compCanvas = null;
       let compCtx = null;
 
       function resizeCanvas() {
-        // 캔버스 백킹 픽셀은 항상 줌 영향 안 받는 본래 크기(size) 기준으로 잡는다.
-        // 이렇게 해야 #world의 transform: scale() 이 캔버스 element를 비례적으로
-        // 늘려줄 때 안의 이미지도 잘리지 않고 같이 커진다.
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width  = Math.round(size * dpr);
         canvas.height = Math.round(size * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        // 베이스 캔버스도 자기 사이즈(baseSize) 기준으로 백킹 픽셀 잡기
         if (baseCanvas && baseCtx) {
           baseCanvas.width  = Math.round(baseSize * dpr);
           baseCanvas.height = Math.round(baseSize * dpr);
@@ -855,8 +804,6 @@
         for (let i = 0; i < framesCount; i++) {
           const fname = (i === 0) ? `${name}${ext}` : `${name}-${i}${ext}`;
           const img = new Image();
-          // 같은 도메인 어셋이지만 만약을 위해 crossOrigin 시도
-          // (file:// 환경에서는 무시되며, 같은 origin이면 영향 없음)
           try { img.crossOrigin = "anonymous"; } catch(e) {}
           img.onerror = () => { img._broken = true; };
           img.src = IMAGE_BASE_PATH + fname;
@@ -914,7 +861,6 @@
 
       let isHolding = false;
       let isVolumeMode = false;
-      /* hold 시작 시각 → pulse 페이즈 계산용 */
       let holdStartTime = 0;
 
       function startHold() {
@@ -924,9 +870,7 @@
         isHolding = true;
         holdStartTime = performance.now();
 
-        if (!frameLoopTimer) {
-          // holdPulse 인스턴스(28.png)는 frame도 더 빠르게 순환
-          // holdLowRes 인스턴스(09.png)는 한 프레임뿐이라도 픽셀 모핑이 핵심
+        if (!frameLoopTimer && framesCount > 1) {
           const interval = holdPulse ? 90 : FRAME_INTERVAL_MS;
           frameLoopTimer = setInterval(() => {
             if (frames.length > 0) {
@@ -935,9 +879,13 @@
             }
           }, interval);
         }
+
+        // 문장 단위 호흡 텍스트 시작 (28.png, 79.png 전용)
+        if (holdSentence) {
+          buildSentenceText(fullText);
+        }
       }
 
-      // 09.png 저해상도 모핑용 오프스크린 캔버스 (재사용)
       let lowResCanvas = null;
       let lowResCtx = null;
 
@@ -1088,25 +1036,21 @@
          ───────────────────────────────────────── */
       let decayRoot = null;
       let decayStage = null;
-      let decayGlyphs = [];     // {el, ch, isCore, baseX, baseY, scatterX, scatterY, escapeDir, escapeSpeed, fallSeed, decayPhase}
-      let decayWords = [];      // [{startIdx, endIdx, isCore}]
+      let decayGlyphs = [];
+      let decayWords = [];
       let decayRafId = 0;
       let decayStartTime = 0;
       let decayLoopCount = 0;
       let decayLoopStart = 0;
       let decayCycleDuration = 0;
 
-      /* 형상 좌표를 만들어내는 함수: 사람의 옆얼굴 실루엣을 닮은 점들 */
       function generateSilhouettePoints(count, variant) {
-        // 정확한 하트 형상 — 윤곽선과 내부를 균일 분포로
         const points = [];
         const baseScale = 4.2;
 
-        // 50% 윤곽선(또렷하게), 50% 내부 채움(균일하게)
         const outlineCount = Math.floor(count * 0.50);
         const fillCount = count - outlineCount;
 
-        // 윤곽선 — 매개변수 곡선 위 균일 간격으로 배치 (노이즈 거의 없이)
         for (let i = 0; i < outlineCount; i++) {
           const t = i / outlineCount;
           const a = t * Math.PI * 2;
@@ -1117,12 +1061,10 @@
                       - 1  * Math.cos(4 * a));
           const x = sx * baseScale;
           const y = sy * baseScale - 5;
-          // 윤곽선은 z를 살짝만 — 두께가 너무 크면 형상이 흐려짐
           const z = (Math.random() - 0.5) * 10;
           points.push({ x, y, z });
         }
 
-        // 내부 채움 — 하트 부등식 안쪽에 균일 분포
         let placed = 0;
         let safety = 0;
         while (placed < fillCount && safety < fillCount * 30) {
@@ -1170,23 +1112,19 @@
         decayRoot.appendChild(decayStage);
         document.body.appendChild(decayRoot);
 
-        // 핵심(이탈하는) 단어들 — 사용자가 지정한 것
         const CORE_WORDS = new Set([
           "see", "lost", "loved", "one", "relive", "quicker"
         ]);
 
-        // 단어 단위 인덱스 산출 (공백 단위로 끊되, 글자 인덱스 기록)
         decayWords = [];
         {
           let i = 0;
           while (i < text.length) {
-            // 공백 스킵
             while (i < text.length && /\s/.test(text[i])) i++;
             if (i >= text.length) break;
             const startIdx = i;
             while (i < text.length && !/\s/.test(text[i])) i++;
-            const endIdx = i; // exclusive
-            // 단어에서 알파벳만 추출해 비교
+            const endIdx = i;
             const wordRaw = text.slice(startIdx, endIdx);
             const wordKey = wordRaw.replace(/[^A-Za-z]/g, "").toLowerCase();
             const isCore = CORE_WORDS.has(wordKey);
@@ -1194,7 +1132,6 @@
           }
         }
 
-        // 글자 폭 측정
         const measure = document.createElement("span");
         measure.className = "text-decay-glyph";
         measure.style.position = "fixed";
@@ -1202,11 +1139,9 @@
         measure.style.left = "-9999px";
         document.body.appendChild(measure);
 
-        // 한 줄 너비를 잡아 줄바꿈 처리: 박스 폭 ~ 360px
         const LINE_WIDTH = 360;
         const LINE_HEIGHT = 24;
 
-        // 글자별 폭 미리 계산
         const charWidths = [];
         for (const ch of text) {
           measure.textContent = ch === " " ? "\u00a0" : ch;
@@ -1214,60 +1149,44 @@
         }
         document.body.removeChild(measure);
 
-        // 단어 단위로 줄바꿈 처리
-        const layout = []; // [{ch, lineX, lineY, isSpace, wordIdx, isCore}]
+        const layout = [];
         let curX = 0;
         let curY = 0;
         for (let w = 0; w < decayWords.length; w++) {
           const word = decayWords[w];
-          // 단어 너비 계산
           let wordWidth = 0;
           for (let i = word.startIdx; i < word.endIdx; i++) {
             wordWidth += charWidths[i];
           }
-          // 공백(앞) 너비
           const spaceCh = (w === 0) ? "" : " ";
           const spaceW = (w === 0) ? 0 : charWidths[word.startIdx - 1] || 4;
-          // 줄바꿈 판단
           if (curX + spaceW + wordWidth > LINE_WIDTH && curX > 0) {
             curX = 0;
             curY += LINE_HEIGHT;
           } else if (w > 0) {
-            // 공백을 한 글자로 추가
             layout.push({
-              ch: " ",
-              lineX: curX,
-              lineY: curY,
-              isSpace: true,
-              wordIdx: -1,
-              isCore: false,
+              ch: " ", lineX: curX, lineY: curY,
+              isSpace: true, wordIdx: -1, isCore: false,
             });
             curX += spaceW;
           }
-          // 단어 글자들 추가
           for (let i = word.startIdx; i < word.endIdx; i++) {
             layout.push({
-              ch: text[i],
-              lineX: curX,
-              lineY: curY,
-              isSpace: false,
-              wordIdx: w,
-              isCore: word.isCore,
+              ch: text[i], lineX: curX, lineY: curY,
+              isSpace: false, wordIdx: w, isCore: word.isCore,
             });
             curX += charWidths[i];
           }
         }
 
-        // 전체 텍스트 박스를 중앙 정렬
         const totalH = curY + LINE_HEIGHT;
         const offsetX = -LINE_WIDTH / 2;
         const offsetY = -totalH / 2;
 
-        // glyph 생성
         decayGlyphs = [];
         for (let i = 0; i < layout.length; i++) {
           const it = layout[i];
-          if (it.isSpace) continue; // 공백은 시각 글리프 생성 안 함
+          if (it.isSpace) continue;
 
           const el = document.createElement("span");
           el.className = "text-decay-glyph";
@@ -1277,7 +1196,6 @@
           const baseX = it.lineX + offsetX;
           const baseY = it.lineY + offsetY;
 
-          // 흩어진 시작 위치 — 차분하게 가까운 거리에서, 3D 구 위에 분포
           const scatterTheta = Math.random() * Math.PI * 2;
           const scatterPhi = Math.acos(2 * Math.random() - 1);
           const scatterDist = 140 + Math.random() * 100;
@@ -1285,30 +1203,24 @@
           const scatterY = scatterDist * Math.cos(scatterPhi) * 0.6;
           const scatterZ = scatterDist * Math.sin(scatterPhi) * Math.sin(scatterTheta) * 0.6;
 
-          // 곡선 경로 곡률 (가더링용)
           const curveSeed = Math.random() * Math.PI * 2;
           const curveAmt = 30 + Math.random() * 40;
 
           decayGlyphs.push({
-            el,
-            ch: it.ch,
-            wordIdx: it.wordIdx,
-            isCore: it.isCore,
+            el, ch: it.ch, wordIdx: it.wordIdx, isCore: it.isCore,
             baseX, baseY,
             scatterX, scatterY, scatterZ,
             curveSeed, curveAmt,
             phase: Math.random() * Math.PI * 2,
             wordIdxRand: Math.random(),
-            // 글자별 시간 오프셋 — 한꺼번에 안 모이게
             arrivalDelay: Math.random() * 0.4,
           });
         }
 
-        // 실루엣 점도 미리 만들어 둠 (루프마다 셔플)
         decayStartTime = performance.now();
         decayLoopStart = decayStartTime;
         decayLoopCount = 0;
-        decayCycleDuration = 8500; // 첫 사이클: 8.5초 (차분하게 길게)
+        decayCycleDuration = 8500;
 
         const tickDecay = (now) => {
           if (!decayRoot) return;
@@ -1318,44 +1230,33 @@
         decayRafId = requestAnimationFrame(tickDecay);
       }
 
-      // 실루엣 좌표 캐시 (사이클당 1세트)
       let decayCachedSilhouette = null;
       let decayCachedVariant = -1;
 
       function updateDecay(now) {
-        // 따라다니기
         const r = wrap.getBoundingClientRect();
         const cx0 = r.left + r.width / 2;
         const cy0 = r.top  + r.height / 2;
         decayRoot.style.left = `${cx0}px`;
         decayRoot.style.top  = `${cy0}px`;
 
-        // 사이클 진행도
         const elapsed = now - decayLoopStart;
         let cycleT = elapsed / decayCycleDuration;
         if (cycleT >= 1) {
-          // 다음 루프
           decayLoopCount++;
-          // 형성 시간 단축, 붕괴 가속 — 사이클이 짧아짐
           decayCycleDuration = Math.max(6500, 8500 * Math.pow(0.93, decayLoopCount));
           decayLoopStart = now;
-          decayCachedSilhouette = null; // 새 형상 셔플
+          decayCachedSilhouette = null;
           cycleT = 0;
         }
 
-        // 페이즈 분배 — 차분한 사이클
-        // 0.00 - 0.45 : gathering   (글자들이 곡선 경로로 모여들어 하트 형성)
-        // 0.45 - 0.85 : breathing   (하트가 천천히 회전 + 부드러운 호흡 / 가장 길게)
-        // 0.85 - 1.00 : dissolve    (천천히 페이드 아웃, 흩어지지 않음)
         const formingEnd = 0.45;
         const breathingEnd = 0.85;
 
-        // 실루엣 좌표 보장
         if (!decayCachedSilhouette) {
           const variant = decayLoopCount % 3;
           decayCachedVariant = variant;
           decayCachedSilhouette = generateSilhouettePoints(decayGlyphs.length, variant);
-          // 글자에 형상 점 매핑
           const idxs = decayGlyphs.map((_, i) => i);
           for (let i = idxs.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -1369,26 +1270,20 @@
           }
         }
 
-        // 회전 — 사이클 전체에 걸쳐 천천히 일정 속도로 (역동적이지 않게)
-        // gathering부터 시작해서 breathing 동안 한 바퀴 정도, 매우 부드럽게
         let formRotY = 0;
         let formRotX = 0;
         let breathScale = 1;
 
         if (cycleT < formingEnd) {
-          // gathering: 회전 없거나 아주 살짝
           const u = cycleT / formingEnd;
           formRotY = u * 0.3;
           formRotX = Math.sin(u * Math.PI) * 0.08;
         } else if (cycleT < breathingEnd) {
-          // breathing: 차분한 회전 (한 바퀴 살짝 안 되게)
           const u = (cycleT - formingEnd) / (breathingEnd - formingEnd);
           formRotY = 0.3 + u * Math.PI * 1.6;
           formRotX = Math.sin(u * Math.PI) * 0.18;
-          // 부드러운 호흡 — 사인파 한 번
           breathScale = 1 + Math.sin(u * Math.PI * 2) * 0.05;
         } else {
-          // dissolve: 회전 멈추듯 매우 천천히
           const u = (cycleT - breathingEnd) / (1 - breathingEnd);
           formRotY = 0.3 + Math.PI * 1.6 + u * 0.15;
           formRotX = (1 - u) * 0.10;
@@ -1409,18 +1304,14 @@
           let x, y, z = 0, opacity;
 
           if (cycleT < formingEnd) {
-            // gathering: 차분히 모여들어 하트 형성
-            // 각 글자마다 시간차(arrivalDelay)
             const rawU = cycleT / formingEnd;
             const localU = Math.max(0, Math.min(1,
               (rawU - g.arrivalDelay * 0.5) / (1 - g.arrivalDelay * 0.5)
             ));
-            // easeInOutCubic
             const eu = localU < 0.5
               ? 4 * localU * localU * localU
               : 1 - Math.pow(-2 * localU + 2, 3) / 2;
 
-            // 직선 보간 + 부드러운 곡선 편차
             const lx = g.scatterX * (1 - eu) + g.silX * eu;
             const ly = g.scatterY * (1 - eu) + g.silY * eu;
             const lz = g.scatterZ * (1 - eu) + g.silZ * eu;
@@ -1437,21 +1328,17 @@
 
             opacity = 0.05 + eu * 0.75;
           } else if (cycleT < breathingEnd) {
-            // breathing: 하트가 모인 채로 천천히 회전 + 호흡
             const sx = g.silX * breathScale;
             const sy = g.silY * breathScale;
             const sz = g.silZ * breathScale;
             const r = applyRotation(sx, sy, sz);
             x = r.x; y = r.y; z = r.z;
-            // 깊이에 따른 opacity — 너무 크지 않게
             const depthN = (z + 30) / 60;
             opacity = 0.65 + Math.max(0, Math.min(1, depthN)) * 0.30;
           } else {
-            // dissolve: 위치는 거의 그대로, opacity만 천천히 줄어듦
             const u = (cycleT - breathingEnd) / (1 - breathingEnd);
             const r = applyRotation(g.silX, g.silY, g.silZ);
             x = r.x; y = r.y; z = r.z;
-            // 글자별 미세한 시간차로 사라짐 — 일제히 끝나지 않게
             const startOffset = g.wordIdxRand * 0.4;
             const localU = Math.max(0, Math.min(1,
               (u - startOffset * 0.5) / (1 - startOffset * 0.5)
@@ -1462,7 +1349,6 @@
             opacity = baseOp * (1 - fadeEu);
           }
 
-          // 깊이에 따른 스케일 — 차분한 원근
           const depthScaleN = Math.max(0, Math.min(1, (z + 40) / 80));
           const scale = 0.85 + depthScaleN * 0.30;
 
@@ -1487,9 +1373,6 @@
 
       /* ─────────────────────────────────────────
          Ripple(파동) 텍스트 — 09.png 전용 outro
-         글자들이 본래 위치에 자리잡되, 좌→우로 흐르는
-         사인파에 따라 위아래로 일렁이며 회전·알파 변화.
-         느리고 차분하게 영원히 흘러감.
          ───────────────────────────────────────── */
       let rippleRoot = null;
       let rippleStage = null;
@@ -1516,7 +1399,6 @@
         rippleRoot.appendChild(rippleStage);
         document.body.appendChild(rippleRoot);
 
-        // 글자 폭 측정
         const measure = document.createElement("span");
         measure.className = "text-ripple-glyph";
         measure.style.position = "fixed";
@@ -1531,11 +1413,9 @@
         }
         document.body.removeChild(measure);
 
-        // 단어 단위 줄바꿈 (한 줄 폭 ~ 360px)
         const LINE_WIDTH  = 360;
         const LINE_HEIGHT = 24;
 
-        // 단어 인덱스 추출
         const words = [];
         {
           let i = 0;
@@ -1548,7 +1428,7 @@
           }
         }
 
-        const layout = []; // [{ch, lineX, lineY}]
+        const layout = [];
         let curX = 0;
         let curY = 0;
         for (let w = 0; w < words.length; w++) {
@@ -1588,7 +1468,6 @@
           rippleGlyphs.push({
             el,
             baseX, baseY,
-            // 위치 기반 위상 — 좌→우로 진행하는 파동
             phaseX: (it.lineX / LINE_WIDTH) * Math.PI * 2,
             phaseY: (it.lineY / LINE_HEIGHT) * 0.7,
             jitter: Math.random() * 0.3,
@@ -1608,27 +1487,22 @@
       function updateRipple(now) {
         const t = (now - rippleStartTime) / 1000;
 
-        // 따라다니기
         const r = wrap.getBoundingClientRect();
         const cx0 = r.left + r.width / 2;
         const cy0 = r.top  + r.height / 2;
         rippleRoot.style.left = `${cx0}px`;
         rippleRoot.style.top  = `${cy0}px`;
 
-        // 인트로 — 1.2초 동안 부드럽게 떠오름
         const intro = Math.min(1, t / 1.2);
         const introEased = 1 - Math.pow(1 - intro, 3);
 
-        // 좌→우로 흐르는 파동
-        const waveSpeed = 1.6;     // 라디안/초
-        const waveAmpY  = 7;       // 위아래 진폭 (px)
-        const waveAmpX  = 2.5;     // 좌우 미세 흔들림
-        const rotAmp    = 0.18;    // 회전 진폭 (rad)
+        const waveSpeed = 1.6;
+        const waveAmpY  = 7;
+        const waveAmpX  = 2.5;
+        const rotAmp    = 0.18;
 
         for (const g of rippleGlyphs) {
-          // 메인 파동 — 위상이 글자 x 위치에 따라 다름
           const wave = Math.sin(t * waveSpeed - g.phaseX * 1.4 + g.phaseY);
-          // 보조 파동 — 약간 다른 주파수로 더해 단조로움 회피
           const wave2 = Math.sin(t * waveSpeed * 0.55 - g.phaseX * 0.7 + g.jitterSeed * 0.001);
 
           const dy = wave * waveAmpY * introEased
@@ -1639,11 +1513,9 @@
           const x = g.baseX + dx;
           const y = g.baseY + dy;
 
-          // 알파 — 파동의 마루(꼭대기)에서 살짝 더 또렷, 골에서 옅음
           const alphaWave = 0.78 + wave * 0.18 + wave2 * 0.06;
           const opacity = Math.max(0.25, Math.min(1, alphaWave)) * introEased;
 
-          // 스케일 — 마루에서 살짝 커짐
           const scale = 0.94 + wave * 0.06;
 
           g.el.style.transform =
@@ -1664,11 +1536,216 @@
         rippleGlyphs = [];
       }
 
+      /* ─────────────────────────────────────────
+         문장 단위 호흡 텍스트 — hold 중에만 표시
+         (28.png, 79.png 전용. alightworld.online 영감.)
+
+         - 텍스트를 문장 부호 기준으로 분할 (.,;? 등)
+         - 한 문장이 아래에서 위로 부드럽게 떠올라 머무름
+         - 머무는 동안 미세한 좌우 일렁임 + 알파 호흡
+         - 페이드아웃 → 다음 문장. 무한 루프.
+         - 문장 자체는 한 덩어리(블록)로 움직임 (낱자 단위 X)
+         - 글자 자간/줄간격은 폰트 본래 값 그대로
+         ───────────────────────────────────────── */
+      let sentenceRoot = null;
+      let sentenceStage = null;
+      let sentenceList = [];      // 분할된 문장 배열
+      let sentenceBlocks = [];    // 활성 블록 element 풀 (보통 2개로 크로스페이드)
+      let sentenceRafId = 0;
+      let sentenceStartTime = 0;
+      let sentenceCurIdx = 0;     // 현재 표시 중인 문장 index
+      let sentenceCurStart = 0;   // 현재 문장 시작 시각
+
+      // 한 문장의 라이프사이클 (ms)
+      const SENT_FADE_IN  = 1200;
+      const SENT_HOLD     = 2600;
+      const SENT_FADE_OUT = 1300;
+      const SENT_TOTAL    = SENT_FADE_IN + SENT_HOLD + SENT_FADE_OUT;
+      // 다음 문장은 현재 문장 페이드아웃 시작 시점부터 살짝 겹쳐서 등장 (크로스페이드)
+      const SENT_OVERLAP  = 700;
+
+      function splitSentences(text) {
+        if (!text) return [];
+        // 한국어/영어 둘 다 고려: . ! ? 그리고 줄바꿈
+        // 문장부호 뒤 공백/줄바꿈으로 끊고, 부호는 살림
+        const raw = text.replace(/\s+/g, " ").trim();
+        if (!raw) return [];
+        const parts = raw.match(/[^.!?\n]+[.!?]?/g) || [raw];
+        return parts.map(s => s.trim()).filter(s => s.length > 0);
+      }
+
+      function buildSentenceText(text) {
+        teardownSentenceText();
+        sentenceList = splitSentences(text);
+        if (sentenceList.length === 0) return;
+
+        sentenceRoot = document.createElement("div");
+        sentenceRoot.className = "text-sentence";
+        const r = wrap.getBoundingClientRect();
+        sentenceRoot.style.left = `${r.left + r.width / 2}px`;
+        sentenceRoot.style.top  = `${r.top  + r.height / 2}px`;
+        sentenceRoot.style.width  = "0px";
+        sentenceRoot.style.height = "0px";
+
+        sentenceStage = document.createElement("div");
+        sentenceStage.className = "text-sentence-stage";
+        sentenceRoot.appendChild(sentenceStage);
+        document.body.appendChild(sentenceRoot);
+
+        sentenceBlocks = [];
+        sentenceCurIdx = 0;
+        sentenceCurStart = performance.now();
+        sentenceStartTime = sentenceCurStart;
+
+        // 첫 문장 블록 띄우기
+        spawnSentenceBlock(sentenceCurStart, sentenceList[0], 0);
+
+        const tick = (now) => {
+          if (!sentenceRoot) return;
+          updateSentence(now);
+          sentenceRafId = requestAnimationFrame(tick);
+        };
+        sentenceRafId = requestAnimationFrame(tick);
+      }
+
+      function spawnSentenceBlock(startTime, text, idxInLoop) {
+        const el = document.createElement("div");
+        el.className = "text-sentence-block";
+        el.textContent = text;
+        // 한 줄 너비 한도
+        el.style.width = "320px";
+        // 스테이지 중앙 기준 정렬: width의 절반만큼 왼쪽 이동
+        el.style.marginLeft = "-160px";
+        el.style.opacity = "0";
+        // 블록마다 살짝 다른 일렁임 위상
+        const phase = Math.random() * Math.PI * 2;
+        sentenceStage.appendChild(el);
+        sentenceBlocks.push({
+          el, text, startTime, phase,
+          // 문장마다 미세하게 다른 수직 정착 위치 (한 박자 떠오른 뒤 머무는 곳)
+          settleY: -8 + (Math.random() - 0.5) * 6,
+          // 등장 시 시작 y (아래에서 위로)
+          enterY: 32 + Math.random() * 8,
+          // 사라질 때 추가로 위로 흘러가는 양
+          exitY: -22 - Math.random() * 8,
+          // 약한 가로 일렁임 진폭
+          swayAmp: 3 + Math.random() * 2,
+          // 일렁임 속도
+          swaySpeed: 0.7 + Math.random() * 0.4,
+          // 살짝 다른 스케일 정착값 (1.0 근처)
+          settleScale: 0.99 + Math.random() * 0.04,
+        });
+      }
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+      }
+      function easeInCubic(t) {
+        return t * t * t;
+      }
+
+      function updateSentence(now) {
+        // 인스턴스 위치 추적 — 이미지 박스 중심 따라다님
+        const r = wrap.getBoundingClientRect();
+        sentenceRoot.style.left = `${r.left + r.width / 2}px`;
+        sentenceRoot.style.top  = `${r.top  + r.height / 2}px`;
+
+        // 다음 문장으로 넘어가야 하는지 — 현재 문장이 fadeOut 시작점에 도달했고
+        // 다음 블록이 아직 spawn 안 됐다면 spawn
+        const sinceCurStart = now - sentenceCurStart;
+        const fadeOutStart = SENT_FADE_IN + SENT_HOLD;
+        if (sinceCurStart >= fadeOutStart - SENT_OVERLAP) {
+          // 다음 문장 spawn 시점인데 아직 안 만들었나 확인
+          const lastBlock = sentenceBlocks[sentenceBlocks.length - 1];
+          const expectedNextStart = sentenceCurStart + (fadeOutStart - SENT_OVERLAP);
+          const lastIsCurrent = lastBlock && Math.abs(lastBlock.startTime - sentenceCurStart) < 1;
+          if (lastIsCurrent) {
+            const nextIdx = (sentenceCurIdx + 1) % sentenceList.length;
+            spawnSentenceBlock(expectedNextStart, sentenceList[nextIdx], nextIdx);
+          }
+        }
+        // 현재 문장이 완전히 종료되면 다음 문장으로 포인터 이동
+        if (sinceCurStart >= SENT_TOTAL) {
+          sentenceCurIdx = (sentenceCurIdx + 1) % sentenceList.length;
+          sentenceCurStart = sentenceCurStart + (SENT_TOTAL - SENT_OVERLAP);
+        }
+
+        // 모든 활성 블록 갱신
+        for (let i = sentenceBlocks.length - 1; i >= 0; i--) {
+          const b = sentenceBlocks[i];
+          const t = now - b.startTime;
+          if (t < 0) {
+            // 아직 시작 전 (예약된 다음 블록) — 거의 없음
+            b.el.style.opacity = "0";
+            continue;
+          }
+          if (t >= SENT_TOTAL) {
+            // 끝난 블록 제거
+            if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
+            sentenceBlocks.splice(i, 1);
+            continue;
+          }
+
+          let opacity, y, scale, blur;
+          if (t < SENT_FADE_IN) {
+            // 페이드인 + 위로 떠오름
+            const u = t / SENT_FADE_IN;
+            const eu = easeOutCubic(u);
+            opacity = eu;
+            y = b.enterY * (1 - eu) + b.settleY * eu;
+            scale = 0.97 + 0.02 * eu + (b.settleScale - 0.99) * eu;
+            blur = (1 - eu) * 1.5; // 처음엔 살짝 흐릿하게
+          } else if (t < SENT_FADE_IN + SENT_HOLD) {
+            // 머무름 — 미세한 호흡과 일렁임만
+            const local = (t - SENT_FADE_IN) / SENT_HOLD; // 0..1
+            // 알파 호흡
+            opacity = 0.92 + Math.sin(t * 0.0018 + b.phase) * 0.08;
+            y = b.settleY + Math.sin(t * 0.0011 + b.phase) * 0.8;
+            scale = b.settleScale + Math.sin(t * 0.0009 + b.phase) * 0.005;
+            blur = 0;
+          } else {
+            // 페이드아웃 + 살짝 더 위로 흘러감
+            const u = (t - SENT_FADE_IN - SENT_HOLD) / SENT_FADE_OUT;
+            const eu = easeInCubic(u);
+            opacity = 1 - eu;
+            y = b.settleY * (1 - eu) + b.exitY * eu;
+            scale = b.settleScale * (1 - eu * 0.04);
+            blur = eu * 1.8;
+          }
+
+          // 가로 일렁임 — 매우 약하게, 사인파
+          const sec = t / 1000;
+          const swayX = Math.sin(sec * b.swaySpeed + b.phase) * b.swayAmp;
+
+          b.el.style.opacity = opacity.toFixed(3);
+          b.el.style.transform =
+            `translate(${swayX.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+            `scale(${scale.toFixed(4)})`;
+          b.el.style.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : "none";
+        }
+      }
+
+      function teardownSentenceText() {
+        if (sentenceRafId) { cancelAnimationFrame(sentenceRafId); sentenceRafId = 0; }
+        if (sentenceRoot && sentenceRoot.parentNode) {
+          sentenceRoot.parentNode.removeChild(sentenceRoot);
+        }
+        sentenceRoot = null;
+        sentenceStage = null;
+        sentenceBlocks = [];
+        sentenceList = [];
+      }
+
       function stopHold() {
         if (!isHolding) return;
         isHolding = false;
 
         if (frameLoopTimer) { clearInterval(frameLoopTimer); frameLoopTimer = null; }
+
+        // 떼면 sentence는 깔끔히 제거 (이후 outro 모션이 들어오기 때문)
+        if (holdSentence) {
+          teardownSentenceText();
+        }
 
         if (fullText && fullText.trim().length > 0) {
           isVolumeMode = true;
@@ -1725,9 +1802,8 @@
         if (trail.length > 700) trail.splice(0, trail.length - 700);
       }
 
-      // 영향 영역 진입/이탈 상태 추적 — 외부 콜백(trajectory)
       let wasInInfluence = false;
-      let onInfluenceEnter = null; // function(instance) {}
+      let onInfluenceEnter = null;
 
       function tick() {
         if (isVolumeMode) {
@@ -1742,7 +1818,6 @@
         const distOutside = Math.hypot(dx, dy);
         const inInfluence = distOutside <= REVEAL_INFLUENCE;
 
-        // 진입 시점 캡처 (이탈했다가 다시 들어오면 또 트리거)
         if (inInfluence && !wasInInfluence) {
           if (typeof onInfluenceEnter === "function") {
             onInfluenceEnter(instance);
@@ -1750,8 +1825,6 @@
         }
         wasInInfluence = inInfluence;
 
-        // rect는 줌된 화면상 크기. 캔버스 백킹은 본래 size 기준이라
-        // 마우스 좌표를 그리기 좌표계(본래 size)로 환산해야 함.
         const drawW = size, drawH = size;
         const sx = rect.width  > 0 ? drawW / rect.width  : 1;
         const sy = rect.height > 0 ? drawH / rect.height : 1;
@@ -1778,23 +1851,16 @@
         const frameImg = frames[currentFrame];
         const frameReady = frameImg && frameImg.complete && frameImg.naturalWidth > 0;
 
-        // hold 중인 28.png는 알파가 사인파처럼 페이드 (속도만 빠르게)
         let holdAlpha = 1;
         if (holdPulse && isHolding) {
           const elapsedHold = performance.now() - holdStartTime;
           const phase = (elapsedHold % HOLD_PULSE_PERIOD_MS) / HOLD_PULSE_PERIOD_MS;
-          // 한 사이클당 fade-out → fade-in 한 번
           holdAlpha = 0.5 + 0.5 * Math.cos(phase * Math.PI * 2);
         }
 
         if (frameReady && trail.length > 0) {
           const dprForMask = Math.min(window.devicePixelRatio || 1, 2);
 
-          // ─────────────────────────────────────────
-          // 마스크 + 합성 캔버스를 한 번 만들어 두고 재사용.
-          // 사이즈가 다른 캔버스(오버레이용 size, 베이스용 baseSize)에 모두 쓸 수 있도록
-          // 사이즈 받아서 빌드하는 함수 형태로 일반화한다.
-          // ─────────────────────────────────────────
           if (!maskCanvas) {
             maskCanvas = document.createElement("canvas");
             maskCtx = maskCanvas.getContext("2d");
@@ -1804,9 +1870,6 @@
             compCtx = compCanvas.getContext("2d");
           }
 
-          // 트레일 → 마스크 캔버스 그리기
-          // boxW, boxH: 그릴 박스 크기. offsetX, offsetY: 트레일 좌표(imgArea 기준)를
-          //             이 박스 좌표계로 옮길 평행이동 값.
           function buildMask(boxW, boxH, offsetX, offsetY) {
             if (maskCanvas.width !== Math.round(boxW * dprForMask) ||
                 maskCanvas.height !== Math.round(boxH * dprForMask)) {
@@ -1847,14 +1910,12 @@
             }
           }
 
-          // 트레일 글자별 age 증가/만료 처리는 여기서 한 번만
           for (let i = trail.length - 1; i >= 0; i--) {
             const p = trail[i];
             p.age++;
             if (p.age >= p.maxAge) trail.splice(i, 1);
           }
 
-          // 비율을 유지하면서 box 안에 가운데 정렬해 contain-fit 으로 그리는 헬퍼
           function drawContain(target, img, boxW, boxH, srcW, srcH) {
             const iw = srcW || img.naturalWidth || 1;
             const ih = srcH || img.naturalHeight || 1;
@@ -1866,12 +1927,8 @@
             target.drawImage(img, dx, dy, dw, dh);
           }
 
-          // 한 레이어를 마스크와 source-in 으로 합성해 targetCtx 에 그리는 헬퍼.
-          // boxW × boxH 은 그릴 박스(타깃 캔버스) 크기.
-          // vignetteStrength: 0=없음, 1=기본, >1=더 강함 (안쪽이 작아지고 페이드가 더 부드러움)
           function compositeLayer(targetCtx, layerImg, boxW, boxH, layerAlpha, useLowRes, vignetteStrength) {
             if (!layerImg || layerImg._broken || !layerImg.complete || layerImg.naturalWidth === 0) return;
-            // compCanvas 사이즈 맞추기
             if (compCanvas.width !== Math.round(boxW * dprForMask) ||
                 compCanvas.height !== Math.round(boxH * dprForMask)) {
               compCanvas.width  = Math.round(boxW * dprForMask);
@@ -1914,16 +1971,13 @@
               drawContain(compCtx, layerImg, boxW, boxH);
             }
 
-            // 비네팅 — 강도(vignetteStrength)에 따라 안쪽 반경/페이드 곡선 조절
             if (vignetteStrength && vignetteStrength > 0) {
               const cx = boxW / 2, cy = boxH / 2;
               const minSide = Math.min(boxW, boxH);
-              // strength가 클수록 안쪽 또렷 영역이 줄고 바깥 페이드가 더 부드럽게
               const innerR = minSide * Math.max(0.05, 0.32 - 0.18 * Math.min(1.5, vignetteStrength - 1));
               const outerR = minSide * Math.min(0.55, 0.52);
               const vg = compCtx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
               vg.addColorStop(0,   "rgba(0,0,0,1)");
-              // strength↑ → 중간 알파를 더 낮춰 부드러운 그라데이션
               const midAlpha = vignetteStrength >= 2 ? 0.30 : 0.55;
               vg.addColorStop(0.6, `rgba(0,0,0,${midAlpha})`);
               vg.addColorStop(1,   "rgba(0,0,0,0)");
@@ -1932,33 +1986,21 @@
               compCtx.fillRect(0, 0, boxW, boxH);
             }
 
-            // 타겟에 합성된 레이어를 layerAlpha 로 올림
             const prevAlpha = targetCtx.globalAlpha;
             targetCtx.globalAlpha = Math.max(0, Math.min(1, layerAlpha));
             targetCtx.drawImage(compCanvas, 0, 0, boxW, boxH);
             targetCtx.globalAlpha = prevAlpha;
           }
 
-          // ─────────────────────────────────────────
-          // 베이스 레이어 그리기
-          //   - baseCtx 가 있으면 더 큰 베이스 캔버스에, 트레일 좌표는
-          //     imgArea 좌표계 → 베이스 좌표계 로 평행이동(중심이 같으므로 (baseSize-size)/2 만큼)
-          //   - baseCtx 가 없으면 일반 ctx에 그대로 (기존 동작)
-          // ─────────────────────────────────────────
           const baseTargetCtx = baseCtx || ctx;
           const baseBoxW = baseCtx ? baseSize : W;
           const baseBoxH = baseCtx ? baseSize : H;
           const baseOff  = baseCtx ? (baseSize - size) / 2 : 0;
-          // 베이스용 마스크 (트레일 좌표 평행이동)
           buildMask(baseBoxW, baseBoxH, baseOff, baseOff);
-          // baseVignette가 켜져 있으면 강한(2) 비네팅, 아니면 옵션에 따라
           const vignStr = baseVignette ? (baseCtx ? 2.2 : 1) : 0;
           compositeLayer(baseTargetCtx, frameImg, baseBoxW, baseBoxH,
                          1, holdLowRes && isHolding, vignStr);
 
-          // ─────────────────────────────────────────
-          // 오버레이 레이어 그리기 — imgArea 좌표계 그대로
-          // ─────────────────────────────────────────
           if (overlayImg) {
             buildMask(W, H, 0, 0);
             const overlayAlpha = (holdPulse && isHolding) ? holdAlpha : 1;
@@ -1991,33 +2033,37 @@
        시트 데이터 → 인스턴스에 적용
        ───────────────────────────────────────────── */
     const root = document.getElementById("reveal-root");
-    /* 79 인스턴스 — 79.png + 79-1, 79-2, 79-3 만 루프 (총 4프레임) */
+
+    /* 79.png 인스턴스 — 단일 프레임만(79.png).
+       hold 중에는 같은 행 텍스트로 문장 단위 호흡 모션 표시 (alightworld 영감).
+       떼면 기존 volume(낱자) 모션. */
     const inst79 = createRevealInstance({
       leftPct: 60, topPct: 35, size: REVEAL_SIZE,
       sheetRow: 80,
       name: "79",
-      framesCount: 4,
+      framesCount: 1,
+      holdSentence: true,
+      outroMode: "volume",
       root,
     });
-    /* 28.png 인스턴스 — 단일 프레임 베이스 + 28-1.png 오버레이.
-       hold 시 알파 페이드 펄스는 오버레이(28-1.png)에만 적용,
-       베이스(28.png)는 그대로 같은 마스크로 함께 reveal됨.
-       베이스는 baseScale 로 훨씬 크게 그려지고, 강한 원형 비네팅으로
-       가장자리가 흰 바탕으로 완전히 뭉개져 직사각형 형태가 보이지 않음.
-       떼면 하트(decay) 텍스트 모션. */
+
+    /* 28.png 인스턴스 — 28-1.png 오버레이 제거. 단일 프레임(28.png)만.
+       베이스는 baseScale + 강한 비네팅으로 가장자리 페이드 그대로 유지.
+       hold 중에는 같은 행 텍스트로 문장 단위 호흡 모션 표시.
+       떼면 기존 decay(낱자→하트) 모션. */
     const inst28 = createRevealInstance({
       leftPct: 20, topPct: 30, size: REVEAL_SIZE,
       sheetRow: 29,
       name: "28",
       root,
       framesCount: 1,
-      overlayFilename: "28-1.png",
       baseScale: 3.3,
       baseVignette: true,
-      holdPulse: true,
+      holdSentence: true,
       outroMode: "decay",
     });
-    /* 09.png 인스턴스 — hold 시 저해상도 모핑 루프, 떼면 ripple(파동) 텍스트 모션 */
+
+    /* 09.png 인스턴스 — 변경 없음 */
     const inst09 = createRevealInstance({
       leftPct: 70, topPct: 65, size: REVEAL_SIZE,
       sheetRow: 10,
@@ -2027,6 +2073,7 @@
       holdLowRes: true,
       outroMode: "ripple",
     });
+
     const allInstances = [
       { inst: inst79, row: 80 },
       { inst: inst28, row: 29 },
@@ -2212,37 +2259,27 @@
     }
 
     /* ─────────────────────────────────────────────
-       궤적 추적 — 사용자가 만진 인스턴스를 시간 순으로 기록
+       궤적 추적
        ───────────────────────────────────────────── */
-    const trajectory = []; // [{name, text, t}]
-    let lastTrajectoryName = null; // 같은 인스턴스 연속 진입은 한 번만 기록
+    const trajectory = [];
+    let lastTrajectoryName = null;
 
     function recordTrajectory(inst) {
       const text = inst.getText ? inst.getText() : "";
       if (lastTrajectoryName === inst.name) return;
       lastTrajectoryName = inst.name;
-      trajectory.push({
-        name: inst.name,
-        text: text,
-        t: Date.now(),
-      });
-      // 텍스트 궤적 시스템에도 이 인스턴스 텍스트를 큐에 추가
-      // → 마우스가 움직이면 한 글자씩 자국으로 박힘
+      trajectory.push({ name: inst.name, text, t: Date.now() });
       feedFromInstance(inst);
       console.info(`[trajectory] entered ${inst.name}, total ${trajectory.length}`);
     }
 
-    // 각 인스턴스에 영향 영역 진입 콜백 연결
     for (const inst of revealInstances) {
       if (inst.setOnInfluenceEnter) {
         inst.setOnInfluenceEnter(recordTrajectory);
       }
     }
 
-    // 영향권을 모두 벗어나면 lastTrajectoryName 리셋 — 다음 진입이 새 항목으로
     setInterval(() => {
-      // 별도 검사 — 모든 인스턴스가 영향권 밖이면 마지막 이름 리셋
-      // (간단하게: 마우스가 어떤 인스턴스 영향권에도 없으면 리셋)
       let anyIn = false;
       for (const inst of revealInstances) {
         if (inst.isInside && inst.isInside(mouseX, mouseY)) {
@@ -2253,7 +2290,7 @@
     }, 200);
 
     /* ─────────────────────────────────────────────
-       캡처 시스템 — 화면 캡처 + 궤적 텍스트 다운로드
+       캡처 시스템
        ───────────────────────────────────────────── */
     const captureBtn = document.getElementById("capture-btn");
 
@@ -2261,27 +2298,21 @@
       const W = window.innerWidth;
       const H = window.innerHeight;
 
-      // 고해상도 캡처 — 디바이스 픽셀비 × 2 (최소 2배)
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const SF = Math.max(2, dpr * 2); // scale factor (캔버스가 화면의 SF 배)
+      const SF = Math.max(2, dpr * 2);
 
       const out = document.createElement("canvas");
       out.width = Math.round(W * SF);
       out.height = Math.round(H * SF);
       const octx = out.getContext("2d");
-      // 모든 그리기에 SF 배율 적용 — 좌표는 화면 좌표 그대로 쓰면서 결과만 더 큰 픽셀로
       octx.scale(SF, SF);
       octx.fillStyle = "#ffffff";
       octx.fillRect(0, 0, W, H);
 
-      // 0) 누적된 마우스 경로(pathPts) 위에 pendingText를 따라 그림
-      //    글자 위치는 경로 위로 매핑되지만, 글자 간격은 폰트 본래 자간을 유지
-      //    (한 글자씩 이동하지 않고, 폰트가 알려주는 글자 너비만큼 호 길이를 진행)
       const scale = distance / 100;
       const cx_view = W / 2;
       const cy_view = H / 2;
 
-      // 월드 좌표 → 현재 화면 좌표 변환
       function worldToScreen(wx, wy) {
         return {
           x: (wx - cx_view) * scale + cx_view + posX,
@@ -2296,12 +2327,7 @@
           octx.textBaseline = "middle";
           octx.textAlign = "left";
 
-          // 경로 위 호 길이 s에서의 화면 좌표/접선 각도를 구하는 함수
-          // pathPts는 화면 누적 호 길이(sScreen)로 정렬되어 있음 — 이건 기록 시점 화면 길이
-          // 캡처 시점의 화면 호 길이도 거의 동일(줌 변화 시 보정됨) — 글자가 경로 위로 잘 따라가게
           function sampleAt(s) {
-            // pathPts의 sScreen이 s를 둘러싸는 두 점을 찾아 보간
-            // 단순 선형 검색 (pathPts가 길어도 한 텍스트당 한 번만 캡처에서 도는 정도)
             if (s <= pathPts[0].sScreen) {
               const p0 = pathPts[0];
               const p1 = pathPts[1] || p0;
@@ -2324,7 +2350,6 @@
                 };
               }
             }
-            // s가 경로 끝을 넘어가면 마지막 점에서 멈춘 것처럼
             const last = pathPts[pathPts.length - 1];
             const prev = pathPts[pathPts.length - 2] || last;
             const a = worldToScreen(prev.worldX, prev.worldY);
@@ -2332,17 +2357,14 @@
             return { x: b.x, y: b.y, ang: Math.atan2(b.y - a.y, b.x - a.x) };
           }
 
-          // 사용 가능한 경로 화면 호 길이
           const pathScreenLen = pathPts[pathPts.length - 1].sScreen;
 
-          // pendingText를 path 위로 흘려보내며 그림.
-          // 텍스트가 짧으면 경로 끝까지 반복해서 채움(공백으로 구분).
           if (pendingText.length > 0) {
             const loop = pendingText + "  ";
             let s = 0;
             let i = 0;
             let safety = 0;
-            const safetyMax = 50000; // 경로가 매우 길어도 무한루프 방지
+            const safetyMax = 50000;
             while (s <= pathScreenLen && safety < safetyMax) {
               safety++;
               const ch = loop[i % loop.length];
@@ -2366,8 +2388,6 @@
         }
       }
 
-      // 1) 각 reveal 인스턴스의 캔버스를 화면 위치 그대로 그림
-      //    베이스 캔버스(reveal-base-area)도 포함 — z-index 순으로 베이스가 뒤, 오버레이가 앞
       const revealCanvases = document.querySelectorAll(
         ".reveal-base-area canvas, .reveal-img-area canvas"
       );
@@ -2376,11 +2396,13 @@
         if (r.width <= 0 || r.height <= 0) continue;
         try {
           octx.drawImage(c, r.left, r.top, r.width, r.height);
-        } catch (e) { /* tainted 등 무시 */ }
+        } catch (e) {}
       }
 
-      // 2) 부피/decay/ripple 텍스트 글리프들
-      const glyphs = document.querySelectorAll(".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph");
+      // 글리프 + 문장 블록도 함께 캡처
+      const glyphs = document.querySelectorAll(
+        ".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph"
+      );
       const glyphFontPx = 16 * scale;
       octx.font = `${glyphFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
       octx.textBaseline = "top";
@@ -2394,9 +2416,46 @@
         octx.fillStyle = cs.color || "#000000";
         octx.fillText(g.textContent, r.left, r.top);
       }
+
+      // 문장 블록(sentence) — 줄바꿈/래핑 처리
+      const sentBlocks = document.querySelectorAll(".text-sentence-block");
+      const sentFontPx = 17 * scale;
+      octx.font = `${sentFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
+      for (const sb of sentBlocks) {
+        const cs = window.getComputedStyle(sb);
+        const op = parseFloat(cs.opacity);
+        if (!isFinite(op) || op <= 0.01) continue;
+        const r = sb.getBoundingClientRect();
+        if (r.left > W || r.right < 0 || r.top > H || r.bottom < 0) continue;
+        const txt = sb.textContent;
+        if (!txt) continue;
+        octx.globalAlpha = op;
+        octx.fillStyle = cs.color || "#000000";
+        const lineHeight = sentFontPx * 1.55;
+        const maxWidth = r.width;
+        const words = txt.split(/(\s+)/);
+        let line = "";
+        let y = r.top;
+        for (const w of words) {
+          const testLine = line + w;
+          const m = octx.measureText(testLine);
+          if (m.width > maxWidth && line.length > 0) {
+            // 중앙 정렬
+            const lineWidth = octx.measureText(line).width;
+            octx.fillText(line, r.left + (r.width - lineWidth) / 2, y);
+            y += lineHeight;
+            line = w.replace(/^\s+/, "");
+          } else {
+            line = testLine;
+          }
+        }
+        if (line) {
+          const lineWidth = octx.measureText(line).width;
+          octx.fillText(line, r.left + (r.width - lineWidth) / 2, y);
+        }
+      }
       octx.globalAlpha = 1;
 
-      // 3) reveal-text-content (타이프된 텍스트 박스)
       const textBlocks = document.querySelectorAll(".reveal-text-content");
       const textBoxFontPx = 16 * scale;
       octx.font = `${textBoxFontPx}px Vivaldi, Eulyoo1945-Regular, serif`;
@@ -2424,7 +2483,6 @@
         if (line) octx.fillText(line, r.left + 16 * scale, y);
       }
 
-      // 4) HUD (카메라 변환과 무관하게 항상 같은 자리/크기)
       const hudEl = document.getElementById("hud");
       octx.font = "15px GravesendSansLight, sans-serif";
       octx.fillStyle = "#000000";
@@ -2471,7 +2529,6 @@
       }
     });
 
-    // 캡처 버튼은 어떤 mousedown 핸들러도 가로채지 않도록
     captureBtn.addEventListener("mousedown", (e) => e.stopPropagation());
 
     function applyFallbackAll() {
