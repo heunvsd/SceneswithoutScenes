@@ -28,8 +28,8 @@
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
-      --ink: #776c54;       /* HUD, 흰 배경 위 텍스트용 */
-      --ink-deep: #3d3829;  /* multiply 블렌드용 진한 잉크 */
+      --ink: #776c54;       /* 모든 텍스트 공통 색상 */
+      --ink-deep: #776c54;  /* multiply 블렌드용 (동일 색) */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -171,7 +171,6 @@
       perspective: 900px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: multiply;
     }
     .text-volume-stage {
       position: absolute;
@@ -203,7 +202,6 @@
       perspective: 550px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: multiply;
     }
     .text-decay-stage {
       position: absolute;
@@ -232,7 +230,6 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: multiply;
     }
     .text-ripple-stage {
       position: absolute;
@@ -261,7 +258,6 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: multiply;
     }
     .text-sentence-stage {
       position: absolute;
@@ -278,13 +274,33 @@
       font-family: 'Vicentino';
       font-size: 17px;
       line-height: 1.55;
-      color: var(--ink-deep);
+      color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
       text-align: center;
       transform-origin: 50% 50%;
       will-change: transform, opacity, filter;
       letter-spacing: normal;
+    }
+    /* 두 겹 글자 구조: base는 항상 보이고, dark는 이미지 위에서만 보여서 색이 진해짐 */
+    .sentence-layer {
+      display: block;
+      width: 100%;
+      white-space: pre-wrap;
+      word-break: keep-all;
+      text-align: center;
+    }
+    .sentence-base {
+      color: var(--ink);
+    }
+    .sentence-dark {
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #2e2a20;       /* 이미지 위에 깔리는 진한 잉크 */
+      mix-blend-mode: multiply;
+      opacity: 0;            /* 기본 0, JS가 알파 샘플링으로 동적 조절 */
+      pointer-events: none;
     }
 
     /* ───────── 확장 패널 ───────── */
@@ -385,8 +401,8 @@
     /* ─────────────────────────────────────────────
        잉크 색상 상수 (캔버스 캡처용)
        ───────────────────────────────────────────── */
-    const INK_COLOR = "#776c54";   // HUD, 흰 배경 박스 텍스트용
-    const INK_DEEP  = "#3d3829";   // multiply 블렌드용 진한 잉크
+    const INK_COLOR = "#776c54";   // 모든 텍스트 공통
+    const INK_DEEP  = "#776c54";   // multiply 블렌드용 (동일)
 
     /* ─────────────────────────────────────────────
        상태값
@@ -1601,14 +1617,26 @@
       function spawnSentenceBlock(startTime, text, idxInLoop) {
         const el = document.createElement("div");
         el.className = "text-sentence-block";
-        el.textContent = text;
         el.style.width = "320px";
         el.style.marginLeft = "-160px";
         el.style.opacity = "0";
+
+        // 두 겹 구조: 베이스(옅은 색, 항상 보임) + 다크(이미지 위에서만 알파에 따라 진해짐)
+        const baseLayer = document.createElement("span");
+        baseLayer.className = "sentence-layer sentence-base";
+        baseLayer.textContent = text;
+
+        const darkLayer = document.createElement("span");
+        darkLayer.className = "sentence-layer sentence-dark";
+        darkLayer.textContent = text;
+
+        el.appendChild(baseLayer);
+        el.appendChild(darkLayer);
+
         const phase = Math.random() * Math.PI * 2;
         sentenceStage.appendChild(el);
         sentenceBlocks.push({
-          el, text, startTime, phase,
+          el, baseLayer, darkLayer, text, startTime, phase,
           settleY: -8 + (Math.random() - 0.5) * 6,
           enterY: 32 + Math.random() * 8,
           exitY: -22 - Math.random() * 8,
@@ -1623,6 +1651,48 @@
       }
       function easeInCubic(t) {
         return t * t * t;
+      }
+
+      // sentence-block의 위치에서 reveal 캔버스의 알파를 샘플링
+      // 글자 영역에 캔버스가 얼마나 덮여있는지 0~1 비율로 반환
+      function sampleCanvasAlphaAt(blockEl) {
+        if (!canvas) return 0;
+        const blockRect = blockEl.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        if (canvasRect.width <= 0 || canvasRect.height <= 0) return 0;
+
+        // 글자 영역 안에서 9개 점 샘플링 (3x3 격자)
+        const cw = canvas.width, ch = canvas.height;
+        let totalAlpha = 0;
+        let validSamples = 0;
+        try {
+          for (let yi = 0; yi < 3; yi++) {
+            for (let xi = 0; xi < 3; xi++) {
+              const sx = blockRect.left + (blockRect.width  * (xi + 0.5)) / 3;
+              const sy = blockRect.top  + (blockRect.height * (yi + 0.5)) / 3;
+              // 캔버스 영역 밖이면 알파 0
+              if (sx < canvasRect.left || sx > canvasRect.right ||
+                  sy < canvasRect.top  || sy > canvasRect.bottom) {
+                validSamples++;
+                continue; // 알파 0 더하기
+              }
+              // 캔버스 좌표계로 변환
+              const px = Math.floor(((sx - canvasRect.left) / canvasRect.width)  * cw);
+              const py = Math.floor(((sy - canvasRect.top)  / canvasRect.height) * ch);
+              if (px < 0 || py < 0 || px >= cw || py >= ch) {
+                validSamples++;
+                continue;
+              }
+              const data = ctx.getImageData(px, py, 1, 1).data;
+              totalAlpha += data[3] / 255;
+              validSamples++;
+            }
+          }
+        } catch (e) {
+          // CORS 에러 등으로 픽셀을 못 읽으면 0 반환
+          return 0;
+        }
+        return validSamples > 0 ? totalAlpha / validSamples : 0;
       }
 
       function updateSentence(now) {
@@ -1686,6 +1756,13 @@
             `translate(${swayX.toFixed(2)}px, ${y.toFixed(2)}px) ` +
             `scale(${scale.toFixed(4)})`;
           b.el.style.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : "none";
+
+          // 다크 레이어 opacity 알파 샘플링으로 동적 조정
+          // → 흰 배경에서는 0, 이미지 위에서는 알파에 비례해 진해짐
+          if (b.darkLayer) {
+            const a = sampleCanvasAlphaAt(b.el);
+            b.darkLayer.style.opacity = a.toFixed(3);
+          }
         }
       }
 
