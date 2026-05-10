@@ -1215,120 +1215,61 @@
       let decayCachedVariant = -1;
 
       function updateDecay(now) {
-        const elapsed = now - decayLoopStart;
-        let cycleT = elapsed / decayCycleDuration;
-        if (cycleT >= 1) {
-          decayLoopCount++;
-          decayCycleDuration = Math.max(6500, 8500 * Math.pow(0.93, decayLoopCount));
-          decayLoopStart = now;
-          decayCachedSilhouette = null;
-          cycleT = 0;
-        }
+        // alightworld 스타일: 글자들이 본 위치(baseX/baseY) 주변에서 미세하게 흔들리며 떠다님.
+        // - 인트로: 처음 1.5초 동안 부드럽게 페이드인 + 흩어졌던 글자들이 본 위치로 모임
+        // - 그 후: 무한 루프로 wave 호흡 (상하/좌우 흔들림 + 미세 회전 + 알파 호흡)
+        // - 문장 전체도 천천히 좌우/상하로 표류
 
-        const formingEnd = 0.45;
-        const breathingEnd = 0.85;
+        const elapsed = (now - decayStartTime) / 1000;  // 초
+        const introT = Math.min(1, elapsed / 1.5);       // 0~1 인트로 진행도
+        const introEased = 1 - Math.pow(1 - introT, 3);  // easeOutCubic
 
-        if (!decayCachedSilhouette) {
-          const variant = decayLoopCount % 3;
-          decayCachedVariant = variant;
-          decayCachedSilhouette = generateSilhouettePoints(decayGlyphs.length, variant);
-          const idxs = decayGlyphs.map((_, i) => i);
-          for (let i = idxs.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
-          }
-          for (let i = 0; i < decayGlyphs.length; i++) {
-            const sp = decayCachedSilhouette[idxs[i]];
-            decayGlyphs[i].silX = sp.x;
-            decayGlyphs[i].silY = sp.y;
-            decayGlyphs[i].silZ = sp.z || 0;
-          }
-        }
+        // 문장 전체 표류 (sway): 천천히, 작은 진폭
+        const driftX = Math.sin(elapsed * 0.18) * 4 + Math.sin(elapsed * 0.07) * 2;
+        const driftY = Math.cos(elapsed * 0.22) * 3 + Math.sin(elapsed * 0.11) * 1.5;
 
-        let formRotY = 0;
-        let formRotX = 0;
-        let breathScale = 1;
+        for (let idx = 0; idx < decayGlyphs.length; idx++) {
+          const g = decayGlyphs[idx];
 
-        if (cycleT < formingEnd) {
-          const u = cycleT / formingEnd;
-          formRotY = u * 0.3;
-          formRotX = Math.sin(u * Math.PI) * 0.08;
-        } else if (cycleT < breathingEnd) {
-          const u = (cycleT - formingEnd) / (breathingEnd - formingEnd);
-          formRotY = 0.3 + u * Math.PI * 1.6;
-          formRotX = Math.sin(u * Math.PI) * 0.18;
-          breathScale = 1 + Math.sin(u * Math.PI * 2) * 0.05;
-        } else {
-          const u = (cycleT - breathingEnd) / (1 - breathingEnd);
-          formRotY = 0.3 + Math.PI * 1.6 + u * 0.15;
-          formRotX = (1 - u) * 0.10;
-        }
+          // 글자별 phase: 위치(인덱스)에 따라 시간차
+          const wavePhase = (idx / Math.max(1, decayGlyphs.length - 1)) * Math.PI * 2.0;
+          const personalPhase = g.phase;
 
-        const cosY = Math.cos(formRotY), sinY = Math.sin(formRotY);
-        const cosX = Math.cos(formRotX), sinX = Math.sin(formRotX);
+          // 글자 단위 wave (상하 호흡)
+          const dy = Math.sin(elapsed * 1.4 - wavePhase * 1.1 + personalPhase) * 1.6
+                   + Math.sin(elapsed * 0.6 + personalPhase * 1.7) * 0.8;
 
-        function applyRotation(sx, sy, sz) {
-          const ry  = sy * cosX - sz * sinX;
-          const rz1 = sy * sinX + sz * cosX;
-          const rx  = sx * cosY + rz1 * sinY;
-          const rz2 = -sx * sinY + rz1 * cosY;
-          return { x: rx, y: ry, z: rz2 };
-        }
+          // 글자 단위 좌우 미세 흔들림
+          const dx = Math.cos(elapsed * 1.0 - wavePhase * 0.8 + personalPhase) * 1.0
+                   + Math.sin(elapsed * 0.45 + personalPhase) * 0.5;
 
-        for (const g of decayGlyphs) {
-          let x, y, z = 0, opacity;
+          // 글자별 미세 회전 (라디안)
+          const rot = Math.sin(elapsed * 0.85 - wavePhase * 0.6 + personalPhase) * 0.025;
 
-          if (cycleT < formingEnd) {
-            const rawU = cycleT / formingEnd;
-            const localU = Math.max(0, Math.min(1,
-              (rawU - g.arrivalDelay * 0.5) / (1 - g.arrivalDelay * 0.5)
-            ));
-            const eu = localU < 0.5
-              ? 4 * localU * localU * localU
-              : 1 - Math.pow(-2 * localU + 2, 3) / 2;
+          // 글자별 알파 호흡 (인트로 끝난 후만)
+          const alphaBreath = 0.82 + Math.sin(elapsed * 0.9 - wavePhase * 0.7 + personalPhase * 1.3) * 0.18;
+          const opacity = introEased * alphaBreath;
 
-            const lx = g.scatterX * (1 - eu) + g.silX * eu;
-            const ly = g.scatterY * (1 - eu) + g.silY * eu;
-            const lz = g.scatterZ * (1 - eu) + g.silZ * eu;
+          // 인트로: 시작 시 글자별로 약간 흩어진 위치에서 본 위치로 모임
+          // arrivalDelay로 시간차 부여 (앞쪽 글자가 먼저 도착)
+          const arrival = Math.max(0, Math.min(1,
+            (introT - g.arrivalDelay * 0.4) / (1 - g.arrivalDelay * 0.4)
+          ));
+          const arrivalEased = 1 - Math.pow(1 - arrival, 3);
+          // 시작 흩어짐: scatterX/Y의 30% 정도만 사용 (alightworld는 미묘함)
+          const startOffsetX = (g.scatterX * 0.3) * (1 - arrivalEased);
+          const startOffsetY = (g.scatterY * 0.3) * (1 - arrivalEased);
 
-            const curveBlend = Math.sin(eu * Math.PI);
-            const cx_off = Math.cos(g.curveSeed) * g.curveAmt * curveBlend;
-            const cy_off = Math.sin(g.curveSeed) * g.curveAmt * curveBlend * 0.7;
-            const cz_off = Math.cos(g.curveSeed * 1.7) * g.curveAmt * 0.5 * curveBlend;
+          // 최종 위치
+          const x = g.baseX + dx + driftX + startOffsetX;
+          const y = g.baseY + dy + driftY + startOffsetY;
 
-            const rotated = applyRotation(lx + cx_off, ly + cy_off, lz + cz_off);
-            x = rotated.x;
-            y = rotated.y;
-            z = rotated.z;
-
-            opacity = 0.05 + eu * 0.75;
-          } else if (cycleT < breathingEnd) {
-            const sx = g.silX * breathScale;
-            const sy = g.silY * breathScale;
-            const sz = g.silZ * breathScale;
-            const r = applyRotation(sx, sy, sz);
-            x = r.x; y = r.y; z = r.z;
-            const depthN = (z + 30) / 60;
-            opacity = 0.65 + Math.max(0, Math.min(1, depthN)) * 0.30;
-          } else {
-            const u = (cycleT - breathingEnd) / (1 - breathingEnd);
-            const r = applyRotation(g.silX, g.silY, g.silZ);
-            x = r.x; y = r.y; z = r.z;
-            const startOffset = g.wordIdxRand * 0.4;
-            const localU = Math.max(0, Math.min(1,
-              (u - startOffset * 0.5) / (1 - startOffset * 0.5)
-            ));
-            const fadeEu = 1 - Math.pow(1 - localU, 2.0);
-            const depthN = (z + 30) / 60;
-            const baseOp = 0.65 + Math.max(0, Math.min(1, depthN)) * 0.30;
-            opacity = baseOp * (1 - fadeEu);
-          }
-
-          const depthScaleN = Math.max(0, Math.min(1, (z + 40) / 80));
-          const scale = 0.85 + depthScaleN * 0.30;
+          // 미세 스케일 호흡
+          const scale = 0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.025;
 
           g.el.style.transform =
-            `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, ${z.toFixed(2)}px) ` +
+            `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+            `rotate(${rot.toFixed(4)}rad) ` +
             `scale(${scale.toFixed(3)})`;
           g.el.style.opacity = opacity.toFixed(3);
         }
@@ -1621,6 +1562,63 @@
         }
       }
 
+      // 글자(낱자)별로 변환을 적용하며 그리는 wrapper.
+      // perCharFn(charIndex, totalChars) → {dy, alpha, rot} 를 반환하면
+      // 각 글자가 그 변환으로 그려짐. (alightworld 스타일 wave/breath)
+      function drawWrappedTextPerChar(c, text, cx, cy, maxWidth, fontPx, lineHeight, perCharFn) {
+        // 줄바꿈 계산
+        const words = text.split(/(\s+)/);
+        const lines = [];
+        let line = "";
+        for (const w of words) {
+          const test = line + w;
+          if (c.measureText(test).width > maxWidth && line.length > 0) {
+            lines.push(line.trimEnd());
+            line = w.replace(/^\s+/, "");
+          } else {
+            line = test;
+          }
+        }
+        if (line) lines.push(line);
+
+        // 전체 글자 수 계산 (낱자별 인덱스 부여용)
+        let totalChars = 0;
+        for (const ln of lines) totalChars += ln.length;
+
+        const totalH = lines.length * lineHeight;
+        let y = cy - totalH / 2 + lineHeight / 2;
+        let charIdx = 0;
+        const baseAlpha = c.globalAlpha;
+
+        for (const ln of lines) {
+          const lineWidth = c.measureText(ln).width;
+          let xCursor = cx - lineWidth / 2;
+          for (let i = 0; i < ln.length; i++) {
+            const ch = ln[i];
+            const chWidth = c.measureText(ch).width;
+            const t = perCharFn ? perCharFn(charIdx, totalChars) : null;
+            if (t) {
+              c.save();
+              if (typeof t.alpha === "number") {
+                c.globalAlpha = baseAlpha * Math.max(0, Math.min(1, t.alpha));
+              }
+              const cxChar = xCursor + chWidth / 2;
+              const cyChar = y;
+              c.translate(cxChar, cyChar + (t.dy || 0));
+              if (t.rot) c.rotate(t.rot);
+              c.fillText(ch, -chWidth / 2, 0);
+              c.restore();
+            } else {
+              c.fillText(ch, xCursor, y);
+            }
+            xCursor += chWidth;
+            charIdx++;
+          }
+          y += lineHeight;
+        }
+        c.globalAlpha = baseAlpha;
+      }
+
       // 임시 작업용 오프스크린 캔버스 (sentence 합성용)
       let sentTempCanvas = null;
       let sentTempCtx = null;
@@ -1717,7 +1715,24 @@
           sentTempCtx.fillStyle = INK_COLOR;
           sentTempCtx.font = `${FONT_PX}px Vicentino`;
           sentTempCtx.textBaseline = "middle";
-          drawWrappedText(sentTempCtx, b.text, 0, 0, MAX_WIDTH, FONT_PX, LINE_HEIGHT);
+          // alightworld 스타일 글자별 wave 콜백
+          // 시간 + 글자 인덱스에 따라 dy(상하 흔들림) / alpha(호흡) / rot(미세 기울기) 변동
+          const wavePerChar = (i, total) => {
+            // 글자별 phase: 좌→우로 시간차 (위치에 비례)
+            const wavePhase = (i / Math.max(1, total - 1)) * Math.PI * 2;
+            // 천천히 흐르는 sine wave (alightworld 의 부드러운 호흡)
+            const dy = Math.sin(sec * 1.6 - wavePhase * 1.3 + b.phase) * 1.4;
+            // opacity 호흡: 글자별로 미세하게 차이
+            const alpha = 0.86 + Math.sin(sec * 1.0 - wavePhase * 0.9 + b.phase * 1.7) * 0.14;
+            // 아주 살짝 회전 (라디안)
+            const rot = Math.sin(sec * 0.9 - wavePhase * 0.7 + b.phase) * 0.012;
+            return { dy, alpha, rot };
+          };
+
+          drawWrappedTextPerChar(
+            sentTempCtx, b.text, 0, 0,
+            MAX_WIDTH, FONT_PX, LINE_HEIGHT, wavePerChar
+          );
           sentTempCtx.restore();
 
           // (c) 임시 캔버스에 reveal 이미지를 source-in으로 합성
@@ -1756,7 +1771,10 @@
           sentenceCtx.fillStyle = INK_COLOR;
           sentenceCtx.font = `${FONT_PX}px Vicentino`;
           sentenceCtx.textBaseline = "middle";
-          drawWrappedText(sentenceCtx, b.text, 0, 0, MAX_WIDTH, FONT_PX, LINE_HEIGHT);
+          drawWrappedTextPerChar(
+            sentenceCtx, b.text, 0, 0,
+            MAX_WIDTH, FONT_PX, LINE_HEIGHT, wavePerChar
+          );
 
           // 2) 그 위에 임시 캔버스(글자모양 안 이미지)를 color-burn으로 덮음
           //    → 픽셀 단위 컬러번 블렌딩 (일러스트와 동일)
