@@ -664,6 +664,8 @@
       const holdPulse   = config.holdPulse === true;
       const holdLowRes  = config.holdLowRes === true;
       const holdSentence = config.holdSentence === true;
+      // sentence 모션 캐릭터: "wave" (좌→우 시간차), "breath" (가운데→가장자리 호흡), "drift" (글자별 자유 표류)
+      const holdSentenceStyle = config.holdSentenceStyle || "wave";
       const baseVignette = config.baseVignette === true;
       const outroMode   = config.outroMode || "volume";
 
@@ -1871,19 +1873,56 @@
           sentTempCtx.fillStyle = INK_COLOR;
           sentTempCtx.font = `${FONT_PX}px Vicentino`;
           sentTempCtx.textBaseline = "middle";
-          // alightworld 스타일 글자별 wave 콜백
-          // 시간 + 글자 인덱스에 따라 dy(상하 흔들림) / alpha(호흡) / rot(미세 기울기) 변동
-          const wavePerChar = (i, total) => {
-            // 글자별 phase: 좌→우로 시간차 (위치에 비례)
-            const wavePhase = (i / Math.max(1, total - 1)) * Math.PI * 2;
-            // 천천히 흐르는 sine wave (alightworld 의 부드러운 호흡)
-            const dy = Math.sin(sec * 1.6 - wavePhase * 1.3 + b.phase) * 1.4;
-            // opacity 호흡: 글자별로 미세하게 차이
-            const alpha = 0.86 + Math.sin(sec * 1.0 - wavePhase * 0.9 + b.phase * 1.7) * 0.14;
-            // 아주 살짝 회전 (라디안)
-            const rot = Math.sin(sec * 0.9 - wavePhase * 0.7 + b.phase) * 0.012;
-            return { dy, alpha, rot };
-          };
+          // alightworld 스타일 글자별 모션 콜백
+          // holdSentenceStyle 별로 다른 호흡 캐릭터:
+          //  - "wave"   : 좌→우 흐르는 sine wave (시간차)
+          //  - "breath" : 가운데→가장자리 깊은 호흡 (대칭 패턴)
+          //  - "drift"  : 글자별 자유로운 표류 (가벼움, 비대칭)
+          let wavePerChar;
+          if (holdSentenceStyle === "breath") {
+            // 가운데에서 가장자리로 퍼지는 호흡
+            wavePerChar = (i, total) => {
+              const center = (total - 1) / 2;
+              const distFromCenter = Math.abs(i - center) / Math.max(1, center); // 0(가운데)~1(가장자리)
+              // 가운데 글자가 먼저 솟고, 가장자리가 시간차 두고 따라옴
+              const breathPhase = distFromCenter * Math.PI * 1.2;
+              // 깊고 느린 호흡 (진폭 큼)
+              const dy = Math.sin(sec * 1.1 - breathPhase + b.phase) * 2.4;
+              // alpha: 가장자리가 살짝 더 흐릿하게 호흡
+              const alpha = 0.82 + Math.sin(sec * 0.9 - breathPhase + b.phase * 1.4) * 0.18
+                          - distFromCenter * 0.05;
+              // 회전: 가장자리가 약간 더 기울어짐
+              const rot = Math.sin(sec * 0.7 - breathPhase + b.phase) * 0.015
+                        * (1 + distFromCenter * 0.5);
+              return { dy, alpha, rot };
+            };
+          } else if (holdSentenceStyle === "drift") {
+            // 글자별 독립 궤적 — 비대칭, 가볍게 떠다님
+            wavePerChar = (i, total) => {
+              // 글자마다 다른 시드 (i를 시드로 사용해 매번 동일)
+              const seedA = Math.sin(i * 12.9898) * 43758.5453;
+              const seedB = Math.sin(i * 78.233) * 43758.5453;
+              const sA = seedA - Math.floor(seedA);  // 0~1
+              const sB = seedB - Math.floor(seedB);
+              // 글자별 다른 주파수와 phase로 자유 궤적
+              const dy = Math.sin(sec * (0.9 + sA * 0.6) + sA * Math.PI * 2 + b.phase) * 1.8
+                       + Math.cos(sec * (0.5 + sB * 0.4) + sB * Math.PI * 2) * 0.7;
+              // alpha: 글자마다 다른 호흡 주기
+              const alpha = 0.84 + Math.sin(sec * (0.7 + sA * 0.5) + sB * Math.PI * 2 + b.phase) * 0.16;
+              // 회전도 글자별 독립
+              const rot = Math.sin(sec * (0.6 + sB * 0.4) + sA * Math.PI * 2) * 0.018;
+              return { dy, alpha, rot };
+            };
+          } else {
+            // 기본 "wave": 좌→우 흐르는 sine
+            wavePerChar = (i, total) => {
+              const wavePhase = (i / Math.max(1, total - 1)) * Math.PI * 2;
+              const dy = Math.sin(sec * 1.6 - wavePhase * 1.3 + b.phase) * 1.4;
+              const alpha = 0.86 + Math.sin(sec * 1.0 - wavePhase * 0.9 + b.phase * 1.7) * 0.14;
+              const rot = Math.sin(sec * 0.9 - wavePhase * 0.7 + b.phase) * 0.012;
+              return { dy, alpha, rot };
+            };
+          }
 
           drawWrappedTextPerChar(
             sentTempCtx, b.text, 0, 0,
@@ -2268,6 +2307,7 @@
       name: "79",
       framesCount: 1,
       holdSentence: true,
+      holdSentenceStyle: "breath",  // 가운데→가장자리 깊은 호흡
       outroMode: "volume",
       root,
     });
@@ -2280,6 +2320,7 @@
       framesCount: 1,
       baseVignette: true,
       holdSentence: true,
+      holdSentenceStyle: "drift",   // 글자별 자유 표류 (가벼움)
       outroMode: "decay",
     });
 
