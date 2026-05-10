@@ -28,7 +28,8 @@
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
-      --ink: #776c54;
+      --ink: #776c54;       /* HUD, 흰 배경 위 텍스트용 */
+      --ink-deep: #3d3829;  /* multiply 블렌드용 진한 잉크 */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -170,7 +171,7 @@
       perspective: 900px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: color-burn;
+      mix-blend-mode: multiply;
     }
     .text-volume-stage {
       position: absolute;
@@ -188,7 +189,7 @@
       font-family: 'Vicentino';
       font-size: 16px;
       line-height: 1;
-      color: var(--ink);
+      color: var(--ink-deep);
       white-space: pre;
       transform-origin: 0 0;
       will-change: transform, opacity;
@@ -202,7 +203,7 @@
       perspective: 550px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: color-burn;
+      mix-blend-mode: multiply;
     }
     .text-decay-stage {
       position: absolute;
@@ -219,7 +220,7 @@
       font-family: 'Vicentino';
       font-size: 16px;
       line-height: 1;
-      color: var(--ink);
+      color: var(--ink-deep);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
@@ -231,7 +232,7 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: color-burn;
+      mix-blend-mode: multiply;
     }
     .text-ripple-stage {
       position: absolute;
@@ -248,7 +249,7 @@
       font-family: 'Vicentino';
       font-size: 16px;
       line-height: 1;
-      color: var(--ink);
+      color: var(--ink-deep);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
@@ -260,7 +261,7 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: color-burn;
+      mix-blend-mode: multiply;
     }
     .text-sentence-stage {
       position: absolute;
@@ -277,7 +278,7 @@
       font-family: 'Vicentino';
       font-size: 17px;
       line-height: 1.55;
-      color: var(--ink);
+      color: var(--ink-deep);
       white-space: pre-wrap;
       word-break: keep-all;
       text-align: center;
@@ -360,10 +361,10 @@
       font-family: 'Vicentino';
       font-size: 16px;
       line-height: 1.7;
-      color: var(--ink);
+      color: var(--ink-deep);
       white-space: pre-wrap;
       word-break: keep-all;
-      mix-blend-mode: color-burn;
+      mix-blend-mode: multiply;
     }
   </style>
 </head>
@@ -384,7 +385,8 @@
     /* ─────────────────────────────────────────────
        잉크 색상 상수 (캔버스 캡처용)
        ───────────────────────────────────────────── */
-    const INK_COLOR = "#776c54";
+    const INK_COLOR = "#776c54";   // HUD, 흰 배경 박스 텍스트용
+    const INK_DEEP  = "#3d3829";   // multiply 블렌드용 진한 잉크
 
     /* ─────────────────────────────────────────────
        상태값
@@ -2297,7 +2299,7 @@
         } catch (e) {}
       }
 
-      // (3) multiply 모드로 텍스트 합성 — 사진처럼 글자가 이미지 톤에 녹아드는 효과
+      // (3) multiply 모드로 텍스트 합성 — 수채화처럼 글자 색이 이미지 톤과 곱해져 진해짐
       octx.globalCompositeOperation = "multiply";
 
       // 궤적 따라 흐르는 텍스트 — Vicentino
@@ -2352,7 +2354,7 @@
               const chW = octx.measureText(ch).width || 4;
               if (ch !== " ") {
                 const sample = sampleAt(s);
-                octx.fillStyle = INK_COLOR;
+                octx.fillStyle = INK_DEEP;
                 octx.save();
                 octx.translate(sample.x, sample.y);
                 octx.rotate(sample.ang);
