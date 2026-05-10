@@ -170,7 +170,8 @@
       perspective: 900px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: multiply;
+      mix-blend-mode: darken;
+      filter: blur(0.3px);
     }
     .text-volume-stage {
       position: absolute;
@@ -202,7 +203,8 @@
       perspective: 550px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: multiply;
+      mix-blend-mode: darken;
+      filter: blur(0.3px);
     }
     .text-decay-stage {
       position: absolute;
@@ -231,7 +233,8 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: multiply;
+      mix-blend-mode: darken;
+      filter: blur(0.3px);
     }
     .text-ripple-stage {
       position: absolute;
@@ -260,7 +263,8 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: multiply;
+      mix-blend-mode: darken;
+      filter: blur(0.3px);
     }
     .text-sentence-stage {
       position: absolute;
@@ -363,7 +367,7 @@
       color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
-      mix-blend-mode: multiply;
+      mix-blend-mode: darken;
     }
   </style>
 </head>
@@ -2276,8 +2280,8 @@
         } catch (e) {}
       }
 
-      // (3) multiply 모드로 텍스트 합성
-      octx.globalCompositeOperation = "multiply";
+      // (3) darken 모드로 텍스트 합성 — 사진처럼 글자가 이미지 톤에 녹아드는 효과
+      octx.globalCompositeOperation = "darken";
 
       // 궤적 따라 흐르는 텍스트 — Vicentino
       if (pendingText && pathPts.length >= 2) {
@@ -2404,7 +2408,7 @@
       }
       octx.globalAlpha = 1;
 
-      // multiply 종료
+      // darken 종료
       octx.globalCompositeOperation = "source-over";
 
       // reveal-text-content (흰 배경 박스) — Vicentino, 일반 모드
