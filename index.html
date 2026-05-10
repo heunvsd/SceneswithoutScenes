@@ -782,14 +782,18 @@
       let compCtx = null;
 
       function resizeCanvas() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = window.devicePixelRatio || 1;
         canvas.width  = Math.round(size * dpr);
         canvas.height = Math.round(size * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         if (baseCanvas && baseCtx) {
           baseCanvas.width  = Math.round(baseSize * dpr);
           baseCanvas.height = Math.round(baseSize * dpr);
           baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          baseCtx.imageSmoothingEnabled = true;
+          baseCtx.imageSmoothingQuality = "high";
         }
       }
       resizeCanvas();
@@ -1816,15 +1820,19 @@
         }
 
         if (frameReady && trail.length > 0) {
-          const dprForMask = Math.min(window.devicePixelRatio || 1, 2);
+          const dprForMask = window.devicePixelRatio || 1;
 
           if (!maskCanvas) {
             maskCanvas = document.createElement("canvas");
             maskCtx = maskCanvas.getContext("2d");
+            maskCtx.imageSmoothingEnabled = true;
+            maskCtx.imageSmoothingQuality = "high";
           }
           if (!compCanvas) {
             compCanvas = document.createElement("canvas");
             compCtx = compCanvas.getContext("2d");
+            compCtx.imageSmoothingEnabled = true;
+            compCtx.imageSmoothingQuality = "high";
           }
 
           function buildMask(boxW, boxH, offsetX, offsetY) {
@@ -1834,6 +1842,8 @@
               maskCanvas.height = Math.round(boxH * dprForMask);
             }
             maskCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+            maskCtx.imageSmoothingEnabled = true;
+            maskCtx.imageSmoothingQuality = "high";
             maskCtx.clearRect(0, 0, boxW, boxH);
 
             for (const p of trail) {
@@ -1892,6 +1902,8 @@
               compCanvas.height = Math.round(boxH * dprForMask);
             }
             compCtx.setTransform(dprForMask, 0, 0, dprForMask, 0, 0);
+            compCtx.imageSmoothingEnabled = true;
+            compCtx.imageSmoothingQuality = "high";
             compCtx.clearRect(0, 0, boxW, boxH);
             compCtx.globalCompositeOperation = "source-over";
             compCtx.drawImage(maskCanvas, 0, 0, boxW, boxH);
@@ -2246,13 +2258,15 @@
       const W = window.innerWidth;
       const H = window.innerHeight;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = window.devicePixelRatio || 1;
       const SF = Math.max(2, dpr * 2);
 
       const out = document.createElement("canvas");
       out.width = Math.round(W * SF);
       out.height = Math.round(H * SF);
       const octx = out.getContext("2d");
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = "high";
       octx.scale(SF, SF);
       octx.fillStyle = "#ffffff";
       octx.fillRect(0, 0, W, H);
