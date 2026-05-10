@@ -1875,90 +1875,106 @@
           sentTempCtx.fillStyle = INK_COLOR;
           sentTempCtx.font = `${FONT_PX}px Vicentino`;
           sentTempCtx.textBaseline = "middle";
-          // alightworld 스타일 글자별 모션 콜백 (6가지 다른 캐릭터)
-          //  - "wave"    : 좌→우 흐르는 잔잔한 물결 (시간차)
-          //  - "breath"  : 가운데→가장자리 깊은 호흡 (대칭)
-          //  - "drift"   : 글자별 자유로운 표류 (비대칭)
-          //  - "shimmer" : 별빛처럼 깜빡임 (alpha 변화 큼, 위치 변화 작음)
-          //  - "pulse"   : 들숨/날숨처럼 글자들이 일제히 커졌다 작아짐 (스케일 동기화)
-          //  - "tide"    : 위→아래로 차오르는 파도 (줄 단위 시간차)
+          // ─── 6가지 다이나믹한 sentence 모션 (한눈에 봐도 다름) ───
+          //  - "wave"    : 큰 sine 파도가 좌→우 출렁 (위아래 크게)
+          //  - "pulse"   : 글자 전체가 동기화돼 커졌다 작아짐 (확장-수축)
+          //  - "cascade" : 위에서 떨어졌다 다시 위로 (수직 흐름)
+          //  - "scatter" : 글자별 원형 궤적 회전 (orbit)
+          //  - "flicker" : 점멸 (갑자기 사라졌다 나타남, 불빛 같은)
+          //  - "tilt"    : 글자들이 좌우 큰 각도로 기울어짐 (롤링)
           let wavePerChar;
-          if (holdSentenceStyle === "breath") {
+
+          if (holdSentenceStyle === "pulse") {
+            // 호흡: 모든 글자가 동시에 커졌다 작아짐
             wavePerChar = (i, total) => {
-              const center = (total - 1) / 2;
-              const distFromCenter = Math.abs(i - center) / Math.max(1, center);
-              const breathPhase = distFromCenter * Math.PI * 1.2;
-              const dy = Math.sin(sec * 1.1 - breathPhase + b.phase) * 2.4;
-              const alpha = 0.82 + Math.sin(sec * 0.9 - breathPhase + b.phase * 1.4) * 0.18
-                          - distFromCenter * 0.05;
-              const rot = Math.sin(sec * 0.7 - breathPhase + b.phase) * 0.015
-                        * (1 + distFromCenter * 0.5);
+              // 천천히 깊은 호흡 (모든 글자 동기화)
+              const breath = Math.sin(sec * 0.85 + b.phase);
+              const breath2 = Math.sin(sec * 0.45 + b.phase * 1.3);
+              // 큰 스케일 변동 (확장 ↔ 수축이 명확히 보임)
+              const scale = 1 + breath * 0.13 + breath2 * 0.04;  // 0.83 ~ 1.17
+              // alpha도 호흡에 동기화
+              const alpha = 0.70 + breath * 0.28;  // 0.42 ~ 0.98
+              // 위치는 살짝만 (호흡감 강조)
+              const dy = breath * 1.0;
+              return { dy, alpha, scale };
+            };
+          } else if (holdSentenceStyle === "cascade") {
+            // 위→아래 흐름: 글자들이 떨어졌다 솟구침 (분수 같은)
+            // 줄 단위 + 글자 단위 시간차로 폭포처럼
+            wavePerChar = (i, total, lineIdx, lineCount) => {
+              const linePhase = (lineIdx / Math.max(1, lineCount)) * Math.PI * 1.2;
+              const charPhase = (i / Math.max(1, total - 1)) * Math.PI * 0.8;
+              // 큰 수직 변동 (떨어졌다 솟구침)
+              const dy = Math.sin(sec * 1.4 - linePhase - charPhase + b.phase) * 5.0;
+              // 떨어질 때 alpha 어둡게, 솟을 때 밝게
+              const alpha = 0.78 + Math.sin(sec * 1.4 - linePhase - charPhase + b.phase) * 0.22;
+              // 미세 회전
+              const rot = Math.sin(sec * 1.0 - linePhase + b.phase) * 0.02;
               return { dy, alpha, rot };
             };
-          } else if (holdSentenceStyle === "drift") {
+          } else if (holdSentenceStyle === "scatter") {
+            // 글자별 원형 궤적 — 각자 자기 자리에서 작은 원을 그림 (orbit)
             wavePerChar = (i, total) => {
+              // 글자별 시드 (회전 방향, 반경, 속도 다르게)
               const seedA = Math.sin(i * 12.9898) * 43758.5453;
               const seedB = Math.sin(i * 78.233) * 43758.5453;
               const sA = seedA - Math.floor(seedA);
               const sB = seedB - Math.floor(seedB);
-              const dy = Math.sin(sec * (0.9 + sA * 0.6) + sA * Math.PI * 2 + b.phase) * 1.8
-                       + Math.cos(sec * (0.5 + sB * 0.4) + sB * Math.PI * 2) * 0.7;
-              const dx = Math.cos(sec * (0.7 + sB * 0.3) + sA * Math.PI * 2) * 1.2;
-              const alpha = 0.84 + Math.sin(sec * (0.7 + sA * 0.5) + sB * Math.PI * 2 + b.phase) * 0.16;
-              const rot = Math.sin(sec * (0.6 + sB * 0.4) + sA * Math.PI * 2) * 0.018;
+              // 원형 궤적: 각도 = 시간 + 글자별 phase
+              const angularSpeed = 1.2 + sA * 0.8;  // 글자마다 다른 속도
+              const radius = 2.5 + sB * 1.5;        // 글자마다 다른 반경 (2.5 ~ 4)
+              const direction = sA > 0.5 ? 1 : -1;  // 절반은 시계방향, 절반은 반시계
+              const angle = sec * angularSpeed * direction + sA * Math.PI * 2 + b.phase;
+              const dx = Math.cos(angle) * radius;
+              const dy = Math.sin(angle) * radius;
+              const alpha = 0.85 + Math.sin(sec * 0.7 + sA * Math.PI * 2) * 0.13;
+              // 글자가 회전하는 느낌 살짝
+              const rot = angle * 0.05;
               return { dx, dy, alpha, rot };
             };
-          } else if (holdSentenceStyle === "shimmer") {
-            // 별빛처럼 깜빡임 — 위치 변화 작고, alpha 변동 매우 큼
-            // 글자마다 다른 깜빡임 주기로 반짝거리는 별들 같은 느낌
+          } else if (holdSentenceStyle === "flicker") {
+            // 점멸: 글자가 갑자기 사라졌다 나타남 (불빛 같은)
             wavePerChar = (i, total) => {
               const seedA = Math.sin(i * 91.7) * 43758.5453;
+              const seedB = Math.sin(i * 41.3) * 43758.5453;
               const sA = seedA - Math.floor(seedA);
-              // 위치는 거의 정적
-              const dy = Math.sin(sec * 0.5 + i * 0.3 + b.phase) * 0.6;
-              const dx = Math.cos(sec * 0.4 + i * 0.5 + b.phase) * 0.4;
-              // alpha 큰 변동 — 빠른 깜빡임 + 느린 호흡
-              const fastFlicker = Math.sin(sec * (2.5 + sA * 1.5) + sA * Math.PI * 2) * 0.25;
-              const slowBreath = Math.sin(sec * 0.6 + i * 0.2 + b.phase) * 0.15;
-              const alpha = 0.72 + fastFlicker + slowBreath;
-              const rot = Math.sin(sec * 0.4 + i * 0.4 + b.phase) * 0.008;
+              const sB = seedB - Math.floor(seedB);
+              // 점멸 주파수와 phase가 글자마다 완전히 다름
+              const flickerFreq = 1.8 + sA * 2.2;       // 1.8 ~ 4.0
+              const flickerPhase = sB * Math.PI * 2;
+              // 톱니파 같은 깜빡임: smoothstep으로 급격한 on/off
+              const raw = Math.sin(sec * flickerFreq + flickerPhase + b.phase);
+              // raw < 0 이면 거의 안 보이고, > 0 이면 보임 (불꽃처럼)
+              const visible = raw > -0.1 ? 1 : Math.max(0, (raw + 0.6) / 0.5);
+              const alpha = 0.25 + visible * 0.7;       // 0.25 ~ 0.95
+              // 위치는 살짝만 떨림
+              const dy = Math.sin(sec * 3 + sA * 10) * 0.5;
+              const dx = Math.cos(sec * 2.7 + sB * 10) * 0.4;
+              return { dx, dy, alpha };
+            };
+          } else if (holdSentenceStyle === "tilt") {
+            // 롤링: 글자들이 좌우로 큰 각도로 기울어짐 (배 흔들림)
+            wavePerChar = (i, total) => {
+              // 글자별 시간차 (좌→우 또는 우→좌 시간차)
+              const tiltPhase = (i / Math.max(1, total - 1)) * Math.PI * 0.8;
+              // 큰 회전 (라디안: ±0.18 = 약 ±10도)
+              const rot = Math.sin(sec * 1.1 - tiltPhase + b.phase) * 0.18;
+              // 회전에 따라 살짝 위아래
+              const dy = Math.sin(sec * 1.1 - tiltPhase + b.phase) * 1.0;
+              const dx = Math.cos(sec * 0.9 - tiltPhase + b.phase) * 0.6;
+              const alpha = 0.85 + Math.sin(sec * 0.8 - tiltPhase + b.phase) * 0.13;
               return { dx, dy, alpha, rot };
             };
-          } else if (holdSentenceStyle === "pulse") {
-            // 들숨/날숨처럼 글자들이 일제히 호흡 — 동기화된 스케일 + alpha
-            // 모든 글자가 같은 박자로 살아남
-            wavePerChar = (i, total) => {
-              // 전체 동기화된 호흡 (천천히)
-              const breath = Math.sin(sec * 0.6 + b.phase);
-              const scale = 1 + breath * 0.06;        // 0.94~1.06
-              const alpha = 0.78 + breath * 0.20;     // 0.58~0.98
-              // 위치 변동은 살짝만 (글자별 미세 차이)
-              const dy = Math.sin(sec * 0.6 + i * 0.18 + b.phase) * 0.8;
-              // 회전 없음 (정적인 호흡감)
-              return { dy, alpha, scale };
-            };
-          } else if (holdSentenceStyle === "tide") {
-            // 위→아래로 차오르는 파도 — 줄 단위 시간차
-            // 첫 줄이 먼저 솟고, 다음 줄이 따라옴 (밀물 느낌)
-            wavePerChar = (i, total, lineIdx, lineCount) => {
-              const linePhase = lineCount > 1 ? (lineIdx / (lineCount - 1)) * Math.PI * 1.5 : 0;
-              const charInLine = (i / Math.max(1, total - 1)) * Math.PI;
-              // 줄별 시간차 (위 줄이 먼저 도착)
-              const dy = Math.sin(sec * 1.2 - linePhase - charInLine * 0.4 + b.phase) * 2.0;
-              // alpha: 줄별로 일렁임
-              const alpha = 0.84 + Math.sin(sec * 0.85 - linePhase + b.phase) * 0.16;
-              // 회전: 줄 단위로 살짝 기울어짐
-              const rot = Math.sin(sec * 0.7 - linePhase + b.phase) * 0.014;
-              return { dy, alpha, rot };
-            };
           } else {
-            // 기본 "wave": 좌→우 흐르는 sine
+            // 기본 "wave": 큰 sine 파도가 좌→우 출렁
             wavePerChar = (i, total) => {
-              const wavePhase = (i / Math.max(1, total - 1)) * Math.PI * 2;
-              const dy = Math.sin(sec * 1.6 - wavePhase * 1.3 + b.phase) * 1.4;
-              const alpha = 0.86 + Math.sin(sec * 1.0 - wavePhase * 0.9 + b.phase * 1.7) * 0.14;
-              const rot = Math.sin(sec * 0.9 - wavePhase * 0.7 + b.phase) * 0.012;
-              return { dy, alpha, rot };
+              const wavePhase = (i / Math.max(1, total - 1)) * Math.PI * 2.5;
+              // 큰 진폭 (확실히 출렁이는 느낌)
+              const dy = Math.sin(sec * 1.5 - wavePhase + b.phase) * 3.5;
+              const dx = Math.cos(sec * 1.0 - wavePhase * 0.6 + b.phase) * 1.2;
+              const alpha = 0.82 + Math.sin(sec * 0.9 - wavePhase + b.phase) * 0.18;
+              const rot = Math.sin(sec * 0.85 - wavePhase + b.phase) * 0.025;
+              return { dx, dy, alpha, rot };
             };
           }
 
@@ -2360,7 +2376,7 @@
       name: "06",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "wave",     // 좌→우 흐르는 잔잔한 물결
+      holdSentenceStyle: "wave",     // 큰 sine 파도가 좌→우 출렁
       outroMode: "ripple",
       root,
     });
@@ -2371,7 +2387,7 @@
       name: "79",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "pulse",    // 들숨/날숨처럼 일제히 호흡
+      holdSentenceStyle: "pulse",    // 호흡: 일제히 커졌다 작아짐
       outroMode: "volume",
       root,
     });
@@ -2382,7 +2398,7 @@
       name: "07",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "breath",   // 가운데→가장자리 깊은 호흡
+      holdSentenceStyle: "cascade",  // 위에서 떨어졌다 솟구침 (분수)
       outroMode: "decay",
       root,
     });
@@ -2393,7 +2409,7 @@
       name: "08",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "drift",    // 글자별 자유 표류
+      holdSentenceStyle: "scatter",  // 글자별 원형 궤적 회전 (orbit)
       outroMode: "volume",
       root,
     });
@@ -2404,7 +2420,7 @@
       name: "09",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "shimmer",  // 별빛처럼 깜빡임
+      holdSentenceStyle: "flicker",  // 점멸 (불빛 같은)
       outroMode: "ripple",
       root,
     });
@@ -2416,7 +2432,7 @@
       framesCount: 1,
       baseVignette: true,
       holdSentence: true,
-      holdSentenceStyle: "tide",     // 위→아래로 차오르는 파도
+      holdSentenceStyle: "tilt",     // 좌우 큰 각도 롤링
       outroMode: "decay",
       root,
     });
