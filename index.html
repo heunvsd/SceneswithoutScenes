@@ -1243,8 +1243,6 @@
         }
 
         // 형상 좌표 미리 계산 — 모든 글리프가 자리잡은 후
-        // circle: 글자들이 원형으로 둘러서서 떠다님
-        // wave: 글자들이 길게 늘어선 sin 파형
         const totalG = decayGlyphs.length;
         for (let gi = 0; gi < totalG; gi++) {
           const g = decayGlyphs[gi];
@@ -1252,16 +1250,41 @@
 
           // 1) Circle 형상 — 글자들이 원 둘레에 균등 분포
           const circleAngle = (gi / Math.max(1, totalG)) * Math.PI * 2;
-          const circleRadius = 95;  // 원 반지름 (px)
+          const circleRadius = 95;
           g.circleX = Math.cos(circleAngle) * circleRadius;
-          g.circleY = Math.sin(circleAngle) * circleRadius * 0.65; // 살짝 납작한 타원
+          g.circleY = Math.sin(circleAngle) * circleRadius * 0.65;
           g.circleAngle = circleAngle;
 
           // 2) Wave 형상 — 글자들이 sin 파도에 늘어서서 흐름
           const waveT = totalG > 1 ? gi / (totalG - 1) : 0.5;
-          g.waveX = (waveT - 0.5) * 280;  // 가로로 -140~140 분포
-          g.waveBaseY = 0;  // sine 진폭은 update에서 시간변화로 처리
+          g.waveX = (waveT - 0.5) * 280;
+          g.waveBaseY = 0;
           g.waveT = waveT;
+
+          // 3) Starpoint 형상 — 글자들이 별자리처럼 무작위 X/Y 점에 흩어짐
+          // (deterministic random: gi 기반 시드 사용)
+          const starSeedA = Math.sin(gi * 12.9898) * 43758.5453;
+          const starSeedB = Math.sin(gi * 78.233) * 43758.5453;
+          const sA = starSeedA - Math.floor(starSeedA);
+          const sB = starSeedB - Math.floor(starSeedB);
+          // 화면 영역 (-130 ~ 130 가로, -90 ~ 90 세로)에 자연스럽게 흩어짐
+          g.starX = (sA - 0.5) * 260;
+          g.starY = (sB - 0.5) * 180;
+
+          // 4) Outline 형상 — 사과 윤곽 (원형 외곽선만, 안쪽 비움)
+          // 모든 글자가 원 둘레에 빈틈 없이 분포 — circle보다 더 명확한 윤곽
+          const outlineAngle = (gi / Math.max(1, totalG)) * Math.PI * 2 - Math.PI / 2;
+          const outlineRadius = 75 + (gi % 3 === 0 ? 4 : 0); // 살짝 불규칙 (사과 자연스러움)
+          // 사과 모양: 위쪽이 살짝 들어가고 아래쪽이 풍성
+          const appleY = -Math.cos(outlineAngle) - 0.15 * Math.sin(outlineAngle * 2);
+          g.outlineX = Math.sin(outlineAngle) * outlineRadius;
+          g.outlineY = appleY * outlineRadius * 0.95;
+          g.outlineAngle = outlineAngle;
+
+          // 5) Pivot 형상 — 모든 글자가 한 점으로 (중력 빨림)
+          // 약간의 jitter로 완전 한 점은 아니고 작은 덩어리
+          g.pivotX = (sA - 0.5) * 14;
+          g.pivotY = (sB - 0.5) * 14;
         }
 
         decayStartTime = performance.now();
@@ -1271,7 +1294,12 @@
 
         const tickDecay = (now) => {
           if (!decayRoot) return;
-          updateDecay(now);
+          // outroMode에 따라 다른 형상 모션 사용
+          if (outroMode === "coordinates") updateCoordinates(now);
+          else if (outroMode === "outline") updateOutline(now);
+          else if (outroMode === "gravity") updateGravity(now);
+          else if (outroMode === "residue") updateResidue(now);
+          else updateDecay(now);
           decayRafId = requestAnimationFrame(tickDecay);
         };
         decayRafId = requestAnimationFrame(tickDecay);
@@ -1424,6 +1452,371 @@
 
           // 미세 스케일 호흡
           const scale = 0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.025;
+
+          g.el.style.transform =
+            `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+            `rotate(${rot.toFixed(4)}rad) ` +
+            `scale(${scale.toFixed(3)})`;
+          g.el.style.opacity = opacity.toFixed(3);
+        }
+      }
+
+      // ──────────────────────────────────────────────────────────
+      // 4가지 새 outro 모션 (build는 buildDecayText 재사용, update만 다름)
+      // 모두 무한 루프, 글리프 단위로 형상 ↔ 본 문장 사이를 순환
+      // ──────────────────────────────────────────────────────────
+
+      // 공통 헬퍼: easeInOut
+      function easeInOut(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+
+      // ── 1) coordinates: 별자리/좌표계 ──
+      // 문장 → 별자리(starX/Y에 흩어짐) → 문장 → 다른 별자리 (반복)
+      // 글자가 X/Y 점처럼 이동, 사이를 가는 동안 미세한 정지/지터
+      function updateCoordinates(now) {
+        const elapsed = (now - decayStartTime) / 1000;
+        const introT = Math.min(1, elapsed / 1.5);
+        const introEased = 1 - Math.pow(1 - introT, 3);
+        const CYCLE = 16.0;
+        const cycleT = (elapsed % CYCLE) / CYCLE;
+        const cycleNum = Math.floor(elapsed / CYCLE);
+
+        // 페이즈: 0~25% 본 문장, 25~50% 별자리로 이동, 50~75% 본 문장, 75~100% 다른 별자리
+        const P_SENT1 = 0.18;
+        const P_STAR1 = 0.42;
+        const P_SENT2 = 0.60;
+
+        // 사이클마다 별자리가 살짝 회전 (다른 별자리)
+        const constellationRot = cycleNum * 0.3;
+        const cosR = Math.cos(constellationRot), sinR = Math.sin(constellationRot);
+
+        // 문장 자체는 정적 (별자리가 이동의 메인)
+        const totalG = decayGlyphs.length;
+        for (let i = 0; i < totalG; i++) {
+          const g = decayGlyphs[i];
+          const personalPhase = g.phase;
+
+          // 별자리 좌표 (회전 적용)
+          const starRotX = g.starX * cosR - g.starY * sinR;
+          const starRotY = g.starX * sinR + g.starY * cosR;
+
+          let targetX, targetY, isStar;
+          const stagger = (i / Math.max(1, totalG - 1)) * 0.2;
+
+          if (cycleT < P_SENT1) {
+            targetX = g.baseX; targetY = g.baseY; isStar = false;
+          } else if (cycleT < P_STAR1) {
+            const u = Math.max(0, Math.min(1, (cycleT - P_SENT1) / (P_STAR1 - P_SENT1) - stagger));
+            const eu = easeInOut(u);
+            targetX = g.baseX * (1 - eu) + starRotX * eu;
+            targetY = g.baseY * (1 - eu) + starRotY * eu;
+            isStar = u > 0.5;
+          } else if (cycleT < P_SENT2) {
+            const u = Math.max(0, Math.min(1, (cycleT - P_STAR1) / (P_SENT2 - P_STAR1) - stagger));
+            const eu = easeInOut(u);
+            targetX = starRotX * (1 - eu) + g.baseX * eu;
+            targetY = starRotY * (1 - eu) + g.baseY * eu;
+            isStar = u < 0.5;
+          } else {
+            const u = Math.max(0, Math.min(1, (cycleT - P_SENT2) / (1 - P_SENT2) - stagger));
+            const eu = easeInOut(u);
+            targetX = g.baseX * (1 - eu) + starRotX * eu;
+            targetY = g.baseY * (1 - eu) + starRotY * eu;
+            isStar = u > 0.5;
+          }
+
+          // 별자리 상태에서는 미세 trembling (별이 깜빡이는 듯), 문장 상태에서는 잔잔한 호흡
+          const microDx = isStar
+            ? Math.sin(elapsed * 2.4 + personalPhase * 3) * 0.6
+            : Math.cos(elapsed * 0.9 + personalPhase) * 0.8;
+          const microDy = isStar
+            ? Math.cos(elapsed * 2.6 + personalPhase * 2.5) * 0.6
+            : Math.sin(elapsed * 1.1 + personalPhase) * 1.2;
+
+          // 별자리에서 alpha가 더 강하게 깜빡임
+          const alphaBreath = isStar
+            ? 0.65 + Math.sin(elapsed * 1.8 + personalPhase * 2) * 0.30
+            : 0.85 + Math.sin(elapsed * 0.9 + personalPhase) * 0.13;
+          const opacity = introEased * alphaBreath;
+
+          // 인트로 첫 사이클
+          let startOffsetX = 0, startOffsetY = 0;
+          if (cycleNum === 0 && introT < 1) {
+            const arrival = Math.max(0, Math.min(1,
+              (introT - g.arrivalDelay * 0.4) / (1 - g.arrivalDelay * 0.4)
+            ));
+            const arrivalEased = 1 - Math.pow(1 - arrival, 3);
+            startOffsetX = (g.scatterX * 0.3) * (1 - arrivalEased);
+            startOffsetY = (g.scatterY * 0.3) * (1 - arrivalEased);
+          }
+
+          const x = targetX + microDx + startOffsetX;
+          const y = targetY + microDy + startOffsetY;
+          const scale = 0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.02;
+
+          g.el.style.transform =
+            `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${scale.toFixed(3)})`;
+          g.el.style.opacity = opacity.toFixed(3);
+        }
+      }
+
+      // ── 2) outline: 사과 윤곽 ──
+      // 문장 → 사과 윤곽 (글자들이 윤곽선에 늘어섬, 안은 빔) → 문장 (반복)
+      // 윤곽 상태에서 천천히 회전
+      function updateOutline(now) {
+        const elapsed = (now - decayStartTime) / 1000;
+        const introT = Math.min(1, elapsed / 1.5);
+        const introEased = 1 - Math.pow(1 - introT, 3);
+        const CYCLE = 14.0;
+        const cycleT = (elapsed % CYCLE) / CYCLE;
+
+        const P_SENT = 0.20;
+        const P_TO_OUTLINE = 0.40;
+        const P_OUTLINE = 0.75;
+        // 0.75~1.0: 다시 문장으로
+
+        // 윤곽 상태에서 글자들이 천천히 회전 (외곽선이 도는 느낌)
+        const outlineRot = elapsed * 0.15;
+
+        const totalG = decayGlyphs.length;
+        for (let i = 0; i < totalG; i++) {
+          const g = decayGlyphs[i];
+          const personalPhase = g.phase;
+          const stagger = (i / Math.max(1, totalG - 1)) * 0.25;
+
+          // 윤곽 좌표 (회전)
+          const angle = g.outlineAngle + outlineRot;
+          const oRadius = Math.hypot(g.outlineX, g.outlineY);
+          const outX = Math.sin(angle) * oRadius;
+          // 사과 모양 유지 (위쪽 살짝 들어감)
+          const outY = (-Math.cos(angle) - 0.15 * Math.sin(angle * 2)) * oRadius * 0.95
+                       / Math.max(0.7, Math.hypot(Math.sin(angle), -Math.cos(angle) - 0.15 * Math.sin(angle * 2)));
+
+          let targetX, targetY, isOutline;
+
+          if (cycleT < P_SENT) {
+            targetX = g.baseX; targetY = g.baseY; isOutline = false;
+          } else if (cycleT < P_TO_OUTLINE) {
+            const u = Math.max(0, Math.min(1, (cycleT - P_SENT) / (P_TO_OUTLINE - P_SENT) - stagger));
+            const eu = easeInOut(u);
+            targetX = g.baseX * (1 - eu) + outX * eu;
+            targetY = g.baseY * (1 - eu) + outY * eu;
+            isOutline = u > 0.5;
+          } else if (cycleT < P_OUTLINE) {
+            // 윤곽 유지 (회전만)
+            targetX = outX;
+            targetY = outY;
+            isOutline = true;
+          } else {
+            const u = Math.max(0, Math.min(1, (cycleT - P_OUTLINE) / (1 - P_OUTLINE) - stagger));
+            const eu = easeInOut(u);
+            targetX = outX * (1 - eu) + g.baseX * eu;
+            targetY = outY * (1 - eu) + g.baseY * eu;
+            isOutline = u < 0.5;
+          }
+
+          // 미세 호흡: 윤곽 상태에서는 글자가 윤곽선 따라 살짝 떨림
+          const microDx = isOutline
+            ? Math.sin(elapsed * 1.4 + g.outlineAngle * 2 + personalPhase) * 1.0
+            : Math.cos(elapsed * 0.9 + personalPhase) * 0.7;
+          const microDy = isOutline
+            ? Math.cos(elapsed * 1.4 + g.outlineAngle * 2 + personalPhase) * 1.0
+            : Math.sin(elapsed * 1.0 + personalPhase) * 1.0;
+
+          // 윤곽에서 글자가 회전 방향 따라 회전 (외곽선을 따라 도는 느낌)
+          const charRot = isOutline ? angle + Math.PI / 2 : 0;
+
+          const alphaBreath = 0.85 + Math.sin(elapsed * 0.9 - i * 0.1 + personalPhase) * 0.13;
+          const opacity = introEased * alphaBreath;
+
+          let startOffsetX = 0, startOffsetY = 0;
+          if (elapsed < 1.5) {
+            const arrival = Math.max(0, Math.min(1, introT - g.arrivalDelay * 0.3));
+            const ae = 1 - Math.pow(1 - arrival, 3);
+            startOffsetX = (g.scatterX * 0.3) * (1 - ae);
+            startOffsetY = (g.scatterY * 0.3) * (1 - ae);
+          }
+
+          const x = targetX + microDx + startOffsetX;
+          const y = targetY + microDy + startOffsetY;
+          const scale = 0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.02;
+
+          g.el.style.transform =
+            `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+            `rotate(${(charRot * 0.3).toFixed(4)}rad) ` +
+            `scale(${scale.toFixed(3)})`;
+          g.el.style.opacity = opacity.toFixed(3);
+        }
+      }
+
+      // ── 3) gravity: 한 점으로 빨려들어감 ──
+      // 문장 → 빨려들어가 작은 덩어리 → 다시 문장 (반복)
+      // 빨려들어가는 동안 글자가 회전하며 가속
+      function updateGravity(now) {
+        const elapsed = (now - decayStartTime) / 1000;
+        const introT = Math.min(1, elapsed / 1.5);
+        const introEased = 1 - Math.pow(1 - introT, 3);
+        const CYCLE = 12.0;
+        const cycleT = (elapsed % CYCLE) / CYCLE;
+
+        const P_SENT = 0.25;
+        const P_PULL = 0.45;
+        const P_HOLD = 0.65;
+        // 0.65~1.0: 다시 본 문장으로 흩어지듯 복귀
+
+        const totalG = decayGlyphs.length;
+        for (let i = 0; i < totalG; i++) {
+          const g = decayGlyphs[i];
+          const personalPhase = g.phase;
+          // 글자별 빨림 시간차 (랜덤하게 — 어떤 글자는 끝까지 안 빨려들어감)
+          const seed = (Math.sin(i * 41.3) * 43758.5453);
+          const sV = seed - Math.floor(seed);
+          const stagger = sV * 0.3;
+          // 일부 글자는 약하게만 빨려감 (변두리에 남는 잔존 글자)
+          const pullStrength = 0.5 + sV * 0.5;  // 0.5 ~ 1.0
+
+          let targetX, targetY, isPulled, pullProgress = 0;
+
+          if (cycleT < P_SENT) {
+            targetX = g.baseX; targetY = g.baseY; isPulled = false;
+          } else if (cycleT < P_PULL) {
+            const u = Math.max(0, Math.min(1, (cycleT - P_SENT) / (P_PULL - P_SENT) - stagger * 0.5));
+            const eu = u * u;  // easeIn (가속)
+            targetX = g.baseX * (1 - eu * pullStrength) + g.pivotX * eu * pullStrength;
+            targetY = g.baseY * (1 - eu * pullStrength) + g.pivotY * eu * pullStrength;
+            isPulled = u > 0.5;
+            pullProgress = eu;
+          } else if (cycleT < P_HOLD) {
+            // 빨린 상태 유지 (작은 덩어리, 미세 떨림)
+            targetX = g.pivotX * pullStrength + g.baseX * (1 - pullStrength);
+            targetY = g.pivotY * pullStrength + g.baseY * (1 - pullStrength);
+            isPulled = true;
+            pullProgress = 1;
+          } else {
+            const u = Math.max(0, Math.min(1, (cycleT - P_HOLD) / (1 - P_HOLD) - stagger * 0.5));
+            const eu = 1 - Math.pow(1 - u, 3);  // easeOut
+            const fromX = g.pivotX * pullStrength + g.baseX * (1 - pullStrength);
+            const fromY = g.pivotY * pullStrength + g.baseY * (1 - pullStrength);
+            targetX = fromX * (1 - eu) + g.baseX * eu;
+            targetY = fromY * (1 - eu) + g.baseY * eu;
+            isPulled = u < 0.5;
+            pullProgress = 1 - eu;
+          }
+
+          // 빨려가는 동안 글자가 회전 (가속도 표현)
+          const rotSpeed = pullProgress * (sV - 0.5) * 8;
+          const rot = pullProgress > 0.1
+            ? rotSpeed * Math.sin(elapsed * 2)
+            : Math.sin(elapsed * 0.85 - i * 0.1 + personalPhase) * 0.025;
+
+          // 미세 위치 변동
+          const microDx = isPulled
+            ? Math.sin(elapsed * 3 + i) * 1.2
+            : Math.cos(elapsed * 1.0 - i * 0.1 + personalPhase) * 0.7;
+          const microDy = isPulled
+            ? Math.cos(elapsed * 3.2 + i) * 1.2
+            : Math.sin(elapsed * 1.4 - i * 0.1 + personalPhase) * 1.0;
+
+          const alphaBreath = 0.85 + Math.sin(elapsed * 0.9 - i * 0.1 + personalPhase) * 0.13;
+          const opacity = introEased * alphaBreath;
+
+          let startOffsetX = 0, startOffsetY = 0;
+          if (elapsed < 1.5) {
+            const arrival = Math.max(0, Math.min(1, introT - g.arrivalDelay * 0.3));
+            const ae = 1 - Math.pow(1 - arrival, 3);
+            startOffsetX = (g.scatterX * 0.3) * (1 - ae);
+            startOffsetY = (g.scatterY * 0.3) * (1 - ae);
+          }
+
+          // 빨릴수록 글자 살짝 작아짐 (압축)
+          const scale = (1 - pullProgress * 0.2)
+                       * (0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.02);
+
+          const x = targetX + microDx + startOffsetX;
+          const y = targetY + microDy + startOffsetY;
+
+          g.el.style.transform =
+            `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
+            `rotate(${rot.toFixed(4)}rad) ` +
+            `scale(${scale.toFixed(3)})`;
+          g.el.style.opacity = opacity.toFixed(3);
+        }
+      }
+
+      // ── 4) residue: 사라지는 문장 / 잔상 ──
+      // 문장이 또렷 → 점점 흐려져 잔상만 → 다시 또렷 (반복)
+      // 흐려질 때 위치도 살짝 어긋남 (잔상이 떠있는 느낌)
+      function updateResidue(now) {
+        const elapsed = (now - decayStartTime) / 1000;
+        const introT = Math.min(1, elapsed / 1.5);
+        const introEased = 1 - Math.pow(1 - introT, 3);
+        const CYCLE = 10.0;
+        const cycleT = (elapsed % CYCLE) / CYCLE;
+
+        // 페이즈: 또렷 → 흐려짐 → 잔상 → 다시 또렷
+        const P_CLEAR = 0.20;     // 0~20% 또렷
+        const P_FADE = 0.45;      // 20~45% 흐려지는 중
+        const P_RESIDUE = 0.75;   // 45~75% 잔상
+        // 75~100% 다시 또렷해짐
+
+        const totalG = decayGlyphs.length;
+        for (let i = 0; i < totalG; i++) {
+          const g = decayGlyphs[i];
+          const personalPhase = g.phase;
+          const seed = Math.sin(i * 91.7) * 43758.5453;
+          const sV = seed - Math.floor(seed);
+
+          // 글자별 fade 시간차 — 어떤 글자가 먼저 흐려짐
+          const fadeDelay = sV * 0.3;
+
+          let clarity;  // 1=또렷, 0=완전 잔상
+
+          if (cycleT < P_CLEAR) {
+            clarity = 1;
+          } else if (cycleT < P_FADE) {
+            const u = Math.max(0, Math.min(1, (cycleT - P_CLEAR) / (P_FADE - P_CLEAR) - fadeDelay * 0.5));
+            clarity = 1 - easeInOut(u);
+          } else if (cycleT < P_RESIDUE) {
+            clarity = 0.05 + Math.sin(elapsed * 0.6 + i * 0.2) * 0.03;  // 거의 0, 미세 일렁임
+          } else {
+            const u = Math.max(0, Math.min(1, (cycleT - P_RESIDUE) / (1 - P_RESIDUE) - fadeDelay * 0.5));
+            clarity = easeInOut(u);
+          }
+
+          // 흐려질수록 위치가 어긋남 (잔상이 떠다니는 느낌)
+          const driftAmt = (1 - clarity) * 6;
+          const microDx = Math.sin(elapsed * 0.8 + sV * 10) * driftAmt
+                        + Math.cos(elapsed * 0.5 + i * 0.2) * 0.6;
+          const microDy = Math.cos(elapsed * 0.7 + sV * 10) * driftAmt
+                        + Math.sin(elapsed * 0.9 + i * 0.2) * 0.8;
+
+          // 흐려질수록 회전 (잔상이 살짝 비뚤어짐)
+          const rot = (1 - clarity) * Math.sin(elapsed * 0.4 + sV * 10) * 0.05
+                    + Math.sin(elapsed * 0.85 - i * 0.1 + personalPhase) * 0.015;
+
+          // 잔상 단계: 매우 낮은 alpha (그림자처럼)
+          const baseAlpha = 0.10 + clarity * 0.78;
+          // 미세 호흡 (잔상에도 약간)
+          const breathAlpha = clarity > 0.5
+            ? Math.sin(elapsed * 0.9 - i * 0.1 + personalPhase) * 0.1
+            : Math.sin(elapsed * 1.4 + sV * 5) * 0.04;
+          const opacity = introEased * Math.max(0, baseAlpha + breathAlpha);
+
+          // 흐려질수록 살짝 작아짐 (사라지는 느낌)
+          const scale = (0.97 + Math.sin(elapsed * 0.7 + personalPhase) * 0.02)
+                       * (0.92 + clarity * 0.08);
+
+          let startOffsetX = 0, startOffsetY = 0;
+          if (elapsed < 1.5) {
+            const arrival = Math.max(0, Math.min(1, introT - g.arrivalDelay * 0.3));
+            const ae = 1 - Math.pow(1 - arrival, 3);
+            startOffsetX = (g.scatterX * 0.3) * (1 - ae);
+            startOffsetY = (g.scatterY * 0.3) * (1 - ae);
+          }
+
+          const x = g.baseX + microDx + startOffsetX;
+          const y = g.baseY + microDy + startOffsetY;
 
           g.el.style.transform =
             `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) ` +
@@ -2222,7 +2615,11 @@
             baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
           }
           trail.length = 0;
-          if (outroMode === "decay") {
+          if (outroMode === "decay" ||
+              outroMode === "coordinates" ||
+              outroMode === "outline" ||
+              outroMode === "gravity" ||
+              outroMode === "residue") {
             buildDecayText(fullText);
           } else if (outroMode === "ripple") {
             buildRippleText(fullText);
@@ -2533,7 +2930,7 @@
       framesCount: 1,
       holdSentence: true,
       holdSentenceStyle: "typewriter", // 한 글자씩 타이핑되며 나타남
-      outroMode: "decay",
+      outroMode: "coordinates",  // 별자리/좌표계
       root,
     });
 
@@ -2544,7 +2941,7 @@
       framesCount: 1,
       holdSentence: true,
       holdSentenceStyle: "assemble",   // 사방에서 날아와 모임, 흩어졌다 다시 모임
-      outroMode: "volume",
+      outroMode: "outline",      // 사과 윤곽 (안은 비어있음)
       root,
     });
 
@@ -2577,7 +2974,7 @@
       framesCount: 1,
       holdSentence: true,
       holdSentenceStyle: "flicker",    // 점멸 (불빛 같은)
-      outroMode: "ripple",
+      outroMode: "gravity",      // 중력 빨림
       root,
     });
 
@@ -2622,7 +3019,7 @@
       baseVignette: true,
       holdSentence: true,
       holdSentenceStyle: "tumble",     // 회전하며 위에서 굴러떨어짐
-      outroMode: "decay",
+      outroMode: "residue",      // 잔상
       root,
     });
 
