@@ -164,14 +164,13 @@
 
     /* ───────── 부피 텍스트 클라우드 ───────── */
     .text-volume {
-      position: fixed;
+      position: absolute;
       pointer-events: none;
       z-index: 4;
       perspective: 900px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: darken;
-      filter: blur(0.3px);
+      mix-blend-mode: multiply;
     }
     .text-volume-stage {
       position: absolute;
@@ -197,14 +196,13 @@
 
     /* ───────── 붕괴(decay) 텍스트 모션 ───────── */
     .text-decay {
-      position: fixed;
+      position: absolute;
       pointer-events: none;
       z-index: 4;
       perspective: 550px;
       perspective-origin: 50% 50%;
       will-change: transform;
-      mix-blend-mode: darken;
-      filter: blur(0.3px);
+      mix-blend-mode: multiply;
     }
     .text-decay-stage {
       position: absolute;
@@ -229,12 +227,11 @@
 
     /* ───────── Ripple(파동) 텍스트 모션 ───────── */
     .text-ripple {
-      position: fixed;
+      position: absolute;
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: darken;
-      filter: blur(0.3px);
+      mix-blend-mode: multiply;
     }
     .text-ripple-stage {
       position: absolute;
@@ -259,12 +256,11 @@
 
     /* ───────── 문장 단위 호흡 텍스트 (hold 중에만 표시) ───────── */
     .text-sentence {
-      position: fixed;
+      position: absolute;
       pointer-events: none;
       z-index: 4;
       will-change: transform;
-      mix-blend-mode: darken;
-      filter: blur(0.3px);
+      mix-blend-mode: multiply;
     }
     .text-sentence-stage {
       position: absolute;
@@ -781,17 +777,27 @@
       let compCanvas = null;
       let compCtx = null;
 
+      // 이미지의 실제 픽셀 해상도를 캔버스에 그대로 사용 → 화질 보존
+      let nativeImgW = 0;
+      let nativeImgH = 0;
+
       function resizeCanvas() {
         const dpr = window.devicePixelRatio || 1;
-        canvas.width  = Math.round(size * dpr);
-        canvas.height = Math.round(size * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // 이미지 자연 해상도가 있으면 그것 사용, 없으면 size*dpr 사용
+        const targetW = nativeImgW > 0 ? nativeImgW : Math.round(size * dpr);
+        const targetH = nativeImgH > 0 ? nativeImgH : Math.round(size * dpr);
+        canvas.width  = targetW;
+        canvas.height = targetH;
+        // 그리기 좌표계는 size 기준 (스타일 크기)으로 매핑
+        ctx.setTransform(targetW / size, 0, 0, targetH / size, 0, 0);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
         if (baseCanvas && baseCtx) {
-          baseCanvas.width  = Math.round(baseSize * dpr);
-          baseCanvas.height = Math.round(baseSize * dpr);
-          baseCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          const baseTW = nativeImgW > 0 ? nativeImgW : Math.round(baseSize * dpr);
+          const baseTH = nativeImgH > 0 ? nativeImgH : Math.round(baseSize * dpr);
+          baseCanvas.width  = baseTW;
+          baseCanvas.height = baseTH;
+          baseCtx.setTransform(baseTW / baseSize, 0, 0, baseTH / baseSize, 0, 0);
           baseCtx.imageSmoothingEnabled = true;
           baseCtx.imageSmoothingQuality = "high";
         }
@@ -813,6 +819,16 @@
           const img = new Image();
           try { img.crossOrigin = "anonymous"; } catch(e) {}
           img.onerror = () => { img._broken = true; };
+          // 첫 프레임 로드되면 자연 해상도 기준으로 캔버스 리사이즈
+          img.onload = (function(idx, im) {
+            return function() {
+              if (idx === 0 && im.naturalWidth > 0) {
+                nativeImgW = im.naturalWidth;
+                nativeImgH = im.naturalHeight;
+                resizeCanvas();
+              }
+            };
+          })(i, img);
           img.src = IMAGE_BASE_PATH + fname;
           frames.push(img);
         }
@@ -908,18 +924,17 @@
 
         volumeRoot = document.createElement("div");
         volumeRoot.className = "text-volume";
-        const r = wrap.getBoundingClientRect();
-        volX = r.left + r.width / 2;
-        volY = r.top  + r.height / 2;
-        volumeRoot.style.left = `${volX}px`;
-        volumeRoot.style.top  = `${volY}px`;
+        // wrap과 같은 위치(world 좌표계의 wrap 중심)에 둠
+        volumeRoot.style.left = `calc(${leftPct}% + ${size / 2}px)`;
+        volumeRoot.style.top  = `calc(${topPct}% + ${size / 2}px)`;
         volumeRoot.style.width  = "0px";
         volumeRoot.style.height = "0px";
 
         volumeStage = document.createElement("div");
         volumeStage.className = "text-volume-stage";
         volumeRoot.appendChild(volumeStage);
-        document.body.appendChild(volumeRoot);
+        // body가 아닌 reveal-root(=#world의 자식)에 붙임 → multiply가 캔버스와 블렌드됨
+        root.appendChild(volumeRoot);
 
         const measure = document.createElement("span");
         measure.className = "text-volume-glyph";
@@ -985,17 +1000,9 @@
       function updateVolume(now) {
         const t = (now - volumeStartTime) / 1000;
 
-        const r = wrap.getBoundingClientRect();
-        volX = r.left + r.width / 2;
-        volY = r.top  + r.height / 2;
-        volumeRoot.style.left = `${volX}px`;
-        volumeRoot.style.top  = `${volY}px`;
-
-        const worldScale = distance / 100;
         const rotY = t * 12;
         const rotX = Math.sin(t * 0.15) * 8;
         volumeStage.style.transform =
-          `scale(${worldScale.toFixed(4)}) ` +
           `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
 
         const morphCycle = (Math.sin(t * (Math.PI * 2 / 8)) + 1) / 2;
@@ -1104,18 +1111,15 @@
 
         decayRoot = document.createElement("div");
         decayRoot.className = "text-decay";
-        const r = wrap.getBoundingClientRect();
-        const cx0 = r.left + r.width / 2;
-        const cy0 = r.top  + r.height / 2;
-        decayRoot.style.left = `${cx0}px`;
-        decayRoot.style.top  = `${cy0}px`;
+        decayRoot.style.left = `calc(${leftPct}% + ${size / 2}px)`;
+        decayRoot.style.top  = `calc(${topPct}% + ${size / 2}px)`;
         decayRoot.style.width  = "0px";
         decayRoot.style.height = "0px";
 
         decayStage = document.createElement("div");
         decayStage.className = "text-decay-stage";
         decayRoot.appendChild(decayStage);
-        document.body.appendChild(decayRoot);
+        root.appendChild(decayRoot);
 
         const CORE_WORDS = new Set([
           "see", "lost", "loved", "one", "relive", "quicker"
@@ -1239,13 +1243,7 @@
       let decayCachedVariant = -1;
 
       function updateDecay(now) {
-        const r = wrap.getBoundingClientRect();
-        const cx0 = r.left + r.width / 2;
-        const cy0 = r.top  + r.height / 2;
-        decayRoot.style.left = `${cx0}px`;
-        decayRoot.style.top  = `${cy0}px`;
-
-        const worldScale = distance / 100;
+        const elapsed = now - decayLoopStart;
 
         const elapsed = now - decayLoopStart;
         let cycleT = elapsed / decayCycleDuration;
@@ -1306,8 +1304,6 @@
           const rz2 = -sx * sinY + rz1 * cosY;
           return { x: rx, y: ry, z: rz2 };
         }
-
-        decayStage.style.transform = `scale(${worldScale.toFixed(4)})`;
 
         for (const g of decayGlyphs) {
           let x, y, z = 0, opacity;
@@ -1392,18 +1388,15 @@
 
         rippleRoot = document.createElement("div");
         rippleRoot.className = "text-ripple";
-        const r0 = wrap.getBoundingClientRect();
-        const cx0 = r0.left + r0.width / 2;
-        const cy0 = r0.top  + r0.height / 2;
-        rippleRoot.style.left = `${cx0}px`;
-        rippleRoot.style.top  = `${cy0}px`;
+        rippleRoot.style.left = `calc(${leftPct}% + ${size / 2}px)`;
+        rippleRoot.style.top  = `calc(${topPct}% + ${size / 2}px)`;
         rippleRoot.style.width  = "0px";
         rippleRoot.style.height = "0px";
 
         rippleStage = document.createElement("div");
         rippleStage.className = "text-ripple-stage";
         rippleRoot.appendChild(rippleStage);
-        document.body.appendChild(rippleRoot);
+        root.appendChild(rippleRoot);
 
         const measure = document.createElement("span");
         measure.className = "text-ripple-glyph";
@@ -1493,15 +1486,6 @@
       function updateRipple(now) {
         const t = (now - rippleStartTime) / 1000;
 
-        const r = wrap.getBoundingClientRect();
-        const cx0 = r.left + r.width / 2;
-        const cy0 = r.top  + r.height / 2;
-        rippleRoot.style.left = `${cx0}px`;
-        rippleRoot.style.top  = `${cy0}px`;
-
-        const worldScale = distance / 100;
-        rippleStage.style.transform = `scale(${worldScale.toFixed(4)})`;
-
         const intro = Math.min(1, t / 1.2);
         const introEased = 1 - Math.pow(1 - intro, 3);
 
@@ -1575,16 +1559,15 @@
 
         sentenceRoot = document.createElement("div");
         sentenceRoot.className = "text-sentence";
-        const r = wrap.getBoundingClientRect();
-        sentenceRoot.style.left = `${r.left + r.width / 2}px`;
-        sentenceRoot.style.top  = `${r.top  + r.height / 2}px`;
+        sentenceRoot.style.left = `calc(${leftPct}% + ${size / 2}px)`;
+        sentenceRoot.style.top  = `calc(${topPct}% + ${size / 2}px)`;
         sentenceRoot.style.width  = "0px";
         sentenceRoot.style.height = "0px";
 
         sentenceStage = document.createElement("div");
         sentenceStage.className = "text-sentence-stage";
         sentenceRoot.appendChild(sentenceStage);
-        document.body.appendChild(sentenceRoot);
+        root.appendChild(sentenceRoot);
 
         sentenceBlocks = [];
         sentenceCurIdx = 0;
@@ -1629,13 +1612,6 @@
       }
 
       function updateSentence(now) {
-        const r = wrap.getBoundingClientRect();
-        sentenceRoot.style.left = `${r.left + r.width / 2}px`;
-        sentenceRoot.style.top  = `${r.top  + r.height / 2}px`;
-
-        const worldScale = distance / 100;
-        sentenceStage.style.transform = `scale(${worldScale.toFixed(4)})`;
-
         const sinceCurStart = now - sentenceCurStart;
         const fadeOutStart = SENT_FADE_IN + SENT_HOLD;
         if (sinceCurStart >= fadeOutStart - SENT_OVERLAP) {
@@ -1832,7 +1808,10 @@
         }
 
         if (frameReady && trail.length > 0) {
-          const dprForMask = window.devicePixelRatio || 1;
+          // 마스크/합성 캔버스 픽셀 밀도: 자연 해상도가 있으면 그 비율, 없으면 dpr
+          const dprForMask = nativeImgW > 0
+            ? (nativeImgW / size)
+            : (window.devicePixelRatio || 1);
 
           if (!maskCanvas) {
             maskCanvas = document.createElement("canvas");
@@ -2306,8 +2285,8 @@
         } catch (e) {}
       }
 
-      // (3) darken 모드로 텍스트 합성 — 사진처럼 글자가 이미지 톤에 녹아드는 효과
-      octx.globalCompositeOperation = "darken";
+      // (3) multiply 모드로 텍스트 합성 — 사진처럼 글자가 이미지 톤에 녹아드는 효과
+      octx.globalCompositeOperation = "multiply";
 
       // 궤적 따라 흐르는 텍스트 — Vicentino
       if (pendingText && pathPts.length >= 2) {
@@ -2434,7 +2413,7 @@
       }
       octx.globalAlpha = 1;
 
-      // darken 종료
+      // multiply 종료
       octx.globalCompositeOperation = "source-over";
 
       // reveal-text-content (흰 배경 박스) — Vicentino, 일반 모드
