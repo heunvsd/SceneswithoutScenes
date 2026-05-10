@@ -9,7 +9,7 @@
     /* ───────── 로컬 폰트 ───────── */
     @font-face {
       font-family: 'CustomEnglish';
-      src: url('./09396f37d2e1d36176e7921cfed61a47.ttf') format('truetype');
+      src: url('./1522 Vicentino W01 Regular.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -20,6 +20,12 @@
       font-weight: 400;
       font-style: normal;
       font-display: swap;
+    }
+
+    /* ───────── 공통 색상 변수 ───────── */
+    :root {
+      --ink: #776c54;
+      --ink-rgb: 119, 108, 84;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -57,7 +63,7 @@
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: #000000;
+      background: var(--ink);
       border: none;
       padding: 0;
       cursor: pointer;
@@ -75,7 +81,7 @@
       bottom: 14px;
       z-index: 10;
       pointer-events: none;
-      color: #000000;
+      color: var(--ink);
       font-family: 'CustomEnglish', sans-serif;
       font-weight: 400;
       font-size: 15px;
@@ -127,7 +133,7 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 16px;
       line-height: 1.55;
-      color: #000000;
+      color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
     }
@@ -136,7 +142,7 @@
       width: 0.5em;
       height: 1em;
       margin-left: 1px;
-      background: #000000;
+      background: var(--ink);
       vertical-align: -0.12em;
       animation: reveal-caret-blink 0.9s steps(2) infinite;
     }
@@ -151,7 +157,10 @@
       pointer-events: none;
     }
 
-    /* ───────── 부피 텍스트 클라우드 ───────── */
+    /* ───────── 부피 텍스트 클라우드 ─────────
+       multiply 블렌드: 흰 배경에서는 #776c54 그대로,
+       이미지 위에서는 이미지 톤과 곱해져 색이 살짝 변함
+    */
     .text-volume {
       position: fixed;
       pointer-events: none;
@@ -159,6 +168,7 @@
       perspective: 900px;
       perspective-origin: 50% 50%;
       will-change: transform;
+      mix-blend-mode: multiply;
     }
     .text-volume-stage {
       position: absolute;
@@ -176,7 +186,7 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 16px;
       line-height: 1;
-      color: #000000;
+      color: var(--ink);
       white-space: pre;
       transform-origin: 0 0;
       will-change: transform, opacity;
@@ -190,6 +200,7 @@
       perspective: 550px;
       perspective-origin: 50% 50%;
       will-change: transform;
+      mix-blend-mode: multiply;
     }
     .text-decay-stage {
       position: absolute;
@@ -206,7 +217,7 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 16px;
       line-height: 1;
-      color: #000000;
+      color: var(--ink);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
@@ -218,6 +229,7 @@
       pointer-events: none;
       z-index: 4;
       will-change: transform;
+      mix-blend-mode: multiply;
     }
     .text-ripple-stage {
       position: absolute;
@@ -234,23 +246,19 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 16px;
       line-height: 1;
-      color: #000000;
+      color: var(--ink);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
     }
 
-    /* ───────── 문장 단위 호흡 텍스트 (hold 중에만 표시) ─────────
-       alightworld.online 의 시적·명상적 호흡감 참고.
-       문장이 한 덩어리로 떠오르고, 한참 머물며 미세하게 일렁이고,
-       다음 문장으로 부드럽게 페이드. 흑백 미니멀, 자간 본래대로.
-       문장(블록) 단위라 글자가 따로 흩어지지 않음.
-    */
+    /* ───────── 문장 단위 호흡 텍스트 (hold 중에만 표시) ───────── */
     .text-sentence {
       position: fixed;
       pointer-events: none;
       z-index: 4;
       will-change: transform;
+      mix-blend-mode: multiply;
     }
     .text-sentence-stage {
       position: absolute;
@@ -267,7 +275,7 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 17px;
       line-height: 1.55;
-      color: #000000;
+      color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
       text-align: center;
@@ -350,10 +358,10 @@
       font-family: 'CustomEnglish', 'Eulyoo1945-Regular', serif;
       font-size: 16px;
       line-height: 1.7;
-      color: #000000;
+      color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
-      mix-blend-mode: difference;
+      mix-blend-mode: multiply;
     }
   </style>
 </head>
@@ -371,6 +379,12 @@
   <button id="capture-btn" type="button" aria-label="Capture trajectory"></button>
 
   <script>
+    /* ─────────────────────────────────────────────
+       잉크 색상 상수 (캔버스 캡처용)
+       ───────────────────────────────────────────── */
+    const INK_COLOR = "#776c54";
+    const INK_RGB = { r: 0x77, g: 0x6c, b: 0x54 };
+
     /* ─────────────────────────────────────────────
        상태값
        ───────────────────────────────────────────── */
@@ -628,7 +642,7 @@
        Reveal 인스턴스 시스템
        ───────────────────────────────────────────── */
 
-    const REVEAL_SIZE = 150; // 28.png 기준 크기 (앞으로 들어올 모든 이미지 동일 사이즈로 통일)
+    const REVEAL_SIZE = 150;
 
     const FRAME_COUNT = 8;
     const FRAME_INTERVAL_MS = 280;
@@ -2249,6 +2263,30 @@
         };
       }
 
+      // 캡처 단계: 궤적 텍스트 (배경 위에 직접) — multiply 효과는 아래 합성에서 적용
+      // 우선 흰 배경 위 텍스트는 INK_COLOR 로 그린 뒤, reveal 캔버스를 그 위에 덮음.
+      // 이 순서로 그리면 자연스럽게 텍스트가 이미지 아래로 깔리는 것처럼 보이지만
+      // 화면상 multiply 효과를 모사하려면 텍스트를 multiply 합성으로 올려야 함.
+      //
+      // 전략: (1) 배경 흰색  → (2) reveal 이미지 캔버스 → (3) multiply 모드로 텍스트
+      // 이 순서면 흰 배경에서는 #776c54 그대로, 이미지 위에서는 multiply 효과로 톤이 변함.
+
+      // (2) reveal 이미지 캔버스 먼저 그리기
+      const revealCanvases = document.querySelectorAll(
+        ".reveal-base-area canvas, .reveal-img-area canvas"
+      );
+      for (const c of revealCanvases) {
+        const r = c.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        try {
+          octx.drawImage(c, r.left, r.top, r.width, r.height);
+        } catch (e) {}
+      }
+
+      // (3) multiply 모드로 텍스트 합성
+      octx.globalCompositeOperation = "multiply";
+
+      // 궤적 따라 흐르는 텍스트
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 16 * scale;
         if (fontPx >= 4) {
@@ -2300,7 +2338,7 @@
               const chW = octx.measureText(ch).width || 4;
               if (ch !== " ") {
                 const sample = sampleAt(s);
-                octx.fillStyle = "#000000";
+                octx.fillStyle = INK_COLOR;
                 octx.save();
                 octx.translate(sample.x, sample.y);
                 octx.rotate(sample.ang);
@@ -2317,17 +2355,6 @@
         }
       }
 
-      const revealCanvases = document.querySelectorAll(
-        ".reveal-base-area canvas, .reveal-img-area canvas"
-      );
-      for (const c of revealCanvases) {
-        const r = c.getBoundingClientRect();
-        if (r.width <= 0 || r.height <= 0) continue;
-        try {
-          octx.drawImage(c, r.left, r.top, r.width, r.height);
-        } catch (e) {}
-      }
-
       const glyphs = document.querySelectorAll(
         ".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph"
       );
@@ -2341,7 +2368,7 @@
         if (!isFinite(op) || op <= 0.01) continue;
         if (r.left > W || r.right < 0 || r.top > H || r.bottom < 0) continue;
         octx.globalAlpha = op;
-        octx.fillStyle = cs.color || "#000000";
+        octx.fillStyle = cs.color || INK_COLOR;
         octx.fillText(g.textContent, r.left, r.top);
       }
 
@@ -2357,7 +2384,7 @@
         const txt = sb.textContent;
         if (!txt) continue;
         octx.globalAlpha = op;
-        octx.fillStyle = cs.color || "#000000";
+        octx.fillStyle = cs.color || INK_COLOR;
         const lineHeight = sentFontPx * 1.55;
         const maxWidth = r.width;
         const words = txt.split(/(\s+)/);
@@ -2382,9 +2409,14 @@
       }
       octx.globalAlpha = 1;
 
+      // multiply 종료, 일반 모드로 복귀
+      octx.globalCompositeOperation = "source-over";
+
+      // reveal-text-content (흰 배경 박스) 와 HUD 는 일반 모드로
       const textBlocks = document.querySelectorAll(".reveal-text-content");
       const textBoxFontPx = 16 * scale;
       octx.font = `${textBoxFontPx}px CustomEnglish, Eulyoo1945-Regular, serif`;
+      octx.fillStyle = INK_COLOR;
       for (const tb of textBlocks) {
         const txt = tb.textContent;
         if (!txt) continue;
@@ -2411,7 +2443,7 @@
 
       const hudEl = document.getElementById("hud");
       octx.font = "15px CustomEnglish, sans-serif";
-      octx.fillStyle = "#000000";
+      octx.fillStyle = INK_COLOR;
       const lines = hudEl.innerText.split("\n");
       let hy = H - 14 - (lines.length - 1) * 18 - 4;
       for (const ln of lines) {
