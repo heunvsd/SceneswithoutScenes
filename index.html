@@ -1904,8 +1904,6 @@
               return { stage: "leave", t: (cycleT - HOLD_END) / (1 - HOLD_END) };
             }
           };
-          const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-          const easeInCubic  = (t) => t * t * t;
 
           if (holdSentenceStyle === "typewriter") {
             // 한 글자씩 차례로 타이핑 (왼쪽부터)
