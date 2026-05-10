@@ -1884,7 +1884,137 @@
           //  - "tilt"    : 글자들이 좌우 큰 각도로 기울어짐 (롤링)
           let wavePerChar;
 
-          if (holdSentenceStyle === "pulse") {
+          if (holdSentenceStyle === "typewriter") {
+            // 타자기: 한 글자씩 차례로 나타남, 다 나타나면 호흡, 페이드아웃, 반복
+            // CYCLE: 0~혹독60% 타이핑 진행 / 60~85% 호흡 / 85~100% 페이드아웃
+            wavePerChar = (i, total) => {
+              const CYCLE = 8.0;  // 8초 사이클
+              const cycleT = (sec % CYCLE) / CYCLE;
+              const myT = total > 0 ? i / total : 0;
+              const TYPE_END = 0.55;
+              const HOLD_END = 0.85;
+
+              let visible;
+              if (cycleT < TYPE_END) {
+                // 내 인덱스가 진행도보다 작으면 보임
+                const typeProgress = cycleT / TYPE_END;
+                visible = myT < typeProgress ? 1 : 0;
+                // 막 나타나는 글자는 페이드인 효과 (살짝 부드럽게)
+                const justArrived = typeProgress - myT;
+                if (justArrived >= 0 && justArrived < 0.05) {
+                  visible = justArrived / 0.05;
+                }
+              } else if (cycleT < HOLD_END) {
+                visible = 1;
+              } else {
+                // 페이드아웃 (모든 글자 동시에)
+                const fadeT = (cycleT - HOLD_END) / (1 - HOLD_END);
+                visible = 1 - fadeT;
+              }
+
+              const alpha = visible * (0.85 + Math.sin(sec * 0.8 + i * 0.2 + b.phase) * 0.13);
+              // 막 나타날 때 살짝 위로 솟아오르는 느낌
+              const dy = visible < 1 ? (1 - visible) * 4 : Math.sin(sec * 0.7 + i * 0.15) * 0.6;
+              return { dy, alpha };
+            };
+          } else if (holdSentenceStyle === "assemble") {
+            // 조립: 글자들이 사방에서 날아와 자리잡음, 호흡, 흩어졌다 다시 모임 (반복)
+            wavePerChar = (i, total) => {
+              const CYCLE = 9.0;
+              const cycleT = (sec % CYCLE) / CYCLE;
+              const ASSEMBLE_END = 0.30;
+              const HOLD_END = 0.70;
+              const SCATTER_END = 1.0;
+
+              // 글자별 시작 흩어짐 방향 (사방에서)
+              const seedA = Math.sin(i * 12.9898) * 43758.5453;
+              const seedB = Math.sin(i * 78.233) * 43758.5453;
+              const sA = seedA - Math.floor(seedA);
+              const sB = seedB - Math.floor(seedB);
+              const angle = sA * Math.PI * 2;
+              const distance = 30 + sB * 25;  // 흩어진 거리 30~55px
+              const scatterX = Math.cos(angle) * distance;
+              const scatterY = Math.sin(angle) * distance;
+
+              // 글자별 도착 시간차 (앞 글자 먼저, 뒤 글자 나중)
+              const stagger = (i / Math.max(1, total - 1)) * 0.4;
+
+              let dx, dy, alpha, rot;
+              if (cycleT < ASSEMBLE_END) {
+                // 모이는 단계: scatter → 본 위치
+                const t = Math.max(0, Math.min(1,
+                  (cycleT / ASSEMBLE_END - stagger * 0.5) / (1 - stagger * 0.5)
+                ));
+                const eu = 1 - Math.pow(1 - t, 3);  // easeOutCubic
+                dx = scatterX * (1 - eu);
+                dy = scatterY * (1 - eu);
+                alpha = eu * 0.95;
+                rot = (1 - eu) * (sA - 0.5) * 0.5;
+              } else if (cycleT < HOLD_END) {
+                // 호흡 단계
+                const localT = (cycleT - ASSEMBLE_END) / (HOLD_END - ASSEMBLE_END);
+                dx = Math.cos(sec * 0.7 + sA * 6) * 1.0;
+                dy = Math.sin(sec * 0.9 + sB * 6) * 1.2;
+                alpha = 0.85 + Math.sin(sec * 0.8 + i * 0.2 + b.phase) * 0.13;
+                rot = Math.sin(sec * 0.6 + i * 0.3) * 0.012;
+              } else {
+                // 흩어지는 단계: 본 위치 → scatter
+                const t = Math.max(0, Math.min(1,
+                  ((cycleT - HOLD_END) / (SCATTER_END - HOLD_END) - stagger * 0.5) / (1 - stagger * 0.5)
+                ));
+                const eu = t * t * t;  // easeInCubic
+                dx = scatterX * eu;
+                dy = scatterY * eu;
+                alpha = (1 - eu) * 0.95;
+                rot = eu * (sA - 0.5) * 0.5;
+              }
+              return { dx, dy, alpha, rot };
+            };
+          } else if (holdSentenceStyle === "materialize") {
+            // 응결: 안개처럼 흐릿하게 떠다니던 글자들이 점점 또렷해지며 자리잡음, 다시 흐려짐
+            // alpha + 위치 jitter가 동시에 줄어들면서 "응결되는" 느낌
+            wavePerChar = (i, total) => {
+              const CYCLE = 7.5;
+              const cycleT = (sec % CYCLE) / CYCLE;
+              const FADE_IN_END = 0.35;
+              const HOLD_END = 0.70;
+              // 0.70~1.0: 다시 흐려짐
+
+              // 글자별 jitter 시드
+              const seedA = Math.sin(i * 31.9) * 43758.5453;
+              const seedB = Math.sin(i * 67.3) * 43758.5453;
+              const sA = seedA - Math.floor(seedA);
+              const sB = seedB - Math.floor(seedB);
+
+              // 응결도 (0=완전 흐림, 1=완전 또렷)
+              let condense;
+              if (cycleT < FADE_IN_END) {
+                condense = cycleT / FADE_IN_END;
+                condense = 1 - Math.pow(1 - condense, 2.5);  // easeOut
+              } else if (cycleT < HOLD_END) {
+                condense = 1;
+              } else {
+                const t = (cycleT - HOLD_END) / (1 - HOLD_END);
+                condense = 1 - Math.pow(t, 2);  // easeIn (흐려짐)
+              }
+
+              // 흐릴 때 jitter 큼 (안개처럼 떠다님)
+              const jitterAmt = (1 - condense) * 8;
+              const dx = Math.sin(sec * 1.5 + sA * 10) * jitterAmt
+                       + Math.cos(sec * 0.8 + sB * 10) * jitterAmt * 0.6;
+              const dy = Math.cos(sec * 1.3 + sB * 10) * jitterAmt
+                       + Math.sin(sec * 0.9 + sA * 10) * jitterAmt * 0.6;
+
+              // alpha: 응결도에 비례 + 호흡
+              const alpha = condense * (0.78 + Math.sin(sec * 0.7 + i * 0.2 + b.phase) * 0.18);
+
+              // 회전: 응결 안 됐을 때 더 흔들림
+              const rot = (1 - condense) * Math.sin(sec * 1.2 + sA * 10) * 0.08
+                        + condense * Math.sin(sec * 0.5 + i * 0.2) * 0.01;
+
+              return { dx, dy, alpha, rot };
+            };
+          } else if (holdSentenceStyle === "pulse") {
             // 호흡: 모든 글자가 동시에 커졌다 작아짐
             wavePerChar = (i, total) => {
               // 천천히 깊은 호흡 (모든 글자 동기화)
@@ -2356,96 +2486,130 @@
     const root = document.getElementById("reveal-root");
 
     /* ─────────────────────────────────────────────
-       인스턴스 좌표 & 모션 매핑 (6개 reveal)
+       인스턴스 좌표 & 모션 매핑 (9개 reveal)
        ─────────────────────────────────────────────
-       좌표는 흩뿌려진 별자리처럼 비대칭 배치 (수평/수직 일렬 회피).
+       3×3 격자에서 약간씩 어긋난 비대칭 배치 (수평/수직 일렬 회피).
        leftPct/topPct: 화면 좌상단 기준 백분율 (CSS 좌표).
 
-         06 (12%, 14%)               79 (55%, 18%)
-                                                       07 (78%, 45%)
-         08 (14%, 50%)
-                          09 (42%, 65%)
-                                              28 (70%, 70%)
+       위쪽 줄 :  04 (8, 8)        05 (38, 12)       79 (68, 8)
+       중간 줄 :  06 (12, 36)      09 (42, 38)       07 (75, 35)
+       아래 줄 :  10 (18, 64)      08 (50, 65)       28 (78, 62)
 
-       각 reveal의 sentence 스타일과 outroMode가 모두 다르게 조합됨.
+       각 reveal에 9가지 다른 sentence 모션 1:1 매핑 (한눈에 다름).
        ───────────────────────────────────────────── */
 
-    const inst06 = createRevealInstance({
-      leftPct: 12, topPct: 14, size: REVEAL_SIZE,
-      sheetRow: 7,
-      name: "06",
+    const inst04 = createRevealInstance({
+      leftPct: 8, topPct: 8, size: REVEAL_SIZE,
+      sheetRow: 5,
+      name: "04",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "wave",     // 큰 sine 파도가 좌→우 출렁
-      outroMode: "ripple",
-      root,
-    });
-
-    const inst79 = createRevealInstance({
-      leftPct: 55, topPct: 18, size: REVEAL_SIZE,
-      sheetRow: 80,
-      name: "79",
-      framesCount: 1,
-      holdSentence: true,
-      holdSentenceStyle: "pulse",    // 호흡: 일제히 커졌다 작아짐
-      outroMode: "volume",
-      root,
-    });
-
-    const inst07 = createRevealInstance({
-      leftPct: 78, topPct: 45, size: REVEAL_SIZE,
-      sheetRow: 8,
-      name: "07",
-      framesCount: 1,
-      holdSentence: true,
-      holdSentenceStyle: "cascade",  // 위에서 떨어졌다 솟구침 (분수)
+      holdSentenceStyle: "typewriter", // 한 글자씩 타이핑되며 나타남
       outroMode: "decay",
       root,
     });
 
-    const inst08 = createRevealInstance({
-      leftPct: 14, topPct: 50, size: REVEAL_SIZE,
-      sheetRow: 9,
-      name: "08",
+    const inst05 = createRevealInstance({
+      leftPct: 38, topPct: 12, size: REVEAL_SIZE,
+      sheetRow: 6,
+      name: "05",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "scatter",  // 글자별 원형 궤적 회전 (orbit)
+      holdSentenceStyle: "assemble",   // 사방에서 날아와 모임, 흩어졌다 다시 모임
       outroMode: "volume",
       root,
     });
 
-    const inst09 = createRevealInstance({
-      leftPct: 42, topPct: 65, size: REVEAL_SIZE,
-      sheetRow: 10,
-      name: "09",
+    const inst79 = createRevealInstance({
+      leftPct: 68, topPct: 8, size: REVEAL_SIZE,
+      sheetRow: 80,
+      name: "79",
       framesCount: 1,
       holdSentence: true,
-      holdSentenceStyle: "flicker",  // 점멸 (불빛 같은)
+      holdSentenceStyle: "pulse",      // 호흡: 일제히 커졌다 작아짐
+      outroMode: "volume",
+      root,
+    });
+
+    const inst06 = createRevealInstance({
+      leftPct: 12, topPct: 36, size: REVEAL_SIZE,
+      sheetRow: 7,
+      name: "06",
+      framesCount: 1,
+      holdSentence: true,
+      holdSentenceStyle: "wave",       // 큰 sine 파도가 좌→우 출렁
       outroMode: "ripple",
       root,
     });
 
+    const inst09 = createRevealInstance({
+      leftPct: 42, topPct: 38, size: REVEAL_SIZE,
+      sheetRow: 10,
+      name: "09",
+      framesCount: 1,
+      holdSentence: true,
+      holdSentenceStyle: "flicker",    // 점멸 (불빛 같은)
+      outroMode: "ripple",
+      root,
+    });
+
+    const inst07 = createRevealInstance({
+      leftPct: 75, topPct: 35, size: REVEAL_SIZE,
+      sheetRow: 8,
+      name: "07",
+      framesCount: 1,
+      holdSentence: true,
+      holdSentenceStyle: "cascade",    // 위에서 떨어졌다 솟구침 (분수)
+      outroMode: "decay",
+      root,
+    });
+
+    const inst10 = createRevealInstance({
+      leftPct: 18, topPct: 64, size: REVEAL_SIZE,
+      sheetRow: 11,
+      name: "10",
+      framesCount: 1,
+      holdSentence: true,
+      holdSentenceStyle: "materialize",// 안개에서 응결되며 나타남
+      outroMode: "ripple",
+      root,
+    });
+
+    const inst08 = createRevealInstance({
+      leftPct: 50, topPct: 65, size: REVEAL_SIZE,
+      sheetRow: 9,
+      name: "08",
+      framesCount: 1,
+      holdSentence: true,
+      holdSentenceStyle: "scatter",    // 글자별 원형 궤적 회전 (orbit)
+      outroMode: "volume",
+      root,
+    });
+
     const inst28 = createRevealInstance({
-      leftPct: 70, topPct: 70, size: REVEAL_SIZE,
+      leftPct: 78, topPct: 62, size: REVEAL_SIZE,
       sheetRow: 29,
       name: "28",
       framesCount: 1,
       baseVignette: true,
       holdSentence: true,
-      holdSentenceStyle: "tilt",     // 좌우 큰 각도 롤링
+      holdSentenceStyle: "tilt",       // 좌우 큰 각도 롤링
       outroMode: "decay",
       root,
     });
 
-    // sheetRow ↔ 기본 이미지 파일 매핑 (시트가 비어있을 때 폴백용)
+    // sheetRow ↔ 기본 이미지 파일 매핑 (시트 비어있을 때 폴백)
     // 패턴: 파일번호 + 1 = sheetRow
     const allInstances = [
+      { inst: inst04, row: 5,  fallback: "04.png" },
+      { inst: inst05, row: 6,  fallback: "05.png" },
       { inst: inst06, row: 7,  fallback: "06.png" },
-      { inst: inst79, row: 80, fallback: "79.png" },
       { inst: inst07, row: 8,  fallback: "07.png" },
       { inst: inst08, row: 9,  fallback: "08.png" },
       { inst: inst09, row: 10, fallback: "09.png" },
+      { inst: inst10, row: 11, fallback: "10.png" },
       { inst: inst28, row: 29, fallback: "28.png" },
+      { inst: inst79, row: 80, fallback: "79.png" },
     ];
 
     /* ─────────────────────────────────────────────
@@ -2872,10 +3036,13 @@
     function applyFallbackAll() {
       // 시트 연결 안 됐을 때 임시 텍스트
       const fallbackTexts = {
+        "04": "I am told a face is unforgettable, yet I cannot summon it. The name remains.",
+        "05": "Pieces of memory arrive out of order, like letters scattered then gathered.",
         "06": "I close my eyes and the room is gone — there is no picture, only the knowing of where things are.",
         "07": "When I try to remember her face, I find shape but no light, like a lamp turned off.",
         "08": "Childhood comes back as facts, never as scenes. I lived it but cannot revisit.",
         "09": "Memory ripples back like water — the image dissolves, returns, and dissolves again.",
+        "10": "What others see as pictures, I hold as descriptions: outline, weight, and quiet certainty.",
         "28": "Without the ability to see the lost loved one or relive times with them, they do tend fade from mind quicker.",
         "79": "I can imagine an apple in front of me. I know where the skin is. I know how big it is. I can't see it.",
       };
