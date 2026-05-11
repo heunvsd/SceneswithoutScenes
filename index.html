@@ -2749,20 +2749,69 @@
       function pushTrailPoints(fromX, fromY, toX, toY) {
         const dx = toX - fromX, dy = toY - fromY;
         const dist = Math.hypot(dx, dy);
-        const steps = Math.max(1, Math.ceil(dist / 6));
+        // 더 촘촘하게 (이전 6 → 5) — 물감이 끊김 없이 흐르게
+        const steps = Math.max(1, Math.ceil(dist / 5));
         for (let i = 1; i <= steps; i++) {
           const t = i / steps;
+          const cx = fromX + dx * t;
+          const cy = fromY + dy * t;
+
+          // ── wash (큰 물자국) — 종이에 번진 물 ──
+          //   큰 반경, 낮은 알파, 부드러운 그라데이션, 긴 수명, drift 큼
           trail.push({
-            x: fromX + dx * t,
-            y: fromY + dy * t,
+            kind: "wash",
+            x: cx + (Math.random() - 0.5) * 14,
+            y: cy + (Math.random() - 0.5) * 14,
             age: 0,
-            maxAge: POINT_LIFE + (Math.random() - 0.5) * 40,
-            radius: POINT_RADIUS + (Math.random() - 0.5) * 22,
+            maxAge: POINT_LIFE * 1.4 + Math.random() * 40,
+            radius: POINT_RADIUS * (1.05 + Math.random() * 0.25),
             driftSeed: Math.random() * Math.PI * 2,
-            driftAmt:  6 + Math.random() * 8,
+            driftAmt:  14 + Math.random() * 10,  // drift 강화
+            alphaPeak: 0.32 + Math.random() * 0.12,
+            // 약간 찌그러진 타원 (회전 + 이심률)
+            squashX: 0.9 + Math.random() * 0.25,
+            squashY: 0.9 + Math.random() * 0.25,
+            rot: Math.random() * Math.PI * 2,
           });
+
+          // ── pigment (안료 응집) — 물감 본체 ──
+          //   중간 반경, 짙은 알파, 가장자리 다크닝(수채화 특징)
+          trail.push({
+            kind: "pigment",
+            x: cx + (Math.random() - 0.5) * 5,
+            y: cy + (Math.random() - 0.5) * 5,
+            age: 0,
+            maxAge: POINT_LIFE + Math.random() * 30,
+            radius: POINT_RADIUS * (0.55 + Math.random() * 0.25),
+            driftSeed: Math.random() * Math.PI * 2,
+            driftAmt:  6 + Math.random() * 6,
+            alphaPeak: 0.85 + Math.random() * 0.15,
+            squashX: 0.85 + Math.random() * 0.3,
+            squashY: 0.85 + Math.random() * 0.3,
+            rot: Math.random() * Math.PI * 2,
+          });
+
+          // ── speck (작은 얼룩) — 50% 확률로만 ──
+          //   작고 짧은 수명 — 종이 결 자국
+          if (Math.random() < 0.5) {
+            trail.push({
+              kind: "speck",
+              x: cx + (Math.random() - 0.5) * 28,
+              y: cy + (Math.random() - 0.5) * 28,
+              age: 0,
+              maxAge: POINT_LIFE * 0.55 + Math.random() * 25,
+              radius: POINT_RADIUS * (0.12 + Math.random() * 0.15),
+              driftSeed: Math.random() * Math.PI * 2,
+              driftAmt:  3 + Math.random() * 4,
+              alphaPeak: 0.7 + Math.random() * 0.3,
+              squashX: 0.7 + Math.random() * 0.45,
+              squashY: 0.7 + Math.random() * 0.45,
+              rot: Math.random() * Math.PI * 2,
+            });
+          }
         }
-        if (trail.length > 700) trail.splice(0, trail.length - 700);
+        // 점 총량 증가 (3종류 합쳐서 더 많아짐)
+        if (trail.length > 1400) trail.splice(0, trail.length - 1400);
       }
 
       let wasInInfluence = false;
@@ -2862,32 +2911,71 @@
 
             for (const p of trail) {
               const life = p.age / p.maxAge;
-              let alpha;
-              if (life < 0.35) {
-                const t = life / 0.35;
-                const eased = t * t * t * (t * (t * 6 - 15) + 10);
-                alpha = eased * 0.7;
+              // 새 alpha 라이프 — 빠르게 진해지고(0~15%) 오래 머무름(15~70%) 천천히 사라짐(70~100%)
+              // 빛 같은 매끈한 페이드 대신 "한 번 묻으면 농도 유지"의 물감 곡선
+              let alphaT;
+              if (life < 0.15) {
+                const u = life / 0.15;
+                alphaT = 1 - Math.pow(1 - u, 2);  // easeOut
+              } else if (life < 0.70) {
+                alphaT = 1;  // 머무름
               } else {
-                const t = (life - 0.35) / 0.65;
-                alpha = Math.pow(1 - t, 2.2) * 0.7;
+                const u = (life - 0.70) / 0.30;
+                alphaT = Math.pow(1 - u, 1.6);  // 천천히 사라짐
               }
+              const alpha = (p.alphaPeak || 0.7) * alphaT;
               if (alpha < 0.005) continue;
+
+              // drift: 저주파 sin + 고주파 (종이 결 따라 흐르는 느낌)
               const drift  = p.driftAmt * Math.sin(p.driftSeed + p.age * 0.025);
               const drift2 = p.driftAmt * Math.cos(p.driftSeed * 1.3 + p.age * 0.02);
-              const px = p.x + drift  * 0.6 + offsetX;
-              const py = p.y + drift2 * 0.6 + offsetY;
+              // 미세 고주파 jitter
+              const jitterX = Math.sin(p.driftSeed * 7.1 + p.age * 0.11) * 1.5;
+              const jitterY = Math.cos(p.driftSeed * 5.7 + p.age * 0.09) * 1.5;
+              const px = p.x + drift  * 0.7 + jitterX + offsetX;
+              const py = p.y + drift2 * 0.7 + jitterY + offsetY;
               const r  = p.radius;
-              const grad = maskCtx.createRadialGradient(px, py, 0, px, py, r);
-              grad.addColorStop(0,    `rgba(0,0,0,${alpha})`);
-              grad.addColorStop(0.18, `rgba(0,0,0,${alpha * 0.92})`);
-              grad.addColorStop(0.40, `rgba(0,0,0,${alpha * 0.65})`);
-              grad.addColorStop(0.65, `rgba(0,0,0,${alpha * 0.30})`);
-              grad.addColorStop(0.85, `rgba(0,0,0,${alpha * 0.08})`);
-              grad.addColorStop(1,    `rgba(0,0,0,0)`);
+
+              // 타원형 변형 + 회전 (찌그러진 물감 자국)
+              maskCtx.save();
+              maskCtx.translate(px, py);
+              maskCtx.rotate(p.rot || 0);
+              maskCtx.scale(p.squashX || 1, p.squashY || 1);
+
+              const grad = maskCtx.createRadialGradient(0, 0, 0, 0, 0, r);
+
+              if (p.kind === "wash") {
+                // 부드러운 큰 물자국 — 가운데 옅고 가장자리는 부드럽게 사라짐
+                // 빛이 아니라 "젖은 종이" 느낌으로 농도가 균등하지 않음
+                grad.addColorStop(0,    `rgba(0,0,0,${alpha * 0.85})`);
+                grad.addColorStop(0.25, `rgba(0,0,0,${alpha * 0.78})`);
+                grad.addColorStop(0.55, `rgba(0,0,0,${alpha * 0.50})`);
+                grad.addColorStop(0.78, `rgba(0,0,0,${alpha * 0.22})`);
+                grad.addColorStop(0.92, `rgba(0,0,0,${alpha * 0.06})`);
+                grad.addColorStop(1,    `rgba(0,0,0,0)`);
+              } else if (p.kind === "pigment") {
+                // 안료 응집 — 가운데 짙고, 가장자리에 다크닝(수채화 엣지)
+                //   stop 0~0.55: 가운데 농도
+                //   stop 0.55~0.78: 살짝 더 짙어짐 (엣지 다크닝)
+                //   stop 0.78~1: 빠르게 사라짐
+                grad.addColorStop(0,    `rgba(0,0,0,${alpha * 0.95})`);
+                grad.addColorStop(0.30, `rgba(0,0,0,${alpha * 0.92})`);
+                grad.addColorStop(0.55, `rgba(0,0,0,${alpha * 0.88})`);
+                grad.addColorStop(0.72, `rgba(0,0,0,${alpha * 1.0})`);   // 엣지 다크닝 — 가장자리가 더 짙음
+                grad.addColorStop(0.85, `rgba(0,0,0,${alpha * 0.55})`);
+                grad.addColorStop(0.95, `rgba(0,0,0,${alpha * 0.15})`);
+                grad.addColorStop(1,    `rgba(0,0,0,0)`);
+              } else {
+                // speck — 작은 점, 단순한 그라데이션 (응집)
+                grad.addColorStop(0,    `rgba(0,0,0,${alpha * 0.95})`);
+                grad.addColorStop(0.45, `rgba(0,0,0,${alpha * 0.85})`);
+                grad.addColorStop(0.75, `rgba(0,0,0,${alpha * 0.40})`);
+                grad.addColorStop(1,    `rgba(0,0,0,0)`);
+              }
+
               maskCtx.fillStyle = grad;
-              maskCtx.beginPath();
-              maskCtx.arc(px, py, r, 0, Math.PI * 2);
-              maskCtx.fill();
+              maskCtx.fillRect(-r, -r, r * 2, r * 2);
+              maskCtx.restore();
             }
           }
 
