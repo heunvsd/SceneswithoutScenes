@@ -8150,7 +8150,7 @@
         const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         await new Promise((resolve) => {
           canvas.toBlob((blob) => {
-            if (blob) downloadBlob(blob, `my Scenes without Scenes.png`);
+            if (blob) downloadBlob(blob, `Scenes without Scenes.png`);
             resolve();
           }, "image/png");
         });
