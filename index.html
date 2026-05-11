@@ -2680,7 +2680,7 @@
         }
       }
 
-      // 27. 대기 중인 신호 — 낮은 밝기, 주기적 약한 점멸
+      // 27. 대기 중인 신호 — 낮은 밝기, 글자가 천천히 부유하며 펄스
       function updateStandby(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -2688,13 +2688,13 @@
         const total = decayGlyphs.length;
         // 전체 대기 펄스 (느리게)
         const standbyPulse = (Math.sin(elapsed * 0.5) + 1) / 2;  // 0~1
-        const standbyOn = standbyPulse * 0.35;  // 최대 0.35 정도 강조
+        const standbyOn = standbyPulse * 0.35;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 본 위치 근처에서 미세 부유
-          const x = g.baseX + Math.sin(elapsed * 0.3 + i * 0.4) * 1;
-          const y = g.baseY + Math.cos(elapsed * 0.25 + i * 0.3) * 0.8;
-          // 글자별 약간 시간차
+          // 본 위치 근처에서 부드럽게 부유 (계속 이어짐)
+          const x = g.baseX + Math.sin(elapsed * 0.35 + i * 0.4) * 2.5 + Math.cos(elapsed * 0.2 + i * 0.2) * 1.5;
+          const y = g.baseY + Math.cos(elapsed * 0.3 + i * 0.3) * 2 + Math.sin(elapsed * 0.4 + i * 0.5) * 1.2;
+          // 글자별 약간 시간차의 대기 펄스
           const phase = (i / total) * Math.PI;
           const myStandby = standbyOn * (0.7 + Math.sin(elapsed * 0.5 + phase) * 0.3);
           const alpha = introEased * (0.30 + myStandby);
@@ -2703,7 +2703,7 @@
         }
       }
 
-      // 28. 앙상한 이야기 뼈대 — 글자가 더 적게, 필수만 남음
+      // 28. 앙상한 이야기 뼈대 — 핵심만 또렷, 나머지는 흐릿하게 부유
       function updateBareBones(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -2711,22 +2711,27 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 1/4만 살아남음 (나머지는 거의 사라짐)
           const isCore = (i % 4) === 0;
           if (isCore) {
-            // 핵심 글자: 가로 일렬, 균등 간격
+            // 핵심 글자: 가로 일렬, 부드러운 호흡 + 미세 부유
             const corePos = Math.floor(i / 4);
             const coreCount = Math.ceil(total / 4);
-            const x = (corePos - (coreCount - 1) / 2) * 16;
-            const y = Math.sin(elapsed * 0.3 + corePos * 0.5) * 0.8;
-            const alpha = introEased * 0.78;
+            const baseX = (corePos - (coreCount - 1) / 2) * 16;
+            const driftX = Math.sin(elapsed * 0.35 + corePos * 0.6) * 1.5;
+            const driftY = Math.cos(elapsed * 0.4 + corePos * 0.5) * 1.2;
+            const breath = Math.sin(elapsed * 0.5 + corePos * 0.3);
+            const alpha = introEased * (0.78 + breath * 0.08);
+            const scale = 0.95 + breath * 0.02;
             const off = applyIntroOffset(g, introT);
-            writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, 0.95);
+            writeGlyph(g, baseX + driftX + off.ox, driftY + off.oy, alpha, 0, scale);
           } else {
-            // 나머지: 거의 안 보임, 본 위치 근처
-            const alpha = introEased * 0.10;
+            // 나머지: 거의 흐릿하지만 천천히 부유 (계속 이어짐)
+            const ghostX = Math.sin(elapsed * 0.25 + i * 0.5) * 4 + Math.cos(elapsed * 0.18 + i * 0.3) * 2;
+            const ghostY = Math.cos(elapsed * 0.22 + i * 0.4) * 3 + Math.sin(elapsed * 0.15 + i * 0.25) * 1.5;
+            const ghostAlphaPulse = (Math.sin(elapsed * 0.4 + i * 0.3) + 1) / 2;  // 0~1
+            const alpha = introEased * (0.10 + ghostAlphaPulse * 0.10);
             const off = applyIntroOffset(g, introT);
-            writeGlyph(g, g.baseX + off.ox, g.baseY + off.oy, alpha, 0, 0.7);
+            writeGlyph(g, g.baseX * 0.3 + ghostX + off.ox, g.baseY * 0.3 + ghostY + off.oy, alpha, 0, 0.75);
           }
         }
       }
@@ -2883,38 +2888,45 @@
         }
       }
 
-      // 34. 백과사전 항목 — 표제어(굵게) + 설명문(작게)
+      // 34. 백과사전 항목 — 표제어 + 설명문, 둘 다 부드럽게 흐름
       function updateEncyclopedia(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
-        // 처음 4글자는 표제어, 나머지는 설명문
         const headWordCount = 4;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
           const isHead = i < headWordCount;
           let x, y, scale, alpha;
           if (isHead) {
-            // 표제어: 상단 가로 일렬, 크게
-            x = (i - (headWordCount - 1) / 2) * 14;
-            y = -22;
+            // 표제어: 상단 가로 일렬, 크게, 살짝 부유
+            const baseX = (i - (headWordCount - 1) / 2) * 14;
+            const headDriftX = Math.sin(elapsed * 0.4 + i * 0.5) * 0.8;
+            const headDriftY = Math.cos(elapsed * 0.3 + i * 0.3) * 0.6;
+            x = baseX + headDriftX;
+            y = -22 + headDriftY;
             scale = 1.1;
-            alpha = introEased * 0.92;
+            alpha = introEased * (0.92 + Math.sin(elapsed * 0.5 + i * 0.2) * 0.04);
           } else {
-            // 설명문: 아래 작게, 여러 줄
+            // 설명문: 아래 여러 줄, 줄별 부드러운 흐름
             const descIdx = i - headWordCount;
             const perDescLine = 8;
             const descCol = descIdx % perDescLine;
             const descRow = Math.floor(descIdx / perDescLine);
-            x = -28 + descCol * 7;
-            y = -2 + descRow * 9;
+            const baseX = -28 + descCol * 7;
+            const baseY = -2 + descRow * 9;
+            // 글자 부유 + 줄별 흐름
+            const charDriftX = Math.sin(elapsed * 0.35 + i * 0.3) * 1.2;
+            const charDriftY = Math.cos(elapsed * 0.4 + i * 0.4) * 0.8;
+            const rowFlow = Math.sin(elapsed * 0.25 + descRow * 0.8) * 0.8;
+            x = baseX + charDriftX;
+            y = baseY + charDriftY + rowFlow;
             scale = 0.85;
-            alpha = introEased * 0.68;
+            alpha = introEased * (0.65 + Math.sin(elapsed * 0.4 + i * 0.2) * 0.06);
           }
-          const breath = Math.sin(elapsed * 0.3 + i * 0.2) * 0.05;
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + off.oy, alpha + breath, 0, scale);
+          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
       }
 
@@ -3016,7 +3028,7 @@
         }
       }
 
-      // 38. 정지된 상태 표시등 — 거의 정적, 미세 점등
+      // 38. 정지된 상태 표시등 — 격자 위치 + 점등이 파동처럼 흐름
       function updateStatusLamp(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -3024,22 +3036,28 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 고정된 격자 위치
           const cols = 8;
           const col = i % cols;
           const row = Math.floor(i / cols);
           const totalRows = Math.ceil(total / cols);
           const x = (col - (cols - 1) / 2) * 9;
           const y = (row - (totalRows - 1) / 2) * 8;
-          // 매우 느린 점등 변화 (글자별 다른 위상)
-          const lampPhase = elapsed * 0.4 + i * 0.7;
-          const lampOn = (Math.sin(lampPhase) + 1) / 2;  // 0~1
-          // 일부는 항상 켜져있고, 일부는 깜빡임
+          // 점등 파동: 좌→우, 위→아래로 흐름
+          const wavePosX = (elapsed * 0.5) % cols;
+          const wavePosY = (elapsed * 0.3) % totalRows;
+          const distX = Math.abs(col - wavePosX);
+          const distY = Math.abs(row - wavePosY);
+          const onX = Math.exp(-distX * distX * 0.6);
+          const onY = Math.exp(-distY * distY * 0.6);
+          const lampOn = Math.max(onX, onY);
+          // 글자별 다른 위상의 미세 호흡
+          const breath = Math.sin(elapsed * 0.4 + i * 0.5) * 0.5;
           const isActive = (i % 5) !== 0;
-          const alpha = introEased * (isActive ? (0.55 + lampOn * 0.15) : (0.20 + lampOn * 0.10));
-          const scale = 0.85;
+          const alpha = introEased * (isActive ? (0.50 + lampOn * 0.35) : (0.20 + lampOn * 0.15));
+          // 활성 셀은 살짝 위로 들림
+          const lift = -lampOn * 0.8;
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
+          writeGlyph(g, x + breath + off.ox, y + lift + off.oy, alpha, 0, 0.88 + lampOn * 0.04);
         }
       }
 
@@ -3262,7 +3280,7 @@
         }
       }
 
-      // 46. 차가운 사실 기록 — 균일 정렬, 떨림 없음
+      // 46. 차가운 사실 기록 — 균일 정렬 유지하되 미세 부유 (alightworld 톤)
       function updateColdFacts(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -3277,11 +3295,16 @@
           const totalRows = Math.ceil(total / cols);
           const x = (col - (cols - 1) / 2) * cellW;
           const y = (row - (totalRows - 1) / 2) * cellH;
-          // 매우 미세한 호흡만 (감정 제거)
-          const breath = Math.sin(elapsed * 0.15 + i * 0.05) * 0.3;
-          const alpha = introEased * 0.72;
+          // 미세하지만 계속 이어지는 부유 (글자별 다른 위상)
+          const driftX = Math.sin(elapsed * 0.35 + i * 0.4) * 1.2 + Math.cos(elapsed * 0.22 + i * 0.2) * 0.8;
+          const driftY = Math.cos(elapsed * 0.30 + i * 0.3) * 1.0 + Math.sin(elapsed * 0.25 + i * 0.15) * 0.6;
+          // 가끔 한 글자가 잠깐 옆 셀 방향으로 살짝 끌림 (데이터 갱신 인상)
+          const swapPhase = elapsed * 0.4 + i * 0.7;
+          const swap = Math.max(0, Math.sin(swapPhase) - 0.8) / 0.2;
+          const swapDir = (i % 2 === 0) ? 1 : -1;
+          const alpha = introEased * (0.70 + swap * 0.10);
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + breath + off.oy, alpha, 0, 0.94);
+          writeGlyph(g, x + driftX + swapDir * swap * 3 + off.ox, y + driftY + off.oy, alpha, 0, 0.94);
         }
       }
 
@@ -3482,36 +3505,43 @@
         }
       }
 
-      // 54. 행복의 정의 — 표제어(중앙 위) + 설명문(아래 작게)
+      // 54. 행복의 정의 — 표제어 + 설명문, 둘 다 부드럽게 흐름
       function updateDefinition(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
-        const headCount = 3;  // 표제어 3글자
+        const headCount = 3;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
           let x, y, scale, alpha;
           if (i < headCount) {
-            // 표제어: 상단 가운데
-            x = (i - 1) * 14;
-            y = -22;
+            // 표제어: 상단 가운데, 부드러운 부유
+            const baseX = (i - 1) * 14;
+            const headDriftX = Math.sin(elapsed * 0.4 + i * 0.5) * 0.8;
+            const headDriftY = Math.cos(elapsed * 0.3 + i * 0.3) * 0.6;
+            x = baseX + headDriftX;
+            y = -22 + headDriftY;
             scale = 1.12;
-            alpha = 0.92;
+            alpha = introEased * (0.92 + Math.sin(elapsed * 0.45 + i * 0.2) * 0.04);
           } else {
-            // 설명: 아래
+            // 설명: 아래, 줄별 흐름 + 글자 부유
             const descIdx = i - headCount;
             const perDescLine = 7;
             const descCol = descIdx % perDescLine;
             const descRow = Math.floor(descIdx / perDescLine);
-            x = -25 + descCol * 7;
-            y = -5 + descRow * 9;
+            const baseX = -25 + descCol * 7;
+            const baseY = -5 + descRow * 9;
+            const charDriftX = Math.sin(elapsed * 0.35 + i * 0.3) * 1.2;
+            const charDriftY = Math.cos(elapsed * 0.4 + i * 0.4) * 0.8;
+            const rowFlow = Math.sin(elapsed * 0.28 + descRow * 0.8) * 0.8;
+            x = baseX + charDriftX;
+            y = baseY + charDriftY + rowFlow;
             scale = 0.86;
-            alpha = 0.68;
+            alpha = introEased * (0.66 + Math.sin(elapsed * 0.4 + i * 0.2) * 0.06);
           }
-          const breath = Math.sin(elapsed * 0.3 + i * 0.2) * 0.05;
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + off.oy, introEased * (alpha + breath), 0, scale);
+          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
       }
 
@@ -3723,7 +3753,7 @@
         }
       }
 
-      // 61. 종이 위의 틀 — 글자가 사각 프레임 안에 정렬
+      // 61. 종이 위의 틀 — 격자 정렬 + 글자들이 틀 안에서 부드럽게 흐름
       function updatePaperFrame(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -3738,15 +3768,18 @@
           const totalRows = Math.ceil(total / cols);
           const baseX = (col - (cols - 1) / 2) * cellW;
           const baseY = (row - (totalRows - 1) / 2) * cellH;
+          // 틀 안에서 글자가 미세하게 떠다님
+          const driftX = Math.sin(elapsed * 0.4 + i * 0.4) * 1.0 + Math.cos(elapsed * 0.25 + col * 0.5) * 0.8;
+          const driftY = Math.cos(elapsed * 0.35 + i * 0.3) * 0.8 + Math.sin(elapsed * 0.2 + row * 0.6) * 0.6;
           // 가끔 일부 글자가 틀 밖으로 살짝 벗어났다가 돌아옴
           const escapePhase = elapsed * 0.4 + i * 0.6;
           const escape = Math.max(0, Math.sin(escapePhase) - 0.7) / 0.3;
           const escapeDir = (i % 4) === 0 ? 1 : -1;
           const escX = escape * 3 * escapeDir;
           const escY = escape * 2;
-          const alpha = introEased * 0.74;
+          const alpha = introEased * (0.72 + Math.sin(elapsed * 0.3 + i * 0.2) * 0.06);
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, baseX + escX + off.ox, baseY + escY + off.oy, alpha, 0, 0.93);
+          writeGlyph(g, baseX + driftX + escX + off.ox, baseY + driftY + escY + off.oy, alpha, 0, 0.93);
         }
       }
 
@@ -3986,7 +4019,7 @@
         }
       }
 
-      // 70. 칸이 나뉜 장부 — 행별 누적 정렬
+      // 70. 칸이 나뉜 장부 — 행별 누적 정렬 + 글자 부드러운 부유
       function updateLedger(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -3998,15 +4031,20 @@
           const row = Math.floor(i / perRow);
           const col = i % perRow;
           const totalRows = Math.ceil(total / perRow);
-          const x = (col - (perRow - 1) / 2) * 9;
-          const y = (row - (totalRows - 1) / 2) * 9;
+          const baseX = (col - (perRow - 1) / 2) * 9;
+          const baseY = (row - (totalRows - 1) / 2) * 9;
+          // 글자별 미세 부유 (계속 이어짐)
+          const driftX = Math.sin(elapsed * 0.35 + i * 0.4) * 0.8;
+          const driftY = Math.cos(elapsed * 0.3 + i * 0.3) * 0.6;
+          // 행별 호흡 (한 행 전체가 살짝 움직임)
+          const rowBreath = Math.sin(elapsed * 0.25 + row * 0.7) * 0.8;
           // 한 행씩 시간 따라 갱신 — 그 행만 잠깐 또렷
           const updateRow = Math.floor(elapsed * 0.3) % totalRows;
           const isUpdating = row === updateRow;
           const blink = isUpdating ? (Math.sin(elapsed * 6) + 1) / 2 * 0.15 : 0;
           const alpha = introEased * (0.65 + (isUpdating ? 0.20 : 0) + blink);
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, 0.92);
+          writeGlyph(g, baseX + driftX + off.ox, baseY + driftY + rowBreath + off.oy, alpha, 0, 0.92);
         }
       }
 
@@ -4047,7 +4085,7 @@
         }
       }
 
-      // 72. 읽기 전용 문서 — 거의 정지, 가끔 잠깐 밝아짐
+      // 72. 읽기 전용 문서 — 격자 + 줄별 부드러운 호흡 흐름
       function updateReadonly(now) {
         const elapsed = (now - decayStartTime) / 1000;
         const introT = Math.min(1, elapsed / 1.5);
@@ -4061,14 +4099,16 @@
           const totalRows = Math.ceil(total / cols);
           const x = (col - (cols - 1) / 2) * 9;
           const y = (row - (totalRows - 1) / 2) * 10;
-          // 매우 작은 호흡
-          const breath = Math.sin(elapsed * 0.2 + i * 0.1) * 0.2;
-          // 가끔 잠깐 밝아짐 (전체 동시)
+          // 줄별 부드러운 sin 흐름 (위에서 아래로)
+          const rowFlow = Math.sin(elapsed * 0.3 + row * 0.8) * 1.2;
+          // 글자별 미세 호흡
+          const charBreath = Math.sin(elapsed * 0.25 + i * 0.2) * 0.6;
+          // 가끔 전체가 잠깐 밝아짐 (접근 인상)
           const flashPhase = (elapsed * 0.18) % 1;
           const flash = flashPhase < 0.05 ? flashPhase / 0.05 : (flashPhase < 0.10 ? 1 - (flashPhase - 0.05) / 0.05 : 0);
-          const alpha = introEased * (0.65 + flash * 0.15);
+          const alpha = introEased * (0.62 + flash * 0.18);
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + breath + off.oy, alpha, 0, 0.92);
+          writeGlyph(g, x + charBreath + off.ox, y + rowFlow + off.oy, alpha, 0, 0.92);
         }
       }
 
