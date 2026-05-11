@@ -3205,6 +3205,10 @@
         });
         instanceByName[cfg.name] = inst;
         allInstances.push({ inst, row: cfg.sheetRow, fallback: cfg.fallback });
+        // 궤적 콜백 등록 (캡처 시 텍스트 누적용)
+        if (inst.setOnInfluenceEnter && typeof recordTrajectory === "function") {
+          inst.setOnInfluenceEnter(recordTrajectory);
+        }
       });
     }
 
@@ -3395,11 +3399,8 @@
       console.info(`[trajectory] entered ${inst.name}, total ${trajectory.length}`);
     }
 
-    for (const inst of revealInstances) {
-      if (inst.setOnInfluenceEnter) {
-        inst.setOnInfluenceEnter(recordTrajectory);
-      }
-    }
+    // 콜백 등록은 buildInstances 안에서 인스턴스 생성과 함께 처리됨
+    // (이 시점엔 인스턴스가 아직 안 만들어졌으므로 빈 루프)
 
     setInterval(() => {
       let anyIn = false;
