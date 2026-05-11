@@ -28,8 +28,10 @@
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
-      --ink: #776c54;       /* 모든 텍스트 공통 색상 */
-      --ink-deep: #776c54;  /* multiply 블렌드용 (동일 색) */
+      --ink: #776c54;       /* HUD / 정적 텍스트 / 캡처 trail 공통 색상 */
+      --ink-deep: #776c54;  /* multiply 블렌드용 (정적 텍스트) */
+      --ink-hold: #616dff;  /* 클릭 중 sentence 모션 — 유화물감 오버레이 */
+      --ink-outro: #00cc9b; /* 클릭 후 outro 모션 (volume / decay / ripple 등) */
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -191,7 +193,7 @@
       font-family: 'Vicentino';
       font-size: 14px;
       line-height: 1;
-      color: var(--ink-deep);
+      color: var(--ink-outro);
       white-space: pre;
       transform-origin: 0 0;
       will-change: transform, opacity;
@@ -221,7 +223,7 @@
       font-family: 'Vicentino';
       font-size: 14px;
       line-height: 1;
-      color: var(--ink-deep);
+      color: var(--ink-outro);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
@@ -249,7 +251,7 @@
       font-family: 'Vicentino';
       font-size: 14px;
       line-height: 1;
-      color: var(--ink-deep);
+      color: var(--ink-outro);
       white-space: pre;
       transform-origin: 50% 50%;
       will-change: transform, opacity;
@@ -362,8 +364,10 @@
     /* ─────────────────────────────────────────────
        잉크 색상 상수 (캔버스 캡처용)
        ───────────────────────────────────────────── */
-    const INK_COLOR = "#776c54";   // 모든 텍스트 공통
-    const INK_DEEP  = "#776c54";   // multiply 블렌드용 (동일)
+    const INK_COLOR = "#776c54";   // 정적 텍스트 / HUD / 캡처 trail
+    const INK_DEEP  = "#776c54";   // multiply 블렌드용 (정적)
+    const INK_HOLD  = "#616dff";   // 클릭 중 sentence 모션 (유화 오버레이)
+    const INK_OUTRO = "#00cc9b";   // 클릭 후 outro 모션
 
     /* ─────────────────────────────────────────────
        상태값
@@ -2299,21 +2303,6 @@
           const sec = t / 1000;
           const swayX = Math.sin(sec * b.swaySpeed + b.phase) * b.swayAmp;
 
-          // ─── 1단계: 임시 캔버스에 글자 모양 안에 reveal 이미지 클리핑 ───
-          // (a) 임시 캔버스 클리어
-          sentTempCtx.save();
-          sentTempCtx.setTransform(1, 0, 0, 1, 0, 0);
-          sentTempCtx.clearRect(0, 0, sentTempCanvas.width, sentTempCanvas.height);
-          sentTempCtx.restore();
-
-          // (b) 임시 캔버스에 글자를 #776c54로 그림 (마스크 역할)
-          sentTempCtx.save();
-          sentTempCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
-          sentTempCtx.translate(cx + swayX, cyBase + y);
-          sentTempCtx.scale(scale, scale);
-          sentTempCtx.fillStyle = INK_COLOR;
-          sentTempCtx.font = `${FONT_PX}px Vicentino`;
-          sentTempCtx.textBaseline = "middle";
           // ─── 9가지 sentence 모션: 각자 다른 "낱자 → 문장" 변형 ───
           // 모든 모션이 cycleT(0~1) 사이클을 가지고:
           //   appearEnd ~ holdEnd: 글자가 자리 잡고 호흡
@@ -2612,58 +2601,51 @@
             };
           }
 
-          drawWrappedTextPerChar(
-            sentTempCtx, b.text, 0, 0,
-            MAX_WIDTH, FONT_PX, LINE_HEIGHT, wavePerChar
-          );
-          sentTempCtx.restore();
-
-          // (c) 임시 캔버스에 reveal 이미지를 source-in으로 합성
-          //     → 글자 모양 안에서, reveal 이미지가 있는 픽셀만 남김
-          //     → reveal 이미지가 없는 곳(트레일 안 닿은 곳, 흰 배경)은 투명
-          //     → 다음 단계 color-burn에서 투명 픽셀은 영향 없음 → 베이스 글자(#776c54) 그대로 유지
-          if (canvas && canvas.width > 0) {
-            sentTempCtx.save();
-            sentTempCtx.setTransform(1, 0, 0, 1, 0, 0);
-            sentTempCtx.globalCompositeOperation = "source-in";
-            // reveal 캔버스를 sentence 캔버스 픽셀 크기에 맞춰 그림
-            sentTempCtx.drawImage(canvas,
-              0, 0, canvas.width, canvas.height,
-              0, 0, sentTempCanvas.width, sentTempCanvas.height);
-            // 수채화 느낌 강화: 같은 이미지를 multiply로 한 번 더 그려 색을 진하게
-            // → 이후 color-burn 단계에서 더 풍부한 톤 변화
-            sentTempCtx.globalCompositeOperation = "multiply";
-            sentTempCtx.drawImage(canvas,
-              0, 0, canvas.width, canvas.height,
-              0, 0, sentTempCanvas.width, sentTempCanvas.height);
-            sentTempCtx.restore();
-          }
-
-          // (d) 임시 캔버스 결과(글자모양 안의 reveal 이미지)를 메인에 color-burn 합성
-          //     베이스 글자(#776c54)는 메인에 다음 단계에서 깔림
-          // → 일러스트의 색상번 효과: 베이스 글자 색에 글자모양 안 이미지가 burn됨
+          // ─── 유화물감 오버레이 합성 ───
+          //  기존: 글자모양 안에 reveal 이미지 비치는 color-burn 효과
+          //  변경: #616dff 잉크가 reveal 이미지 위에 유화처럼 번지며 얹힘
+          //  방법: 두 레이어 multiply
+          //    Layer A: 살짝 크고 흐릿한 잉크 (번짐의 헤일로)
+          //    Layer B: 또렷한 잉크 (본체)
+          //  → 두 레이어가 multiply로 reveal 이미지 위에 깔리면
+          //    이미지의 명암을 따라 잉크가 진해지거나 옅어져서 유화 느낌
           sentenceCtx.save();
           sentenceCtx.setTransform(1, 0, 0, 1, 0, 0);
           sentenceCtx.globalAlpha = opacity;
 
-          // 1) 베이스 글자 (#776c54) 그리기 — source-over
-          sentenceCtx.globalCompositeOperation = "source-over";
+          // Layer A: 번짐 헤일로 — 살짝 큰 사이즈 + 낮은 알파 + multiply
+          //   filter blur로 가장자리를 부드럽게 (브라우저 지원 시)
+          sentenceCtx.globalCompositeOperation = "multiply";
+          sentenceCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+          sentenceCtx.translate(cx + swayX, cyBase + y);
+          sentenceCtx.scale(scale * 1.04, scale * 1.04);  // 4% 크게 → 번짐
+          sentenceCtx.fillStyle = INK_HOLD;
+          sentenceCtx.font = `${FONT_PX}px Vicentino`;
+          sentenceCtx.textBaseline = "middle";
+          const prevFilter1 = sentenceCtx.filter;
+          try { sentenceCtx.filter = "blur(1.6px)"; } catch (e) {}
+          const haloAlpha = 0.42;
+          sentenceCtx.globalAlpha = opacity * haloAlpha;
+          drawWrappedTextPerChar(
+            sentenceCtx, b.text, 0, 0,
+            MAX_WIDTH, FONT_PX, LINE_HEIGHT, wavePerChar
+          );
+          try { sentenceCtx.filter = prevFilter1 || "none"; } catch (e) {}
+
+          // Layer B: 본체 잉크 — 또렷한 사이즈 + multiply
+          sentenceCtx.setTransform(1, 0, 0, 1, 0, 0);
+          sentenceCtx.globalAlpha = opacity;
+          sentenceCtx.globalCompositeOperation = "multiply";
           sentenceCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
           sentenceCtx.translate(cx + swayX, cyBase + y);
           sentenceCtx.scale(scale, scale);
-          sentenceCtx.fillStyle = INK_COLOR;
+          sentenceCtx.fillStyle = INK_HOLD;
           sentenceCtx.font = `${FONT_PX}px Vicentino`;
           sentenceCtx.textBaseline = "middle";
           drawWrappedTextPerChar(
             sentenceCtx, b.text, 0, 0,
             MAX_WIDTH, FONT_PX, LINE_HEIGHT, wavePerChar
           );
-
-          // 2) 그 위에 임시 캔버스(글자모양 안 이미지)를 color-burn으로 덮음
-          //    → 픽셀 단위 컬러번 블렌딩 (일러스트와 동일)
-          sentenceCtx.setTransform(1, 0, 0, 1, 0, 0);
-          sentenceCtx.globalCompositeOperation = "color-burn";
-          sentenceCtx.drawImage(sentTempCanvas, 0, 0);
           sentenceCtx.restore();
         }
       }
