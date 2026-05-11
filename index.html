@@ -25,6 +25,13 @@
       font-style: normal;
       font-display: swap;
     }
+    @font-face {
+      font-family: 'Vivaldi';
+      src: url('./assets/vivaldi.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
@@ -2394,17 +2401,20 @@
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
+        // 클러스터 위치 더 멀리 + 크기 키움
         const clusterCenters = [
-          { x: -30, y: -8 }, { x: 25, y: 10 }, { x: 5, y: -18 }
+          { x: -45, y: -15 }, { x: 40, y: 18 }, { x: 8, y: -28 }
         ];
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
           const cluster = i % 3;
           const cc = clusterCenters[cluster];
-          const inClusterX = (seed(i, 23.7) - 0.5) * 18;
-          const inClusterY = (seed(i, 47.1) - 0.5) * 14;
+          // 클러스터 내부 분산 키움 (18 → 28)
+          const inClusterX = (seed(i, 23.7) - 0.5) * 28;
+          const inClusterY = (seed(i, 47.1) - 0.5) * 22;
+          // mergeFactor 줄임 (응축 안 되게) — 0.8~1.0 만 사용
           const merge = (Math.sin(elapsed * 0.2) + 1) / 2;
-          const mergeFactor = 0.6 + merge * 0.4;
+          const mergeFactor = 0.85 + merge * 0.15;
           const x = cc.x * mergeFactor + inClusterX;
           const y = cc.y * mergeFactor + inClusterY;
           const alpha = introEased * (0.68 + Math.sin(elapsed * 0.3 + i * 0.2) * 0.08);
@@ -2793,21 +2803,18 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 무작위 위치 (deterministic)
-          const dotX = (seed(i, 12.9) - 0.5) * 80;
-          const dotY = (seed(i, 78.2) - 0.5) * 40;
-          // 시간 따라 천천히 이동
-          const driftX = Math.sin(elapsed * 0.2 + i * 0.4) * 3;
-          const driftY = Math.cos(elapsed * 0.18 + i * 0.3) * 2;
-          // 가끔 일부 점이 잠깐 모임 (군집)
-          const clusterPhase = elapsed * 0.15 + i * 0.1;
-          const cluster = Math.max(0, Math.sin(clusterPhase) - 0.7) / 0.3;
-          // 군집 시 일부가 중앙으로
-          const x = dotX * (1 - cluster * 0.6) + driftX;
-          const y = dotY * (1 - cluster * 0.6) + driftY;
-          // 점 스케일
-          const scale = 0.4 + cluster * 0.3;
-          const alpha = introEased * (0.55 + cluster * 0.25);
+          // 글자별 무작위 위치 (deterministic) - 영역 키움
+          const dotX = (seed(i, 12.9) - 0.5) * 100;
+          const dotY = (seed(i, 78.2) - 0.5) * 50;
+          // 천천히 떠다님 (위상 다르게)
+          const driftX = Math.sin(elapsed * 0.3 + i * 0.5) * 5 + Math.cos(elapsed * 0.2 + i * 0.3) * 3;
+          const driftY = Math.cos(elapsed * 0.25 + i * 0.4) * 4 + Math.sin(elapsed * 0.22 + i * 0.2) * 2;
+          // 가끔 한 글자가 잠깐 또렷해짐 (점이 살아있다는 표시) — 위치 응축은 없음
+          const aliveLocal = Math.max(0, Math.sin(elapsed * 0.6 + i * 0.3) - 0.7) / 0.3;
+          const x = dotX + driftX;
+          const y = dotY + driftY;
+          const scale = 0.4 + aliveLocal * 0.3;
+          const alpha = introEased * (0.50 + aliveLocal * 0.30);
           const off = applyIntroOffset(g, introT);
           writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
@@ -2916,22 +2923,17 @@
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
-        const unfoldT = (Math.sin(elapsed * 0.25) + 1) / 2;
+        // 항상 펼쳐진 상태 + 호흡 (응축 없음)
+        const breathT = (Math.sin(elapsed * 0.25) + 1) / 2;  // 0~1
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 응축: 중심 원형 작은 둘레
-          const compactAngle = (i / total) * Math.PI * 2;
-          const compactR = 6;
-          const compactX = Math.cos(compactAngle) * compactR;
-          const compactY = Math.sin(compactAngle) * compactR * 0.7;
-          // 펼침: 훨씬 넓게 (인덱스별 다른 거리)
-          const expandR = 25 + (i % 5) * 5;  // 25~45
-          const expandX = Math.cos(compactAngle) * expandR;
-          const expandY = Math.sin(compactAngle) * expandR * 0.7;
-          const x = compactX + (expandX - compactX) * unfoldT;
-          const y = compactY + (expandY - compactY) * unfoldT;
-          const alpha = introEased * (0.70 - unfoldT * 0.10);
-          const scale = 0.92 + unfoldT * 0.06;
+          // 글자별 다른 각도 + 다른 반경 (응축되지 않도록)
+          const myAngle = (i / total) * Math.PI * 2;
+          const myR = 24 + (i % 5) * 5 + breathT * 8;  // 24~52
+          const x = Math.cos(myAngle) * myR + Math.sin(elapsed * 0.3 + i * 0.4) * 1.5;
+          const y = Math.sin(myAngle) * myR * 0.6 + Math.cos(elapsed * 0.28 + i * 0.3) * 1.2;
+          const alpha = introEased * (0.65 + breathT * 0.12);
+          const scale = 0.92 + breathT * 0.04;
           const off = applyIntroOffset(g, introT);
           writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
@@ -3955,12 +3957,17 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          const myDelay = i * 0.15;
-          const pathPhase = (elapsed - myDelay) * 0.4;
-          const x = Math.sin(pathPhase) * 45;
-          const y = Math.sin(pathPhase * 2) * 25;
-          const trailFade = Math.max(0, Math.min(1, (elapsed - myDelay) * 0.3));
-          const alpha = introEased * (0.40 + trailFade * 0.35);
+          // 글자별 다른 위상 (deterministic, 그러나 절대 동기화 안 됨)
+          const phaseA = seed(i, 12.9) * Math.PI * 2;
+          const phaseB = seed(i, 78.2) * Math.PI * 2;
+          // 각 글자가 자기만의 Lissajous 궤도
+          const speedA = 0.35 + seed(i, 47.1) * 0.15;
+          const speedB = 0.28 + seed(i, 91.3) * 0.12;
+          const x = Math.sin(elapsed * speedA + phaseA) * 45;
+          const y = Math.sin(elapsed * speedB * 2 + phaseB) * 25;
+          // 잔상감 (alpha 변화)
+          const fadePhase = Math.sin(elapsed * 0.4 + phaseA) * 0.5 + 0.5;
+          const alpha = introEased * (0.45 + fadePhase * 0.30);
           const off = applyIntroOffset(g, introT);
           writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, 0.93);
         }
@@ -7998,12 +8005,12 @@
       // 궤적 텍스트 → reveal/글리프/HUD 순으로 그림 (캔버스 = viewport)
       octx.globalCompositeOperation = "source-over";
 
-      // 궤적 따라 흐르는 텍스트 — Vicentino
+      // 궤적 따라 흐르는 텍스트 — Vivaldi
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 14;
         if (fontPx >= 4) {
-          octx.font = `${fontPx}px Vicentino`;
+          octx.font = `${fontPx}px Vivaldi`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
           octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: #00cc9b
@@ -8088,13 +8095,13 @@
         } catch (e) {}
       }
 
-      // 동적 글리프들 — Vicentino (volume/decay/ripple 모션)
+      // 동적 글리프들 — Vivaldi (volume/decay/ripple 모션)
       // 폰트는 화면에서 보이는 14px 그대로 (줌 무관)
       const glyphs = document.querySelectorAll(
         ".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph"
       );
       const glyphFontPx = 14;
-      octx.font = `${glyphFontPx}px Vicentino`;
+      octx.font = `${glyphFontPx}px Vivaldi`;
       octx.textBaseline = "top";
       for (const g of glyphs) {
         const r = g.getBoundingClientRect();
@@ -8112,11 +8119,11 @@
       }
       octx.globalAlpha = 1;
 
-      // reveal-text-content (흰 배경 박스) — Vicentino, 일반 모드
+      // reveal-text-content (흰 배경 박스) — Vivaldi, 일반 모드
       // 폰트와 패딩은 화면 px 그대로 (14, 16) — 줌 무관
       const textBlocks = document.querySelectorAll(".reveal-text-content");
       const textBoxFontPx = 14;
-      octx.font = `${textBoxFontPx}px Vicentino`;
+      octx.font = `${textBoxFontPx}px Vivaldi`;
       octx.fillStyle = INK_COLOR;
       for (const tb of textBlocks) {
         const txt = tb.textContent;
