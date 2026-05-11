@@ -59,8 +59,8 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 12000px;
-      height: 7000px;
+      width: 8000px;
+      height: 4500px;
       pointer-events: none;
     }
 
@@ -376,8 +376,8 @@
     let distance = 100;
     // 가상공간 시작 위치: (6000, 6500) — 데이터 영역 중앙 아래쪽
     // (이 좌표가 화면 중앙에 오도록 posX/posY 초기화)
-    const START_WORLD_X = 6000;
-    const START_WORLD_Y = 6500;
+    const START_WORLD_X = 4000;
+    const START_WORLD_Y = 4000;
     let posX = window.innerWidth / 2 - START_WORLD_X;
     let posY = window.innerHeight / 2 - START_WORLD_Y;
 
@@ -2993,12 +2993,12 @@
        자동 계산되어 채워짐. 시트 미연결 시 fallback 좌표 사용.
        ───────────────────────────────────────────── */
 
-    // 가상공간: 12000 × 7000
-    // 데이터 영역: x 1000~11000, y 800~6200
-    const WORLD_W = 12000;
-    const WORLD_H = 7000;
-    const DATA_X_MIN = 1000, DATA_X_MAX = 11000;
-    const DATA_Y_MIN = 800,  DATA_Y_MAX = 6200;
+    // 가상공간: 8000 × 4500 (이전 12000×7000에서 축소 — 작품 찾기 쉽도록)
+    // 데이터 영역: x 700~7300, y 500~4000
+    const WORLD_W = 8000;
+    const WORLD_H = 4500;
+    const DATA_X_MIN = 700, DATA_X_MAX = 7300;
+    const DATA_Y_MIN = 500, DATA_Y_MAX = 4000;
 
     // 모션 매핑 (이미지 파일명 기준)
     // 시트 데이터 도착 후 각 인스턴스 생성 시 사용
@@ -3009,8 +3009,8 @@
         holdSentence: true,
         holdSentenceStyle: "unfold",
         outroMode: "decay",
-        // 시트가 없을 때 임시 위치 (px)
-        fallbackLeftPx: 800,  fallbackTopPx: 600,
+        // 시트가 없을 때 임시 위치 (px) — 새 월드 8000×4500 기준
+        fallbackLeftPx: 600,  fallbackTopPx: 500,
       },
       {
         name: "04", sheetRow: 5, fallback: "04.png",
@@ -3018,7 +3018,7 @@
         holdSentence: true,
         holdSentenceStyle: "typewriter",
         outroMode: "coordinates",
-        fallbackLeftPx: 3200, fallbackTopPx: 1200,
+        fallbackLeftPx: 2100, fallbackTopPx: 800,
       },
       {
         name: "05", sheetRow: 6, fallback: "05.png",
@@ -3026,7 +3026,7 @@
         holdSentence: true,
         holdSentenceStyle: "assemble",
         outroMode: "outline",
-        fallbackLeftPx: 5600, fallbackTopPx: 800,
+        fallbackLeftPx: 3700, fallbackTopPx: 500,
       },
       {
         name: "79", sheetRow: 80, fallback: "79.png",
@@ -3034,7 +3034,7 @@
         holdSentence: true,
         holdSentenceStyle: "breathe",
         outroMode: "volume",
-        fallbackLeftPx: 8000, fallbackTopPx: 1400,
+        fallbackLeftPx: 5400, fallbackTopPx: 900,
       },
       {
         name: "06", sheetRow: 7, fallback: "06.png",
@@ -3042,7 +3042,7 @@
         holdSentence: true,
         holdSentenceStyle: "cascade",
         outroMode: "ripple",
-        fallbackLeftPx: 1400, fallbackTopPx: 3800,
+        fallbackLeftPx: 900, fallbackTopPx: 2400,
       },
       {
         name: "09", sheetRow: 10, fallback: "09.png",
@@ -3050,7 +3050,7 @@
         holdSentence: true,
         holdSentenceStyle: "flicker",
         outroMode: "gravity",
-        fallbackLeftPx: 4400, fallbackTopPx: 3600,
+        fallbackLeftPx: 2900, fallbackTopPx: 2300,
       },
       {
         name: "07", sheetRow: 8, fallback: "07.png",
@@ -3058,7 +3058,7 @@
         holdSentence: true,
         holdSentenceStyle: "swirl",
         outroMode: "decay",
-        fallbackLeftPx: 7500, fallbackTopPx: 4000,
+        fallbackLeftPx: 5000, fallbackTopPx: 2500,
       },
       {
         name: "10", sheetRow: 11, fallback: "10.png",
@@ -3066,7 +3066,7 @@
         holdSentence: true,
         holdSentenceStyle: "slide",
         outroMode: "ripple",
-        fallbackLeftPx: 1800, fallbackTopPx: 6400,
+        fallbackLeftPx: 1200, fallbackTopPx: 4050,
       },
       {
         name: "08", sheetRow: 9, fallback: "08.png",
@@ -3074,7 +3074,7 @@
         holdSentence: true,
         holdSentenceStyle: "materialize",
         outroMode: "volume",
-        fallbackLeftPx: 5000, fallbackTopPx: 6500,
+        fallbackLeftPx: 3300, fallbackTopPx: 4100,
       },
       {
         name: "28", sheetRow: 29, fallback: "28.png",
@@ -3083,30 +3083,31 @@
         holdSentence: true,
         holdSentenceStyle: "tumble",
         outroMode: "residue",
-        fallbackLeftPx: 7800, fallbackTopPx: 6200,
+        fallbackLeftPx: 5200, fallbackTopPx: 3900,
       },
       // ── 추가 인스턴스: 01, 02, 11~27 (19개) ──
       // 시트의 작성일자/시간이 있으면 자동 배치되고, 없으면 아래 fallback grid로 분산.
       // sheetRow는 파일명 숫자 + 1 (헤더 행 보정). 모션은 일단 모두 동일 ("breathe" + "decay").
-      { name: "01", sheetRow: 2,  fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1200,  fallbackTopPx: 1400 },
-      { name: "02", sheetRow: 3,  fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2400,  fallbackTopPx: 2000 },
-      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3600,  fallbackTopPx: 2600 },
-      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4800,  fallbackTopPx: 1800 },
-      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6000,  fallbackTopPx: 2400 },
-      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7200,  fallbackTopPx: 1600 },
-      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8400,  fallbackTopPx: 2200 },
-      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 9600,  fallbackTopPx: 2800 },
-      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 10500, fallbackTopPx: 1500 },
-      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2000,  fallbackTopPx: 3400 },
-      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3200,  fallbackTopPx: 4400 },
-      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5800,  fallbackTopPx: 4200 },
-      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6800,  fallbackTopPx: 4600 },
-      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8800,  fallbackTopPx: 4400 },
-      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 10000, fallbackTopPx: 3800 },
-      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1200,  fallbackTopPx: 5400 },
-      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3400,  fallbackTopPx: 5800 },
-      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6400,  fallbackTopPx: 5800 },
-      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 9400,  fallbackTopPx: 5600 },
+      // 좌표는 새 월드 8000×4500 기준
+      { name: "01", sheetRow: 2,  fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 800,  fallbackTopPx: 900 },
+      { name: "02", sheetRow: 3,  fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1600, fallbackTopPx: 1300 },
+      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2400, fallbackTopPx: 1700 },
+      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3200, fallbackTopPx: 1150 },
+      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4000, fallbackTopPx: 1550 },
+      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4800, fallbackTopPx: 1050 },
+      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5600, fallbackTopPx: 1450 },
+      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6400, fallbackTopPx: 1800 },
+      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7000, fallbackTopPx: 1000 },
+      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1350, fallbackTopPx: 2200 },
+      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2150, fallbackTopPx: 2850 },
+      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3850, fallbackTopPx: 2700 },
+      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4550, fallbackTopPx: 2950 },
+      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5900, fallbackTopPx: 2800 },
+      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6700, fallbackTopPx: 2450 },
+      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 800,  fallbackTopPx: 3450 },
+      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2250, fallbackTopPx: 3700 },
+      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4250, fallbackTopPx: 3700 },
+      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6250, fallbackTopPx: 3550 },
     ];
 
     // 시드 기반 deterministic random (rowIndex로 일관된 jitter)
@@ -3193,9 +3194,9 @@
         } else {
           y = cfg.fallbackTopPx;
         }
-        // jitter (rowIndex 기반 deterministic)
-        const jx = (seededRandom(cfg.sheetRow) - 0.5) * 240;       // ±120
-        const jy = (seededRandom(cfg.sheetRow + 999) - 0.5) * 320; // ±160
+        // jitter (rowIndex 기반 deterministic) — 축소된 월드에 맞춰 작게
+        const jx = (seededRandom(cfg.sheetRow) - 0.5) * 160;       // ±80
+        const jy = (seededRandom(cfg.sheetRow + 999) - 0.5) * 200; // ±100
         x += jx;
         y += jy;
         // 영역 안으로 클램프
@@ -3585,8 +3586,9 @@
       octx.globalCompositeOperation = "source-over";
 
       // 궤적 따라 흐르는 텍스트 — Vicentino
+      // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
-        const fontPx = 14 * scale;
+        const fontPx = 14;
         if (fontPx >= 4) {
           octx.font = `${fontPx}px Vicentino`;
           octx.textBaseline = "middle";
@@ -3674,10 +3676,11 @@
       }
 
       // 동적 글리프들 — Vicentino (volume/decay/ripple 모션)
+      // 폰트는 화면에서 보이는 14px 그대로 (줌 무관)
       const glyphs = document.querySelectorAll(
         ".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph"
       );
-      const glyphFontPx = 14 * scale;
+      const glyphFontPx = 14;
       octx.font = `${glyphFontPx}px Vicentino`;
       octx.textBaseline = "top";
       for (const g of glyphs) {
@@ -3697,8 +3700,9 @@
       octx.globalAlpha = 1;
 
       // reveal-text-content (흰 배경 박스) — Vicentino, 일반 모드
+      // 폰트와 패딩은 화면 px 그대로 (14, 16) — 줌 무관
       const textBlocks = document.querySelectorAll(".reveal-text-content");
-      const textBoxFontPx = 14 * scale;
+      const textBoxFontPx = 14;
       octx.font = `${textBoxFontPx}px Vicentino`;
       octx.fillStyle = INK_COLOR;
       for (const tb of textBlocks) {
@@ -3710,22 +3714,22 @@
         const br = screenToCanvas(r.right, r.bottom);
         const boxW = br.x - tl.x;
         const lineHeight = textBoxFontPx * 1.55;
-        const maxWidth = boxW - 32 * scale;
+        const maxWidth = boxW - 32;
         const words = txt.split(/(\s+)/);
         let line = "";
-        let y = tl.y + 14 * scale;
+        let y = tl.y + 14;
         for (const w of words) {
           const testLine = line + w;
           const m = octx.measureText(testLine);
           if (m.width > maxWidth && line.length > 0) {
-            octx.fillText(line, tl.x + 16 * scale, y);
+            octx.fillText(line, tl.x + 16, y);
             y += lineHeight;
             line = w.replace(/^\s+/, "");
           } else {
             line = testLine;
           }
         }
-        if (line) octx.fillText(line, tl.x + 16 * scale, y);
+        if (line) octx.fillText(line, tl.x + 16, y);
       }
 
       // HUD — CelestiaAntiqua (캔버스 좌하단에 고정 배치)
