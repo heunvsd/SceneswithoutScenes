@@ -59,8 +59,8 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 10000px;
-      height: 6000px;
+      width: 12000px;
+      height: 7200px;
       pointer-events: none;
     }
 
@@ -389,8 +389,8 @@
     let distance = 100;
     // 가상공간 시작 위치: (6000, 6500) — 데이터 영역 중앙 아래쪽
     // (이 좌표가 화면 중앙에 오도록 posX/posY 초기화)
-    const START_WORLD_X = 5000;
-    const START_WORLD_Y = 5400;
+    const START_WORLD_X = 6000;
+    const START_WORLD_Y = 6500;
     let posX = window.innerWidth / 2 - START_WORLD_X;
     let posY = window.innerHeight / 2 - START_WORLD_Y;
 
@@ -7399,12 +7399,12 @@
        자동 계산되어 채워짐. 시트 미연결 시 fallback 좌표 사용.
        ───────────────────────────────────────────── */
 
-    // 가상공간: 10000 × 6000 (이미지 80개 분산용)
-    // 데이터 영역: x 800~9200, y 600~5400
-    const WORLD_W = 10000;
-    const WORLD_H = 6000;
-    const DATA_X_MIN = 800, DATA_X_MAX = 9200;
-    const DATA_Y_MIN = 600, DATA_Y_MAX = 5400;
+    // 가상공간: 12000 × 7200 (이미지 80개 분산용, 이미지 간 더 여유)
+    // 데이터 영역: x 960~11040, y 720~6480
+    const WORLD_W = 12000;
+    const WORLD_H = 7200;
+    const DATA_X_MIN = 960, DATA_X_MAX = 11040;
+    const DATA_Y_MIN = 720, DATA_Y_MAX = 6480;
 
     // 모션 매핑 (이미지 파일명 기준)
     // 시트 데이터 도착 후 각 인스턴스 생성 시 사용
@@ -7415,7 +7415,7 @@
         holdSentence: true,
         holdSentenceStyle: "connect",
         outroMode: "o-broken-line",
-        fallbackLeftPx: 3737, fallbackTopPx: 3235,
+        fallbackLeftPx: 3446, fallbackTopPx: 6061,
       },
       {
         name: "04", sheetRow: 5, fallback: "04.png",
@@ -7423,7 +7423,7 @@
         holdSentence: true,
         holdSentenceStyle: "keyword",
         outroMode: "o-plot-line",
-        fallbackLeftPx: 2093, fallbackTopPx: 2737,
+        fallbackLeftPx: 7495, fallbackTopPx: 4010,
       },
       {
         name: "05", sheetRow: 6, fallback: "05.png",
@@ -7431,7 +7431,7 @@
         holdSentence: true,
         holdSentenceStyle: "spotlight",
         outroMode: "o-dead-bulb",
-        fallbackLeftPx: 8794, fallbackTopPx: 5152,
+        fallbackLeftPx: 5430, fallbackTopPx: 3264,
       },
       {
         name: "79", sheetRow: 80, fallback: "79.png",
@@ -7439,7 +7439,7 @@
         holdSentence: true,
         holdSentenceStyle: "you-and-me",
         outroMode: "o-curvature",
-        fallbackLeftPx: 8837, fallbackTopPx: 1476,
+        fallbackLeftPx: 2471, fallbackTopPx: 6088,
       },
       {
         name: "06", sheetRow: 7, fallback: "06.png",
@@ -7447,7 +7447,7 @@
         holdSentence: true,
         holdSentenceStyle: "signal",
         outroMode: "o-switch",
-        fallbackLeftPx: 2862, fallbackTopPx: 4527,
+        fallbackLeftPx: 1375, fallbackTopPx: 6115,
       },
       {
         name: "09", sheetRow: 10, fallback: "09.png",
@@ -7455,7 +7455,7 @@
         holdSentence: true,
         holdSentenceStyle: "floorplan",
         outroMode: "o-blueprint",
-        fallbackLeftPx: 6348, fallbackTopPx: 1496,
+        fallbackLeftPx: 8607, fallbackTopPx: 6152,
       },
       {
         name: "07", sheetRow: 8, fallback: "07.png",
@@ -7463,7 +7463,7 @@
         holdSentence: true,
         holdSentenceStyle: "logic",
         outroMode: "o-empty-center",
-        fallbackLeftPx: 7958, fallbackTopPx: 2111,
+        fallbackLeftPx: 2469, fallbackTopPx: 2541,
       },
       {
         name: "10", sheetRow: 11, fallback: "10.png",
@@ -7471,7 +7471,7 @@
         holdSentence: true,
         holdSentenceStyle: "skeleton",
         outroMode: "o-cards",
-        fallbackLeftPx: 7972, fallbackTopPx: 3238,
+        fallbackLeftPx: 5481, fallbackTopPx: 6106,
       },
       {
         name: "08", sheetRow: 9, fallback: "08.png",
@@ -7479,7 +7479,7 @@
         holdSentence: true,
         holdSentenceStyle: "label",
         outroMode: "o-label",
-        fallbackLeftPx: 7931, fallbackTopPx: 2747,
+        fallbackLeftPx: 6447, fallbackTopPx: 2521,
       },
       {
         name: "28", sheetRow: 29, fallback: "28.png",
@@ -7488,80 +7488,80 @@
         holdSentence: true,
         holdSentenceStyle: "conditional",
         outroMode: "o-bare-bones",
-        fallbackLeftPx: 5372, fallbackTopPx: 3230,
+        fallbackLeftPx: 10576, fallbackTopPx: 3919,
       },
       // ── 기존 추가 인스턴스 (01, 02, 11~27): breathe + decay ──
-      { name: "01", sheetRow: 2, fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "distant-read", outroMode: "o-narration", fallbackLeftPx: 5343, fallbackTopPx: 4488 },
-      { name: "02", sheetRow: 3, fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "scan", outroMode: "o-papers", fallbackLeftPx: 1271, fallbackTopPx: 851 },
-      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "dictionary", outroMode: "o-3d-map", fallbackLeftPx: 4620, fallbackTopPx: 2120 },
-      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "measure", outroMode: "o-spreadsheet", fallbackLeftPx: 1318, fallbackTopPx: 4545 },
-      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "chart", outroMode: "o-grid", fallbackLeftPx: 2856, fallbackTopPx: 2684 },
-      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cells", outroMode: "o-nodes", fallbackLeftPx: 3773, fallbackTopPx: 4433 },
-      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "network", outroMode: "o-vector", fallbackLeftPx: 4572, fallbackTopPx: 5053 },
-      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-distance", outroMode: "o-mass", fallbackLeftPx: 8703, fallbackTopPx: 2638 },
-      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "certainty", outroMode: "o-mixed", fallbackLeftPx: 1273, fallbackTopPx: 2048 },
-      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "branches", outroMode: "o-raw-cluster", fallbackLeftPx: 2849, fallbackTopPx: 5084 },
-      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "facts", outroMode: "o-long-thread", fallbackLeftPx: 1294, fallbackTopPx: 1441 },
-      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "transcribe", outroMode: "o-skeleton-story", fallbackLeftPx: 3729, fallbackTopPx: 1506 },
-      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "essence", outroMode: "o-bibliography", fallbackLeftPx: 8856, fallbackTopPx: 2144 },
-      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "indirect", outroMode: "o-journal", fallbackLeftPx: 2132, fallbackTopPx: 2068 },
-      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "archive", outroMode: "o-siren", fallbackLeftPx: 5403, fallbackTopPx: 1480 },
-      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-alert", outroMode: "o-annotated", fallbackLeftPx: 3816, fallbackTopPx: 2764 },
-      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "word-feel", outroMode: "o-body-map", fallbackLeftPx: 8710, fallbackTopPx: 3254 },
-      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "imprint", outroMode: "o-cut-cable", fallbackLeftPx: 2006, fallbackTopPx: 862 },
-      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "boundary", outroMode: "o-standby", fallbackLeftPx: 2896, fallbackTopPx: 3312 },
+      { name: "01", sheetRow: 2, fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "distant-read", outroMode: "o-narration", fallbackLeftPx: 10547, fallbackTopPx: 1763 },
+      { name: "02", sheetRow: 3, fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "scan", outroMode: "o-papers", fallbackLeftPx: 3511, fallbackTopPx: 3940 },
+      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "dictionary", outroMode: "o-3d-map", fallbackLeftPx: 4469, fallbackTopPx: 4018 },
+      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "measure", outroMode: "o-spreadsheet", fallbackLeftPx: 6414, fallbackTopPx: 4003 },
+      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "chart", outroMode: "o-grid", fallbackLeftPx: 7597, fallbackTopPx: 1091 },
+      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cells", outroMode: "o-nodes", fallbackLeftPx: 2561, fallbackTopPx: 4622 },
+      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "network", outroMode: "o-vector", fallbackLeftPx: 4431, fallbackTopPx: 1859 },
+      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-distance", outroMode: "o-mass", fallbackLeftPx: 1482, fallbackTopPx: 3249 },
+      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "certainty", outroMode: "o-mixed", fallbackLeftPx: 1381, fallbackTopPx: 3917 },
+      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "branches", outroMode: "o-raw-cluster", fallbackLeftPx: 4477, fallbackTopPx: 5341 },
+      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "facts", outroMode: "o-long-thread", fallbackLeftPx: 9547, fallbackTopPx: 5439 },
+      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "transcribe", outroMode: "o-skeleton-story", fallbackLeftPx: 8499, fallbackTopPx: 2468 },
+      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "essence", outroMode: "o-bibliography", fallbackLeftPx: 6451, fallbackTopPx: 3256 },
+      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "indirect", outroMode: "o-journal", fallbackLeftPx: 10448, fallbackTopPx: 1064 },
+      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "archive", outroMode: "o-siren", fallbackLeftPx: 7533, fallbackTopPx: 1755 },
+      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-alert", outroMode: "o-annotated", fallbackLeftPx: 8535, fallbackTopPx: 1119 },
+      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "word-feel", outroMode: "o-body-map", fallbackLeftPx: 7446, fallbackTopPx: 4666 },
+      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "imprint", outroMode: "o-cut-cable", fallbackLeftPx: 9550, fallbackTopPx: 1057 },
+      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "boundary", outroMode: "o-standby", fallbackLeftPx: 3431, fallbackTopPx: 2533 },
       // ── 신규 추가 (29~78, 80): breathe + decay ──
-      { name: "29", sheetRow: 30, fallback: "29.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "outline-only", outroMode: "o-dots", fallbackLeftPx: 2883, fallbackTopPx: 2081 },
-      { name: "30", sheetRow: 31, fallback: "30.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "sparse", outroMode: "o-grid-plane", fallbackLeftPx: 7113, fallbackTopPx: 1563 },
-      { name: "31", sheetRow: 32, fallback: "31.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "coords-confirm", outroMode: "o-tree", fallbackLeftPx: 7138, fallbackTopPx: 3302 },
-      { name: "32", sheetRow: 33, fallback: "32.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "fit-frame", outroMode: "o-files", fallbackLeftPx: 3763, fallbackTopPx: 2124 },
-      { name: "33", sheetRow: 34, fallback: "33.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "folders", outroMode: "o-packed", fallbackLeftPx: 3650, fallbackTopPx: 5155 },
-      { name: "34", sheetRow: 35, fallback: "34.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "answer-key", outroMode: "o-encyclopedia", fallbackLeftPx: 6315, fallbackTopPx: 5152 },
-      { name: "35", sheetRow: 36, fallback: "35.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "integrate", outroMode: "o-navigation", fallbackLeftPx: 7159, fallbackTopPx: 4484 },
-      { name: "36", sheetRow: 37, fallback: "36.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "route-map", outroMode: "o-key-lock", fallbackLeftPx: 4559, fallbackTopPx: 3244 },
-      { name: "37", sheetRow: 38, fallback: "37.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "clues", outroMode: "o-checklist", fallbackLeftPx: 7966, fallbackTopPx: 5038 },
-      { name: "38", sheetRow: 39, fallback: "38.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "filter-facts", outroMode: "o-status-lamp", fallbackLeftPx: 7013, fallbackTopPx: 5059 },
-      { name: "39", sheetRow: 40, fallback: "39.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "report", outroMode: "o-underlined", fallbackLeftPx: 6192, fallbackTopPx: 3877 },
-      { name: "40", sheetRow: 41, fallback: "40.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "read-line", outroMode: "o-shadow", fallbackLeftPx: 4490, fallbackTopPx: 2630 },
-      { name: "41", sheetRow: 42, fallback: "41.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "vague-locate", outroMode: "o-network", fallbackLeftPx: 5350, fallbackTopPx: 5044 },
-      { name: "42", sheetRow: 43, fallback: "42.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "mesh", outroMode: "o-log", fallbackLeftPx: 6232, fallbackTopPx: 2033 },
-      { name: "43", sheetRow: 44, fallback: "43.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "output-only", outroMode: "o-harddisk", fallbackLeftPx: 8014, fallbackTopPx: 1515 },
-      { name: "44", sheetRow: 45, fallback: "44.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "ask-around", outroMode: "o-circuit", fallbackLeftPx: 1149, fallbackTopPx: 5065 },
-      { name: "45", sheetRow: 46, fallback: "45.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "puzzle", outroMode: "o-shards", fallbackLeftPx: 2029, fallbackTopPx: 4480 },
-      { name: "46", sheetRow: 47, fallback: "46.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "fragments", outroMode: "o-cold-facts", fallbackLeftPx: 2824, fallbackTopPx: 948 },
-      { name: "47", sheetRow: 48, fallback: "47.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cool-down", outroMode: "o-realtime", fallbackLeftPx: 6358, fallbackTopPx: 4495 },
-      { name: "48", sheetRow: 49, fallback: "48.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "compute-feeling", outroMode: "o-bookmark", fallbackLeftPx: 2056, fallbackTopPx: 3842 },
-      { name: "49", sheetRow: 50, fallback: "49.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "excerpt", outroMode: "o-heavy-wave", fallbackLeftPx: 5340, fallbackTopPx: 2077 },
-      { name: "50", sheetRow: 51, fallback: "50.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "unseen-impact", outroMode: "o-core-msg", fallbackLeftPx: 7892, fallbackTopPx: 3946 },
-      { name: "51", sheetRow: 52, fallback: "51.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "lesson-only", outroMode: "o-audio", fallbackLeftPx: 7032, fallbackTopPx: 3833 },
-      { name: "52", sheetRow: 53, fallback: "52.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "sound-pulse", outroMode: "o-typewriter", fallbackLeftPx: 8870, fallbackTopPx: 3903 },
-      { name: "53", sheetRow: 54, fallback: "53.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "to-sentence", outroMode: "o-numbered", fallbackLeftPx: 7029, fallbackTopPx: 2706 },
-      { name: "54", sheetRow: 55, fallback: "54.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "line-up", outroMode: "o-definition", fallbackLeftPx: 4485, fallbackTopPx: 3903 },
-      { name: "55", sheetRow: 56, fallback: "55.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "concept-flat", outroMode: "o-mono-photo", fallbackLeftPx: 1315, fallbackTopPx: 3350 },
-      { name: "56", sheetRow: 57, fallback: "56.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "recede", outroMode: "o-wireframe", fallbackLeftPx: 4619, fallbackTopPx: 1466 },
-      { name: "57", sheetRow: 58, fallback: "57.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "rotate-3d", outroMode: "o-perf-table", fallbackLeftPx: 2033, fallbackTopPx: 5053 },
-      { name: "58", sheetRow: 59, fallback: "58.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "trait-list", outroMode: "o-mass-volume", fallbackLeftPx: 6314, fallbackTopPx: 2704 },
-      { name: "59", sheetRow: 60, fallback: "59.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "volume-sense", outroMode: "o-layers", fallbackLeftPx: 2955, fallbackTopPx: 3876 },
-      { name: "60", sheetRow: 61, fallback: "60.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "restore", outroMode: "o-pin-drop", fallbackLeftPx: 3684, fallbackTopPx: 943 },
-      { name: "61", sheetRow: 62, fallback: "61.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "pin-address", outroMode: "o-paper-frame", fallbackLeftPx: 8876, fallbackTopPx: 4549 },
-      { name: "62", sheetRow: 63, fallback: "62.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "layout-mem", outroMode: "o-arrows", fallbackLeftPx: 5481, fallbackTopPx: 2744 },
-      { name: "63", sheetRow: 64, fallback: "63.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "direction-length", outroMode: "o-ruler", fallbackLeftPx: 5467, fallbackTopPx: 861 },
-      { name: "64", sheetRow: 65, fallback: "64.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "mutual-distance", outroMode: "o-radar", fallbackLeftPx: 1223, fallbackTopPx: 2679 },
-      { name: "65", sheetRow: 66, fallback: "65.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "reflected", outroMode: "o-rotor", fallbackLeftPx: 7845, fallbackTopPx: 833 },
-      { name: "66", sheetRow: 67, fallback: "66.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "procedure", outroMode: "o-trail", fallbackLeftPx: 3695, fallbackTopPx: 3866 },
-      { name: "67", sheetRow: 68, fallback: "67.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-trace", outroMode: "o-3d-net", fallbackLeftPx: 5458, fallbackTopPx: 3963 },
-      { name: "68", sheetRow: 69, fallback: "68.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "stitch-space", outroMode: "o-floor-plan", fallbackLeftPx: 2049, fallbackTopPx: 1561 },
-      { name: "69", sheetRow: 70, fallback: "69.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "walk-blueprint", outroMode: "o-kit", fallbackLeftPx: 4677, fallbackTopPx: 963 },
-      { name: "70", sheetRow: 71, fallback: "70.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cog-machine", outroMode: "o-ledger", fallbackLeftPx: 7072, fallbackTopPx: 2060 },
-      { name: "71", sheetRow: 72, fallback: "71.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "table", outroMode: "o-annotated-file", fallbackLeftPx: 4525, fallbackTopPx: 4457 },
-      { name: "72", sheetRow: 73, fallback: "72.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "verbal-unfold", outroMode: "o-readonly", fallbackLeftPx: 7040, fallbackTopPx: 917 },
-      { name: "73", sheetRow: 74, fallback: "73.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "chronicle", outroMode: "o-position-map", fallbackLeftPx: 6340, fallbackTopPx: 3347 },
-      { name: "74", sheetRow: 75, fallback: "74.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "coord-assign", outroMode: "o-lego", fallbackLeftPx: 2895, fallbackTopPx: 1521 },
-      { name: "75", sheetRow: 76, fallback: "75.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "assemble-parts", outroMode: "o-timeline", fallbackLeftPx: 7999, fallbackTopPx: 4441 },
-      { name: "76", sheetRow: 77, fallback: "76.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "time-path", outroMode: "o-ping", fallbackLeftPx: 8812, fallbackTopPx: 957 },
-      { name: "77", sheetRow: 78, fallback: "77.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "map-pin", outroMode: "o-compass", fallbackLeftPx: 6316, fallbackTopPx: 935 },
-      { name: "78", sheetRow: 79, fallback: "78.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "self-center", outroMode: "o-graph", fallbackLeftPx: 1215, fallbackTopPx: 3854 },
-      { name: "80", sheetRow: 81, fallback: "80.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "invisible-volume", outroMode: "o-simulation", fallbackLeftPx: 2120, fallbackTopPx: 3366 },
+      { name: "29", sheetRow: 30, fallback: "29.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "outline-only", outroMode: "o-dots", fallbackLeftPx: 7535, fallbackTopPx: 3246 },
+      { name: "30", sheetRow: 31, fallback: "30.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "sparse", outroMode: "o-grid-plane", fallbackLeftPx: 6537, fallbackTopPx: 4666 },
+      { name: "31", sheetRow: 32, fallback: "31.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "coords-confirm", outroMode: "o-tree", fallbackLeftPx: 3476, fallbackTopPx: 3189 },
+      { name: "32", sheetRow: 33, fallback: "32.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "fit-frame", outroMode: "o-files", fallbackLeftPx: 7430, fallbackTopPx: 2473 },
+      { name: "33", sheetRow: 34, fallback: "33.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "folders", outroMode: "o-packed", fallbackLeftPx: 8522, fallbackTopPx: 1770 },
+      { name: "34", sheetRow: 35, fallback: "34.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "answer-key", outroMode: "o-encyclopedia", fallbackLeftPx: 5539, fallbackTopPx: 3946 },
+      { name: "35", sheetRow: 36, fallback: "35.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "integrate", outroMode: "o-navigation", fallbackLeftPx: 5481, fallbackTopPx: 5448 },
+      { name: "36", sheetRow: 37, fallback: "36.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "route-map", outroMode: "o-key-lock", fallbackLeftPx: 5494, fallbackTopPx: 4682 },
+      { name: "37", sheetRow: 38, fallback: "37.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "clues", outroMode: "o-checklist", fallbackLeftPx: 2549, fallbackTopPx: 3297 },
+      { name: "38", sheetRow: 39, fallback: "38.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "filter-facts", outroMode: "o-status-lamp", fallbackLeftPx: 7444, fallbackTopPx: 5397 },
+      { name: "39", sheetRow: 40, fallback: "39.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "report", outroMode: "o-underlined", fallbackLeftPx: 5523, fallbackTopPx: 1813 },
+      { name: "40", sheetRow: 41, fallback: "40.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "read-line", outroMode: "o-shadow", fallbackLeftPx: 3403, fallbackTopPx: 4645 },
+      { name: "41", sheetRow: 42, fallback: "41.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "vague-locate", outroMode: "o-network", fallbackLeftPx: 9602, fallbackTopPx: 3989 },
+      { name: "42", sheetRow: 43, fallback: "42.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "mesh", outroMode: "o-log", fallbackLeftPx: 8442, fallbackTopPx: 3229 },
+      { name: "43", sheetRow: 44, fallback: "43.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "output-only", outroMode: "o-harddisk", fallbackLeftPx: 3434, fallbackTopPx: 5345 },
+      { name: "44", sheetRow: 45, fallback: "44.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "ask-around", outroMode: "o-circuit", fallbackLeftPx: 1424, fallbackTopPx: 2523 },
+      { name: "45", sheetRow: 46, fallback: "45.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "puzzle", outroMode: "o-shards", fallbackLeftPx: 10621, fallbackTopPx: 2471 },
+      { name: "46", sheetRow: 47, fallback: "46.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "fragments", outroMode: "o-cold-facts", fallbackLeftPx: 2406, fallbackTopPx: 1074 },
+      { name: "47", sheetRow: 48, fallback: "47.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cool-down", outroMode: "o-realtime", fallbackLeftPx: 8489, fallbackTopPx: 5427 },
+      { name: "48", sheetRow: 49, fallback: "48.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "compute-feeling", outroMode: "o-bookmark", fallbackLeftPx: 6507, fallbackTopPx: 1853 },
+      { name: "49", sheetRow: 50, fallback: "49.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "excerpt", outroMode: "o-heavy-wave", fallbackLeftPx: 10552, fallbackTopPx: 5450 },
+      { name: "50", sheetRow: 51, fallback: "50.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "unseen-impact", outroMode: "o-core-msg", fallbackLeftPx: 3475, fallbackTopPx: 1062 },
+      { name: "51", sheetRow: 52, fallback: "51.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "lesson-only", outroMode: "o-audio", fallbackLeftPx: 4454, fallbackTopPx: 1024 },
+      { name: "52", sheetRow: 53, fallback: "52.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "sound-pulse", outroMode: "o-typewriter", fallbackLeftPx: 5513, fallbackTopPx: 1028 },
+      { name: "53", sheetRow: 54, fallback: "53.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "to-sentence", outroMode: "o-numbered", fallbackLeftPx: 4410, fallbackTopPx: 3217 },
+      { name: "54", sheetRow: 55, fallback: "54.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "line-up", outroMode: "o-definition", fallbackLeftPx: 4422, fallbackTopPx: 4628 },
+      { name: "55", sheetRow: 56, fallback: "55.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "concept-flat", outroMode: "o-mono-photo", fallbackLeftPx: 1455, fallbackTopPx: 1064 },
+      { name: "56", sheetRow: 57, fallback: "56.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "recede", outroMode: "o-wireframe", fallbackLeftPx: 9446, fallbackTopPx: 4732 },
+      { name: "57", sheetRow: 58, fallback: "57.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "rotate-3d", outroMode: "o-perf-table", fallbackLeftPx: 1506, fallbackTopPx: 1755 },
+      { name: "58", sheetRow: 59, fallback: "58.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "trait-list", outroMode: "o-mass-volume", fallbackLeftPx: 9611, fallbackTopPx: 6100 },
+      { name: "59", sheetRow: 60, fallback: "59.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "volume-sense", outroMode: "o-layers", fallbackLeftPx: 10461, fallbackTopPx: 3236 },
+      { name: "60", sheetRow: 61, fallback: "60.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "restore", outroMode: "o-pin-drop", fallbackLeftPx: 8443, fallbackTopPx: 4002 },
+      { name: "61", sheetRow: 62, fallback: "61.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "pin-address", outroMode: "o-paper-frame", fallbackLeftPx: 2551, fallbackTopPx: 3903 },
+      { name: "62", sheetRow: 63, fallback: "62.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "layout-mem", outroMode: "o-arrows", fallbackLeftPx: 9527, fallbackTopPx: 2461 },
+      { name: "63", sheetRow: 64, fallback: "63.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "direction-length", outroMode: "o-ruler", fallbackLeftPx: 2501, fallbackTopPx: 5385 },
+      { name: "64", sheetRow: 65, fallback: "64.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "mutual-distance", outroMode: "o-radar", fallbackLeftPx: 1376, fallbackTopPx: 4628 },
+      { name: "65", sheetRow: 66, fallback: "65.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "reflected", outroMode: "o-rotor", fallbackLeftPx: 6430, fallbackTopPx: 1033 },
+      { name: "66", sheetRow: 67, fallback: "66.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "procedure", outroMode: "o-trail", fallbackLeftPx: 2428, fallbackTopPx: 1789 },
+      { name: "67", sheetRow: 68, fallback: "67.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "body-trace", outroMode: "o-3d-net", fallbackLeftPx: 9497, fallbackTopPx: 1852 },
+      { name: "68", sheetRow: 69, fallback: "68.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "stitch-space", outroMode: "o-floor-plan", fallbackLeftPx: 9562, fallbackTopPx: 3234 },
+      { name: "69", sheetRow: 70, fallback: "69.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "walk-blueprint", outroMode: "o-kit", fallbackLeftPx: 7505, fallbackTopPx: 6124 },
+      { name: "70", sheetRow: 71, fallback: "70.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "cog-machine", outroMode: "o-ledger", fallbackLeftPx: 3483, fallbackTopPx: 1801 },
+      { name: "71", sheetRow: 72, fallback: "71.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "table", outroMode: "o-annotated-file", fallbackLeftPx: 4453, fallbackTopPx: 6070 },
+      { name: "72", sheetRow: 73, fallback: "72.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "verbal-unfold", outroMode: "o-readonly", fallbackLeftPx: 1378, fallbackTopPx: 5454 },
+      { name: "73", sheetRow: 74, fallback: "73.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "chronicle", outroMode: "o-position-map", fallbackLeftPx: 6434, fallbackTopPx: 6153 },
+      { name: "74", sheetRow: 75, fallback: "74.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "coord-assign", outroMode: "o-lego", fallbackLeftPx: 4516, fallbackTopPx: 2518 },
+      { name: "75", sheetRow: 76, fallback: "75.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "assemble-parts", outroMode: "o-timeline", fallbackLeftPx: 5567, fallbackTopPx: 2504 },
+      { name: "76", sheetRow: 77, fallback: "76.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "time-path", outroMode: "o-ping", fallbackLeftPx: 6439, fallbackTopPx: 5413 },
+      { name: "77", sheetRow: 78, fallback: "77.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "map-pin", outroMode: "o-compass", fallbackLeftPx: 10539, fallbackTopPx: 6150 },
+      { name: "78", sheetRow: 79, fallback: "78.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "self-center", outroMode: "o-graph", fallbackLeftPx: 10507, fallbackTopPx: 4731 },
+      { name: "80", sheetRow: 81, fallback: "80.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "invisible-volume", outroMode: "o-simulation", fallbackLeftPx: 8502, fallbackTopPx: 4650 },
     ];
 
     // 시드 기반 deterministic random (rowIndex로 일관된 jitter)
@@ -8150,7 +8150,7 @@
         const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         await new Promise((resolve) => {
           canvas.toBlob((blob) => {
-            if (blob) downloadBlob(blob, `trajectory-${stamp}.png`);
+            if (blob) downloadBlob(blob, `my Scenes without Scenes.png`);
             resolve();
           }, "image/png");
         });
