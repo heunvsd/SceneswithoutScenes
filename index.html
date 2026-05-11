@@ -59,8 +59,8 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 8000px;
-      height: 4500px;
+      width: 10000px;
+      height: 6000px;
       pointer-events: none;
     }
 
@@ -375,8 +375,8 @@
     let distance = 100;
     // 가상공간 시작 위치: (6000, 6500) — 데이터 영역 중앙 아래쪽
     // (이 좌표가 화면 중앙에 오도록 posX/posY 초기화)
-    const START_WORLD_X = 4000;
-    const START_WORLD_Y = 4000;
+    const START_WORLD_X = 5000;
+    const START_WORLD_Y = 5400;
     let posX = window.innerWidth / 2 - START_WORLD_X;
     let posY = window.innerHeight / 2 - START_WORLD_Y;
 
@@ -3128,12 +3128,12 @@
        자동 계산되어 채워짐. 시트 미연결 시 fallback 좌표 사용.
        ───────────────────────────────────────────── */
 
-    // 가상공간: 8000 × 4500 (이전 12000×7000에서 축소 — 작품 찾기 쉽도록)
-    // 데이터 영역: x 700~7300, y 500~4000
-    const WORLD_W = 8000;
-    const WORLD_H = 4500;
-    const DATA_X_MIN = 700, DATA_X_MAX = 7300;
-    const DATA_Y_MIN = 500, DATA_Y_MAX = 4000;
+    // 가상공간: 10000 × 6000 (이미지 80개 분산용)
+    // 데이터 영역: x 800~9200, y 600~5400
+    const WORLD_W = 10000;
+    const WORLD_H = 6000;
+    const DATA_X_MIN = 800, DATA_X_MAX = 9200;
+    const DATA_Y_MIN = 600, DATA_Y_MAX = 5400;
 
     // 모션 매핑 (이미지 파일명 기준)
     // 시트 데이터 도착 후 각 인스턴스 생성 시 사용
@@ -3144,8 +3144,7 @@
         holdSentence: true,
         holdSentenceStyle: "unfold",
         outroMode: "decay",
-        // 시트가 없을 때 임시 위치 (px) — 새 월드 8000×4500 기준
-        fallbackLeftPx: 600,  fallbackTopPx: 500,
+        fallbackLeftPx: 750, fallbackTopPx: 666,
       },
       {
         name: "04", sheetRow: 5, fallback: "04.png",
@@ -3153,7 +3152,7 @@
         holdSentence: true,
         holdSentenceStyle: "typewriter",
         outroMode: "coordinates",
-        fallbackLeftPx: 2100, fallbackTopPx: 800,
+        fallbackLeftPx: 2625, fallbackTopPx: 1066,
       },
       {
         name: "05", sheetRow: 6, fallback: "05.png",
@@ -3161,7 +3160,7 @@
         holdSentence: true,
         holdSentenceStyle: "assemble",
         outroMode: "outline",
-        fallbackLeftPx: 3700, fallbackTopPx: 500,
+        fallbackLeftPx: 4625, fallbackTopPx: 666,
       },
       {
         name: "79", sheetRow: 80, fallback: "79.png",
@@ -3169,7 +3168,7 @@
         holdSentence: true,
         holdSentenceStyle: "breathe",
         outroMode: "volume",
-        fallbackLeftPx: 5400, fallbackTopPx: 900,
+        fallbackLeftPx: 6750, fallbackTopPx: 1200,
       },
       {
         name: "06", sheetRow: 7, fallback: "06.png",
@@ -3177,7 +3176,7 @@
         holdSentence: true,
         holdSentenceStyle: "cascade",
         outroMode: "ripple",
-        fallbackLeftPx: 900, fallbackTopPx: 2400,
+        fallbackLeftPx: 1125, fallbackTopPx: 3200,
       },
       {
         name: "09", sheetRow: 10, fallback: "09.png",
@@ -3185,7 +3184,7 @@
         holdSentence: true,
         holdSentenceStyle: "flicker",
         outroMode: "gravity",
-        fallbackLeftPx: 2900, fallbackTopPx: 2300,
+        fallbackLeftPx: 3625, fallbackTopPx: 3066,
       },
       {
         name: "07", sheetRow: 8, fallback: "07.png",
@@ -3193,7 +3192,7 @@
         holdSentence: true,
         holdSentenceStyle: "swirl",
         outroMode: "decay",
-        fallbackLeftPx: 5000, fallbackTopPx: 2500,
+        fallbackLeftPx: 6250, fallbackTopPx: 3333,
       },
       {
         name: "10", sheetRow: 11, fallback: "10.png",
@@ -3201,7 +3200,7 @@
         holdSentence: true,
         holdSentenceStyle: "slide",
         outroMode: "ripple",
-        fallbackLeftPx: 1200, fallbackTopPx: 4050,
+        fallbackLeftPx: 1500, fallbackTopPx: 5400,
       },
       {
         name: "08", sheetRow: 9, fallback: "08.png",
@@ -3209,7 +3208,7 @@
         holdSentence: true,
         holdSentenceStyle: "materialize",
         outroMode: "volume",
-        fallbackLeftPx: 3300, fallbackTopPx: 4100,
+        fallbackLeftPx: 4125, fallbackTopPx: 5466,
       },
       {
         name: "28", sheetRow: 29, fallback: "28.png",
@@ -3218,31 +3217,80 @@
         holdSentence: true,
         holdSentenceStyle: "tumble",
         outroMode: "residue",
-        fallbackLeftPx: 5200, fallbackTopPx: 3900,
+        fallbackLeftPx: 6500, fallbackTopPx: 5200,
       },
-      // ── 추가 인스턴스: 01, 02, 11~27 (19개) ──
-      // 시트의 작성일자/시간이 있으면 자동 배치되고, 없으면 아래 fallback grid로 분산.
-      // sheetRow는 파일명 숫자 + 1 (헤더 행 보정). 모션은 일단 모두 동일 ("breathe" + "decay").
-      // 좌표는 새 월드 8000×4500 기준
-      { name: "01", sheetRow: 2,  fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 800,  fallbackTopPx: 900 },
-      { name: "02", sheetRow: 3,  fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1600, fallbackTopPx: 1300 },
-      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2400, fallbackTopPx: 1700 },
-      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3200, fallbackTopPx: 1150 },
-      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4000, fallbackTopPx: 1550 },
-      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4800, fallbackTopPx: 1050 },
-      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5600, fallbackTopPx: 1450 },
-      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6400, fallbackTopPx: 1800 },
-      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7000, fallbackTopPx: 1000 },
-      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1350, fallbackTopPx: 2200 },
-      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2150, fallbackTopPx: 2850 },
-      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3850, fallbackTopPx: 2700 },
-      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4550, fallbackTopPx: 2950 },
-      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5900, fallbackTopPx: 2800 },
-      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6700, fallbackTopPx: 2450 },
-      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 800,  fallbackTopPx: 3450 },
-      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2250, fallbackTopPx: 3700 },
-      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4250, fallbackTopPx: 3700 },
-      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6250, fallbackTopPx: 3550 },
+      // ── 기존 추가 인스턴스 (01, 02, 11~27): breathe + decay ──
+      { name: "01", sheetRow: 2, fallback: "01.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1000, fallbackTopPx: 1200 },
+      { name: "02", sheetRow: 3, fallback: "02.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2000, fallbackTopPx: 1733 },
+      { name: "11", sheetRow: 12, fallback: "11.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3000, fallbackTopPx: 2266 },
+      { name: "12", sheetRow: 13, fallback: "12.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4000, fallbackTopPx: 1533 },
+      { name: "13", sheetRow: 14, fallback: "13.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5000, fallbackTopPx: 2066 },
+      { name: "14", sheetRow: 15, fallback: "14.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6000, fallbackTopPx: 1400 },
+      { name: "15", sheetRow: 16, fallback: "15.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7000, fallbackTopPx: 1933 },
+      { name: "16", sheetRow: 17, fallback: "16.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8000, fallbackTopPx: 2400 },
+      { name: "17", sheetRow: 18, fallback: "17.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8750, fallbackTopPx: 1333 },
+      { name: "18", sheetRow: 19, fallback: "18.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1687, fallbackTopPx: 2933 },
+      { name: "19", sheetRow: 20, fallback: "19.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2687, fallbackTopPx: 3800 },
+      { name: "20", sheetRow: 21, fallback: "20.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4812, fallbackTopPx: 3600 },
+      { name: "21", sheetRow: 22, fallback: "21.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5687, fallbackTopPx: 3933 },
+      { name: "22", sheetRow: 23, fallback: "22.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7375, fallbackTopPx: 3733 },
+      { name: "23", sheetRow: 24, fallback: "23.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8375, fallbackTopPx: 3266 },
+      { name: "24", sheetRow: 25, fallback: "24.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1000, fallbackTopPx: 4600 },
+      { name: "25", sheetRow: 26, fallback: "25.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2812, fallbackTopPx: 4933 },
+      { name: "26", sheetRow: 27, fallback: "26.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5312, fallbackTopPx: 4933 },
+      { name: "27", sheetRow: 28, fallback: "27.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7812, fallbackTopPx: 4733 },
+      // ── 신규 추가 (29~78, 80): breathe + decay ──
+      { name: "29", sheetRow: 30, fallback: "29.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1235, fallbackTopPx: 852 },
+      { name: "30", sheetRow: 31, fallback: "30.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1859, fallbackTopPx: 947 },
+      { name: "31", sheetRow: 32, fallback: "31.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2799, fallbackTopPx: 1164 },
+      { name: "32", sheetRow: 33, fallback: "32.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3622, fallbackTopPx: 881 },
+      { name: "33", sheetRow: 34, fallback: "33.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4206, fallbackTopPx: 854 },
+      { name: "34", sheetRow: 35, fallback: "34.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4892, fallbackTopPx: 1082 },
+      { name: "35", sheetRow: 36, fallback: "35.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5582, fallbackTopPx: 935 },
+      { name: "36", sheetRow: 37, fallback: "36.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6584, fallbackTopPx: 1101 },
+      { name: "37", sheetRow: 38, fallback: "37.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7184, fallbackTopPx: 1122 },
+      { name: "38", sheetRow: 39, fallback: "38.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8172, fallbackTopPx: 843 },
+      { name: "39", sheetRow: 40, fallback: "39.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8934, fallbackTopPx: 1175 },
+      { name: "40", sheetRow: 41, fallback: "40.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1120, fallbackTopPx: 1874 },
+      { name: "41", sheetRow: 42, fallback: "41.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2120, fallbackTopPx: 1961 },
+      { name: "42", sheetRow: 43, fallback: "42.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2553, fallbackTopPx: 1846 },
+      { name: "43", sheetRow: 44, fallback: "43.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3605, fallbackTopPx: 2089 },
+      { name: "44", sheetRow: 45, fallback: "44.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4353, fallbackTopPx: 2150 },
+      { name: "45", sheetRow: 46, fallback: "45.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5013, fallbackTopPx: 2267 },
+      { name: "46", sheetRow: 47, fallback: "46.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5717, fallbackTopPx: 2064 },
+      { name: "47", sheetRow: 48, fallback: "47.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6653, fallbackTopPx: 2096 },
+      { name: "48", sheetRow: 49, fallback: "48.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7429, fallbackTopPx: 2077 },
+      { name: "49", sheetRow: 50, fallback: "49.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8132, fallbackTopPx: 1821 },
+      { name: "50", sheetRow: 51, fallback: "50.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8714, fallbackTopPx: 1938 },
+      { name: "51", sheetRow: 52, fallback: "51.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1021, fallbackTopPx: 2871 },
+      { name: "52", sheetRow: 53, fallback: "52.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1793, fallbackTopPx: 2893 },
+      { name: "53", sheetRow: 54, fallback: "53.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2760, fallbackTopPx: 2935 },
+      { name: "54", sheetRow: 55, fallback: "54.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3423, fallbackTopPx: 2860 },
+      { name: "55", sheetRow: 56, fallback: "55.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4147, fallbackTopPx: 3209 },
+      { name: "56", sheetRow: 57, fallback: "56.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5056, fallbackTopPx: 3052 },
+      { name: "57", sheetRow: 58, fallback: "57.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5638, fallbackTopPx: 3109 },
+      { name: "58", sheetRow: 59, fallback: "58.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6398, fallbackTopPx: 2942 },
+      { name: "59", sheetRow: 60, fallback: "59.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7477, fallbackTopPx: 3067 },
+      { name: "60", sheetRow: 61, fallback: "60.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8076, fallbackTopPx: 3088 },
+      { name: "61", sheetRow: 62, fallback: "61.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8949, fallbackTopPx: 3132 },
+      { name: "62", sheetRow: 63, fallback: "62.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1078, fallbackTopPx: 3735 },
+      { name: "63", sheetRow: 64, fallback: "63.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1874, fallbackTopPx: 3848 },
+      { name: "64", sheetRow: 65, fallback: "64.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2598, fallbackTopPx: 4172 },
+      { name: "65", sheetRow: 66, fallback: "65.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3616, fallbackTopPx: 3871 },
+      { name: "66", sheetRow: 67, fallback: "66.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4295, fallbackTopPx: 3909 },
+      { name: "67", sheetRow: 68, fallback: "67.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5158, fallbackTopPx: 3940 },
+      { name: "68", sheetRow: 69, fallback: "68.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5673, fallbackTopPx: 3838 },
+      { name: "69", sheetRow: 70, fallback: "69.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 6550, fallbackTopPx: 3846 },
+      { name: "70", sheetRow: 71, fallback: "70.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 7323, fallbackTopPx: 4150 },
+      { name: "71", sheetRow: 72, fallback: "71.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 8016, fallbackTopPx: 3825 },
+      { name: "72", sheetRow: 73, fallback: "72.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 9008, fallbackTopPx: 3964 },
+      { name: "73", sheetRow: 74, fallback: "73.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1025, fallbackTopPx: 4702 },
+      { name: "74", sheetRow: 75, fallback: "74.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 1796, fallbackTopPx: 4981 },
+      { name: "75", sheetRow: 76, fallback: "75.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 2820, fallbackTopPx: 4882 },
+      { name: "76", sheetRow: 77, fallback: "76.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 3306, fallbackTopPx: 4863 },
+      { name: "77", sheetRow: 78, fallback: "77.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 4425, fallbackTopPx: 4933 },
+      { name: "78", sheetRow: 79, fallback: "78.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5179, fallbackTopPx: 5093 },
+      { name: "80", sheetRow: 81, fallback: "80.png", framesCount: 1, holdSentence: true, holdSentenceStyle: "breathe", outroMode: "decay", fallbackLeftPx: 5577, fallbackTopPx: 5025 },
     ];
 
     // 시드 기반 deterministic random (rowIndex로 일관된 jitter)
@@ -3875,6 +3923,57 @@
         "26": "Sometimes I wonder if everyone is pretending to see, and only I am telling the truth.",
         "27": "Loss arrives as absence, not as the missing face. There is nothing to picture being gone.",
         "28": "Without the ability to see the lost loved one or relive times with them, they do tend fade from mind quicker.",
+        "29": "The world reaches me first as sound, then as words, never as a picture.",
+        "30": "I have read about gardens but never seen one in my mind.",
+        "31": "When I think of home, I think of safety — not of a room.",
+        "32": "Faces leave only the certainty of who they belonged to.",
+        "33": "I learned the names of colors long after I learned to live without seeing them.",
+        "34": "My imagination is patient. It does not insist on being shown.",
+        "35": "Books are a conversation, never a film.",
+        "36": "I am surprised when others say they 'see' something in their head.",
+        "37": "Memory is a feeling with a date attached.",
+        "38": "What I lost, I lost twice — once when it left, again when it would not come back as an image.",
+        "39": "Tomorrow does not arrive as a vision, only as a list.",
+        "40": "I cannot rehearse a face. I can only recognize it when it returns.",
+        "41": "Silence is not blackness for me. It is simply silence.",
+        "42": "The shape of grief, without a picture, is a slow steady ache.",
+        "43": "I dream as a witness, not as a participant.",
+        "44": "When I close my eyes there is only the back of my eyelids.",
+        "45": "My mother is a presence to me, not an image.",
+        "46": "I trust language because images have never been mine.",
+        "47": "Daydreams come as plans, never as scenes.",
+        "48": "The past is real to me, but it does not glow.",
+        "49": "I orient myself by feeling, not by seeing.",
+        "50": "There is no theatre in my head, only a study.",
+        "51": "I remember kindness as a temperature.",
+        "52": "Sound returns to me more vividly than sight ever did.",
+        "53": "I have walked through every room of my childhood home without picturing one.",
+        "54": "Photographs are gifts — they show me what I could not hold.",
+        "55": "My imagination is a notebook, not a cinema.",
+        "56": "I cannot rehearse a kiss in my mind, only the idea of one.",
+        "57": "When asked to picture an apple, I count its properties instead.",
+        "58": "I have grieved without ever seeing the missing face again.",
+        "59": "Memory is a kind of certainty that arrives without proof.",
+        "60": "I have always trusted what I know more than what I might have seen.",
+        "61": "There is comfort in not being haunted by images.",
+        "62": "Each year I forget the same faces in the same way.",
+        "63": "I have made peace with the blank wall behind my eyes.",
+        "64": "Other people describe their memories as if they were stills. Mine are summaries.",
+        "65": "I do not know what I am missing, only that I have always missed it.",
+        "66": "When I am told a place is beautiful, I take the word for the picture.",
+        "67": "The future for me is a structure, not a scene.",
+        "68": "I picture nothing, and yet I am full.",
+        "69": "I trust the order of memory more than its appearance.",
+        "70": "What others call vivid, I call true.",
+        "71": "I read poems as feelings, not as paintings.",
+        "72": "Some days I wonder if everyone is exaggerating their inner cinema.",
+        "73": "I am sure of my past without seeing it again.",
+        "74": "Sleep is the only place where images might still come — though I rarely remember them.",
+        "75": "My head has always been a quiet room.",
+        "76": "I am told to imagine. I write down what would be there instead.",
+        "77": "Memory is a habit, not a picture.",
+        "78": "The mind has many rooms; mine has no windows.",
+        "80": "I have lived a full life without seeing my own mind. It has been enough.",
         "79": "I can imagine an apple in front of me. I know where the skin is. I know how big it is. I can't see it.",
       };
       // fallback 위치로 인스턴스 생성
