@@ -2685,33 +2685,44 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 몸 윤곽: 4영역 (어깨/팔/가슴/다리)
-          const region = i % 4;
-          const myT = Math.floor(i / 4) / Math.max(1, Math.ceil(total / 4) - 1);
+          // 몸 윤곽: 5영역 (머리/어깨/몸통/팔/다리) — 넓게 분포
+          const region = i % 5;
+          const myT = Math.floor(i / 5) / Math.max(1, Math.ceil(total / 5) - 1);
           let bx, by;
           if (region === 0) {
-            // 어깨: 위쪽 좌우
-            bx = (myT - 0.5) * 50;
-            by = -22 + Math.sin(myT * Math.PI) * 4;
+            // 머리: 위쪽 작은 원
+            const headAngle = myT * Math.PI * 2;
+            bx = Math.cos(headAngle) * 10;
+            by = -32 + Math.sin(headAngle) * 6;
           } else if (region === 1) {
-            // 팔: 좌측 세로
-            bx = -30 + Math.sin(myT * Math.PI) * 5;
-            by = -10 + myT * 30;
+            // 어깨: 가로 더 넓게
+            bx = (myT - 0.5) * 70;
+            by = -18 + Math.sin(myT * Math.PI) * 5;
           } else if (region === 2) {
-            // 가슴: 중앙
-            bx = (myT - 0.5) * 25;
-            by = -5;
+            // 몸통: 중앙 영역 (세로로 길게)
+            bx = (myT - 0.5) * 30 + Math.sin(myT * Math.PI * 2) * 4;
+            by = -5 + myT * 18;
+          } else if (region === 3) {
+            // 팔: 양쪽 세로 (좌우 번갈아)
+            const armSide = (Math.floor(i / 5) % 2 === 0) ? -1 : 1;
+            bx = armSide * (35 + Math.sin(myT * Math.PI) * 6);
+            by = -10 + myT * 38;
           } else {
-            // 다리: 아래 세로
-            bx = (myT - 0.5) * 15;
-            by = 10 + myT * 18;
+            // 다리: 아래 좌우
+            const legSide = (Math.floor(i / 5) % 2 === 0) ? -1 : 1;
+            bx = legSide * (10 + myT * 6);
+            by = 14 + myT * 26;
           }
-          // 미세 떨림 (지도 표식)
-          const tremX = Math.sin(elapsed * 0.4 + i * 0.3) * 0.5;
-          const tremY = Math.cos(elapsed * 0.35 + i * 0.25) * 0.4;
-          const alpha = introEased * 0.72;
+          // 부드러운 호흡 (몸의 지도가 살아있다는 인상)
+          const breathX = Math.sin(elapsed * 0.3 + i * 0.3) * 1.5 + Math.cos(elapsed * 0.22 + i * 0.4) * 0.8;
+          const breathY = Math.cos(elapsed * 0.28 + i * 0.35) * 1.2 + Math.sin(elapsed * 0.2 + i * 0.25) * 0.6;
+          // 영역별 활성 펄스 (감각이 영역에 옮겨다님)
+          const regionActivePhase = elapsed * 0.4 + region * 1.2;
+          const regionActive = Math.max(0, Math.sin(regionActivePhase) - 0.5) / 0.5;
+          const alpha = introEased * (0.60 + regionActive * 0.25);
+          const scale = 0.92 + regionActive * 0.05;
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, bx + tremX + off.ox, by + tremY + off.oy, alpha, 0, 0.93);
+          writeGlyph(g, bx + breathX + off.ox, by + breathY + off.oy, alpha, 0, scale);
         }
       }
 
