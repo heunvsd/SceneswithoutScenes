@@ -2070,21 +2070,37 @@
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
+        // 5개 짧은 선분 — 위치/각도 다 다름
+        const segs = [
+          { cx: -42, cy: -16, ang:  0.4, len: 28 },
+          { cx:   8, cy: -24, ang: -0.3, len: 24 },
+          { cx:  40, cy:  -2, ang:  0.2, len: 22 },
+          { cx: -20, cy:  18, ang: -0.5, len: 30 },
+          { cx:  32, cy:  22, ang:  0.25, len: 26 },
+        ];
+        const charsPerSeg = Math.ceil(total / segs.length);
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          const segment = Math.floor(i / 4);
-          const posInSeg = i % 4;
-          const segGapX = (segment % 3) * 40 - 40;
-          const segGapY = Math.floor(segment / 3) * 20 - 15;
-          const lineX = posInSeg * 9 - 13;
-          const segPhase = segment * 0.7 + elapsed * 0.4;
+          const segIdx = Math.floor(i / charsPerSeg);
+          const posInSeg = i % charsPerSeg;
+          const seg = segs[segIdx % segs.length];
+          const t = charsPerSeg > 1 ? posInSeg / (charsPerSeg - 1) : 0.5;
+          const localX = (t - 0.5) * seg.len;
+          // 각도 회전
+          const rotX = localX * Math.cos(seg.ang);
+          const rotY = localX * Math.sin(seg.ang);
+          // 세그먼트별 on/off 펄스
+          const segPhase = segIdx * 0.7 + elapsed * 0.4;
           const on = (Math.sin(segPhase) + 1) / 2;
           const segOn = on > 0.4 ? 1 : (on > 0.2 ? (on - 0.2) / 0.2 : 0);
-          const x = segGapX + lineX * segOn;
-          const y = segGapY;
-          const alpha = introEased * (0.30 + segOn * 0.60);
+          // 미세 떨림
+          const tremX = Math.sin(elapsed * 0.5 + i * 0.3) * 0.6;
+          const tremY = Math.cos(elapsed * 0.45 + i * 0.25) * 0.5;
+          const x = seg.cx + rotX + tremX;
+          const y = seg.cy + rotY + tremY;
+          const alpha = introEased * (0.30 + segOn * 0.55);
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, 0.95);
+          writeGlyph(g, x + off.ox, y + off.oy, alpha, seg.ang * 0.5, 0.94);
         }
       }
 
@@ -2227,21 +2243,33 @@
         const total = decayGlyphs.length;
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          const segment = i % 4;
-          const posInSeg = Math.floor(i / 4);
-          const totalPerSeg = Math.ceil(total / 4);
-          const t = totalPerSeg > 1 ? posInSeg / (totalPerSeg - 1) : 0.5;
-          const W = 90, H = 50;
-          let bx, by;
-          if (segment === 0) { bx = -W/2 + t * W; by = -H/2; }
-          else if (segment === 1) { bx = W/2; by = -H/2 + t * H; }
-          else if (segment === 2) { bx = W/2 - t * W; by = H/2; }
-          else { bx = -W/2; by = H/2 - t * H; }
-          const tremX = Math.sin(elapsed * 0.5 + i * 0.3) * 0.7;
-          const tremY = Math.cos(elapsed * 0.45 + i * 0.25) * 0.7;
-          const alpha = introEased * (0.70 + Math.sin(elapsed * 0.3 + i * 0.2) * 0.10);
+          // 청사진의 작은 셀(방) 6개 - 큰 직사각형 안에 분할
+          // 셀 위치: 2행 × 3열, 셀 크기 30×24
+          const cell = i % 6;
+          const cellCol = cell % 3;
+          const cellRow = Math.floor(cell / 3);
+          const cellCx = (cellCol - 1) * 32;
+          const cellCy = (cellRow - 0.5) * 26;
+          // 셀 안에서 글자 위치 (작은 정사각형 4꼭짓점)
+          const posInCell = Math.floor(i / 6);
+          const cornerInCell = posInCell % 4;
+          const cornerOffsets = [
+            { x: -10, y: -8 }, { x: 10, y: -8 },
+            { x: 10, y:  8 }, { x: -10, y:  8 },
+          ];
+          const co = cornerOffsets[cornerInCell];
+          // 셀별 활성 펄스 (어떤 방이 켜졌다 꺼졌다)
+          const cellPhase = elapsed * 0.4 + cell * 0.8;
+          const cellOn = (Math.sin(cellPhase) + 1) / 2;
+          // 미세 떨림
+          const tremX = Math.sin(elapsed * 0.5 + i * 0.3) * 0.6;
+          const tremY = Math.cos(elapsed * 0.45 + i * 0.25) * 0.5;
+          const x = cellCx + co.x + tremX;
+          const y = cellCy + co.y + tremY;
+          const alpha = introEased * (0.55 + cellOn * 0.30);
+          const scale = 0.92 + cellOn * 0.04;
           const off = applyIntroOffset(g, introT);
-          writeGlyph(g, bx + tremX + off.ox, by + tremY + off.oy, alpha, 0, 0.95);
+          writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
       }
 
@@ -2727,30 +2755,52 @@
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
+        // 4개 케이블 조각 (각자 다른 위치, 각도)
+        // 각 조각은 5글자 짧은 일렬
+        const cableSegs = [
+          { cx: -35, cy: -18, angle: -0.2, len: 30 },
+          { cx:  30, cy: -22, angle:  0.3, len: 28 },
+          { cx: -28, cy:  18, angle:  0.15, len: 26 },
+          { cx:  35, cy:  20, angle: -0.25, len: 32 },
+        ];
+        const charsPerSeg = Math.ceil(total / cableSegs.length);
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          // 두 줄의 케이블 (위/아래)
-          const cable = i % 2;  // 0=위, 1=아래
-          const posInCable = Math.floor(i / 2);
-          const cableSize = Math.ceil(total / 2);
-          const myT = cableSize > 1 ? posInCable / (cableSize - 1) : 0.5;
-          const isCut = myT > 0.4 && myT < 0.6;
-          const baseX = (myT - 0.5) * 90;
-          const baseY = cable === 0 ? -14 : 14;
+          const segIdx = Math.floor(i / charsPerSeg);
+          const posInSeg = i % charsPerSeg;
+          const seg = cableSegs[segIdx % cableSegs.length];
+          // 케이블 안 글자 위치 (일렬)
+          const t = charsPerSeg > 1 ? posInSeg / (charsPerSeg - 1) : 0.5;
+          const localX = (t - 0.5) * seg.len;
+          // 중간 부분(40%~60%)에서 단절
+          const isCut = t > 0.4 && t < 0.6;
+          // 각도 적용 회전
+          const cosA = Math.cos(seg.angle);
+          const sinA = Math.sin(seg.angle);
+          const rotX = localX * cosA;
+          const rotY = localX * sinA;
+          let bx = seg.cx + rotX;
+          let by = seg.cy + rotY;
+          let alpha, scale;
           if (isCut) {
+            // 끊긴 구간: 위치 흩어지고 점멸
             const cutPhase = elapsed * 0.8 + i * 0.4;
             const flicker = (Math.sin(cutPhase * 5) + 1) / 2 * 0.5;
-            const offsetX = Math.sin(elapsed * 0.6 + i) * 5;
-            const offsetY = Math.cos(elapsed * 0.5 + i) * 4 + (cable === 0 ? -3 : 3);
-            const alpha = introEased * (0.20 + flicker * 0.20);
-            const off = applyIntroOffset(g, introT);
-            writeGlyph(g, baseX + offsetX + off.ox, baseY + offsetY + off.oy, alpha, 0, 0.85);
+            const offX = Math.sin(elapsed * 0.6 + i) * 4;
+            const offY = Math.cos(elapsed * 0.5 + i) * 3;
+            bx += offX;
+            by += offY - 2;
+            alpha = introEased * (0.18 + flicker * 0.20);
+            scale = 0.85;
           } else {
+            // 연결된 부분: 미세 떨림
             const tremY = Math.sin(elapsed * 0.4 + i * 0.3) * 0.6;
-            const alpha = introEased * 0.78;
-            const off = applyIntroOffset(g, introT);
-            writeGlyph(g, baseX + off.ox, baseY + tremY + off.oy, alpha, 0, 0.94);
+            by += tremY;
+            alpha = introEased * 0.74;
+            scale = 0.94;
           }
+          const off = applyIntroOffset(g, introT);
+          writeGlyph(g, bx + off.ox, by + off.oy, alpha, seg.angle * 0.3, scale);
         }
       }
 
@@ -3318,32 +3368,39 @@
         const introT = Math.min(1, elapsed / 1.5);
         const introEased = 1 - Math.pow(1 - introT, 3);
         const total = decayGlyphs.length;
+        // 6개 노드 위치 (회로의 분기점들 — 비대칭 배치)
+        const nodes = [
+          { x: -38, y: -18 }, { x:   0, y: -22 }, { x:  38, y: -16 },
+          { x: -34, y:  16 }, { x:   5, y:  20 }, { x:  36, y:  14 },
+        ];
         for (let i = 0; i < total; i++) {
           const g = decayGlyphs[i];
-          const myT = i / Math.max(1, total - 1);
-          let x, y;
-          if (myT < 0.25) {
-            const t = myT * 4;
-            x = (t - 0.5) * 80;
-            y = -25;
-          } else if (myT < 0.50) {
-            const t = (myT - 0.25) * 4;
-            x = 40;
-            y = -25 + t * 50;
-          } else if (myT < 0.75) {
-            const t = (myT - 0.50) * 4;
-            x = 40 - t * 80;
-            y = 25;
-          } else {
-            const t = (myT - 0.75) * 4;
-            x = -40;
-            y = 25 - t * 50;
+          // 글자가 노드 주위에 모여있음
+          const nodeIdx = i % nodes.length;
+          const node = nodes[nodeIdx];
+          // 노드 안에서 작은 분포 (3~4글자가 한 노드에 모임)
+          const posInNode = Math.floor(i / nodes.length);
+          const innerAngle = posInNode * Math.PI * 0.8;
+          const innerR = 5 + (posInNode % 3) * 2;
+          const innerX = Math.cos(innerAngle) * innerR;
+          const innerY = Math.sin(innerAngle) * innerR;
+          // 신호가 노드 사이를 차례로 흐름
+          const signalT = (elapsed * 0.5) % nodes.length;
+          const activeNode = Math.floor(signalT);
+          const fract = signalT - activeNode;
+          let onSignal = 0;
+          if (nodeIdx === activeNode) {
+            onSignal = Math.sin(fract * Math.PI);  // 0→1→0
+          } else if (nodeIdx === (activeNode + 1) % nodes.length) {
+            onSignal = Math.sin(fract * Math.PI) * 0.3;  // 다음 노드 약하게 (예고)
           }
-          const signalPos = (elapsed * 0.4) % 1;
-          const dist = Math.abs(myT - signalPos);
-          const onSignal = Math.exp(-dist * dist * 50);
-          const alpha = introEased * (0.40 + onSignal * 0.50);
-          const scale = 0.90 + onSignal * 0.10;
+          // 미세 부유
+          const driftX = Math.sin(elapsed * 0.4 + i * 0.3) * 0.6;
+          const driftY = Math.cos(elapsed * 0.35 + i * 0.25) * 0.5;
+          const x = node.x + innerX + driftX;
+          const y = node.y + innerY + driftY;
+          const alpha = introEased * (0.45 + onSignal * 0.45);
+          const scale = 0.88 + onSignal * 0.12;
           const off = applyIntroOffset(g, introT);
           writeGlyph(g, x + off.ox, y + off.oy, alpha, 0, scale);
         }
