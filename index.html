@@ -8,19 +8,19 @@
   <style>
     /* ───────── 로컬 폰트 ─────────
        두 가지만 사용:
-       - Vicentino: 본문/동적 텍스트 모두
-       - CelestiaAntiqua: HUD (POSITION / DISTANCE) 전용
+       - Pica10Pitch: 본문/동적 텍스트 모두
+       - AntiquaItalic: HUD / 버튼 / 프린트 UI
     */
     @font-face {
-      font-family: 'Vicentino';
-      src: url('./assets/1522 Vicentino W01 Regular.ttf') format('truetype');
+      font-family: 'Pica10Pitch';
+      src: url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
     }
     @font-face {
-      font-family: 'CelestiaAntiqua';
-      src: url('./assets/celestia-antiqua-small-caps.ttf') format('truetype');
+      font-family: 'AntiquaItalic';
+      src: url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -74,7 +74,7 @@
       padding: 4px 2px;
       cursor: pointer;
       z-index: 100;
-      font-family: 'CelestiaAntiqua';
+      font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
       line-height: 1;
@@ -107,7 +107,7 @@
       cursor: pointer;
       z-index: 50;
       pointer-events: auto;
-      font-family: 'CelestiaAntiqua';
+      font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
       line-height: 1;
@@ -131,7 +131,7 @@
     #print-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ─────────
-       HUD만 CelestiaAntiqua 사용
+       HUD만 AntiquaItalic 사용
     */
     .hud {
       position: fixed;
@@ -140,7 +140,7 @@
       z-index: 10;
       pointer-events: none;
       color: var(--ink);
-      font-family: 'CelestiaAntiqua';
+      font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
       line-height: 18px;
@@ -189,7 +189,7 @@
     }
     .reveal-text-content {
       padding: 14px 16px;
-      font-family: 'Vicentino';
+      font-family: 'Pica10Pitch';
       font-size: 14px;
       line-height: 1.55;
       color: var(--ink);
@@ -238,7 +238,7 @@
       position: absolute;
       left: 0;
       top:  0;
-      font-family: 'Vicentino';
+      font-family: 'Pica10Pitch';
       font-size: 14px;
       line-height: 1;
       color: var(--ink-outro);
@@ -268,7 +268,7 @@
       position: absolute;
       left: 0;
       top:  0;
-      font-family: 'Vicentino';
+      font-family: 'Pica10Pitch';
       font-size: 14px;
       line-height: 1;
       color: var(--ink-outro);
@@ -296,7 +296,7 @@
       position: absolute;
       left: 0;
       top:  0;
-      font-family: 'Vicentino';
+      font-family: 'Pica10Pitch';
       font-size: 14px;
       line-height: 1;
       color: var(--ink-outro);
@@ -385,7 +385,7 @@
 
     .expanded-panel-text {
       padding: 12px 18px 50px 18px;
-      font-family: 'Vicentino';
+      font-family: 'Pica10Pitch';
       font-size: 14px;
       line-height: 1.7;
       color: var(--ink-deep);
@@ -7060,7 +7060,7 @@
           sentenceCtx.translate(cx + swayX, cyBase + y);
           sentenceCtx.scale(scale, scale);
           sentenceCtx.fillStyle = INK_HOLD;
-          sentenceCtx.font = `${FONT_PX}px Vicentino`;
+          sentenceCtx.font = `${FONT_PX}px Pica10Pitch`;
           sentenceCtx.textBaseline = "middle";
           drawWrappedTextPerChar(
             sentenceCtx, b.text, 0, 0,
@@ -7079,7 +7079,7 @@
           sentTempCtx.translate(cx + swayX, cyBase + y);
           sentTempCtx.scale(scale, scale);
           sentTempCtx.fillStyle = "#ffffff";
-          sentTempCtx.font = `${FONT_PX}px Vicentino`;
+          sentTempCtx.font = `${FONT_PX}px Pica10Pitch`;
           sentTempCtx.textBaseline = "middle";
           drawWrappedTextPerChar(
             sentTempCtx, b.text, 0, 0,
@@ -8156,15 +8156,15 @@
   <title>Scenes without Scenes - Print</title>
   <style>
     @font-face {
-      font-family: 'Vicentino';
-      src: url('./assets/1522 Vicentino W01 Regular.ttf') format('truetype');
+      font-family: 'Pica10Pitch';
+      src: url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
     }
     @font-face {
-      font-family: 'CelestiaAntiqua';
-      src: url('./assets/celestia-antiqua-small-caps.ttf') format('truetype');
+      font-family: 'AntiquaItalic';
+      src: url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -8178,7 +8178,7 @@
       margin: 0;
       background: #ffffff;
       color: #6d0039;
-      font-family: 'Vicentino', Times, serif;
+      font-family: 'Pica10Pitch', Times, serif;
       font-size: 12pt;
       line-height: 1.35;
     }
@@ -8197,7 +8197,7 @@
       border: 1px solid #6d0039;
       background: #ffffff;
       color: #6d0039;
-      font-family: 'CelestiaAntiqua', Arial, sans-serif;
+      font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 12px;
       padding: 7px 10px;
       cursor: pointer;
@@ -8218,7 +8218,7 @@
     }
     h1 {
       margin: 0;
-      font-family: 'CelestiaAntiqua', Arial, sans-serif;
+      font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 34pt;
       font-weight: 400;
       line-height: 0.95;
@@ -8227,7 +8227,7 @@
     }
     .meta {
       margin-top: 18pt;
-      font-family: 'CelestiaAntiqua', Arial, sans-serif;
+      font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 9pt;
       line-height: 1.45;
       text-transform: uppercase;
@@ -8255,7 +8255,7 @@
       margin-bottom: 6pt;
       padding-bottom: 4pt;
       border-bottom: 1px solid currentColor;
-      font-family: 'CelestiaAntiqua', Arial, sans-serif;
+      font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 9pt;
       text-transform: uppercase;
     }
@@ -8366,8 +8366,8 @@
       // 캡처 전에 사용할 모든 폰트가 로드되었는지 보장 (캔버스에 그릴 때 fallback 방지)
       try {
         await Promise.all([
-          document.fonts.load("14px Vicentino"),
-          document.fonts.load("15px CelestiaAntiqua"),
+          document.fonts.load("14px Pica10Pitch"),
+          document.fonts.load("15px AntiquaItalic"),
         ]);
       } catch (e) {
         console.warn("[capture] font load failed:", e);
@@ -8435,12 +8435,12 @@
       // 궤적 텍스트 → reveal/글리프/HUD 순으로 그림 (캔버스 = viewport)
       octx.globalCompositeOperation = "source-over";
 
-      // 궤적 따라 흐르는 텍스트 — Vicentino
+      // 궤적 따라 흐르는 텍스트 — Pica10Pitch
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 14;
         if (fontPx >= 4) {
-          octx.font = `${fontPx}px Vicentino`;
+          octx.font = `${fontPx}px Pica10Pitch`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
           octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: #00cc9b
@@ -8525,13 +8525,13 @@
         } catch (e) {}
       }
 
-      // 동적 글리프들 — Vicentino (volume/decay/ripple 모션)
+      // 동적 글리프들 — Pica10Pitch (volume/decay/ripple 모션)
       // 폰트는 화면에서 보이는 14px 그대로 (줌 무관)
       const glyphs = document.querySelectorAll(
         ".text-volume-glyph, .text-decay-glyph, .text-ripple-glyph"
       );
       const glyphFontPx = 14;
-      octx.font = `${glyphFontPx}px Vicentino`;
+      octx.font = `${glyphFontPx}px Pica10Pitch`;
       octx.textBaseline = "top";
       for (const g of glyphs) {
         const r = g.getBoundingClientRect();
@@ -8549,11 +8549,11 @@
       }
       octx.globalAlpha = 1;
 
-      // reveal-text-content (흰 배경 박스) — Vicentino, 일반 모드
+      // reveal-text-content (흰 배경 박스) — Pica10Pitch, 일반 모드
       // 폰트와 패딩은 화면 px 그대로 (14, 16) — 줌 무관
       const textBlocks = document.querySelectorAll(".reveal-text-content");
       const textBoxFontPx = 14;
-      octx.font = `${textBoxFontPx}px Vicentino`;
+      octx.font = `${textBoxFontPx}px Pica10Pitch`;
       octx.fillStyle = INK_COLOR;
       for (const tb of textBlocks) {
         const txt = tb.textContent;
@@ -8582,10 +8582,10 @@
         if (line) octx.fillText(line, tl.x + 16, y);
       }
 
-      // HUD — CelestiaAntiqua (캔버스 좌하단에 고정 배치)
+      // HUD — AntiquaItalic (캔버스 좌하단에 고정 배치)
       //   DISTANCE 행은 #776c54, POSITION 행은 #00cc9b
       const hudEl = document.getElementById("hud");
-      octx.font = "15px CelestiaAntiqua";
+      octx.font = "15px AntiquaItalic";
       const lines = hudEl.innerText.split("\n");
       let hy = canvasH - 14 - (lines.length - 1) * 18 - 4;
       for (const ln of lines) {
