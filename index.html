@@ -98,14 +98,15 @@
     #capture-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
     #print-btn {
-      position: fixed;
-      top: 42px;
-      right: 18px;
+      position: absolute;
+      left: 6000px;
+      top: 6500px;
       background: transparent;
       border: none;
       padding: 4px 2px;
       cursor: pointer;
-      z-index: 100;
+      z-index: 50;
+      pointer-events: auto;
       font-family: 'CelestiaAntiqua';
       font-weight: 400;
       font-size: 15px;
@@ -117,6 +118,7 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      transform: translate(-50%, -50%);
       transition: opacity 0.18s ease, transform 0.18s ease;
     }
     #print-btn .arrow {
@@ -125,7 +127,7 @@
       transform: translateY(-1px);
     }
     #print-btn:hover { opacity: 0.7; }
-    #print-btn:active { transform: scale(0.97); }
+    #print-btn:active { transform: translate(-50%, -50%) scale(0.97); }
     #print-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ─────────
@@ -397,6 +399,7 @@
 
   <div id="world">
     <div id="reveal-root"></div>
+    <button id="print-btn" type="button" aria-label="Print confirmed scenes"><span class="label">PRINT</span><span class="arrow">↗</span></button>
   </div>
 
   <div class="hud" id="hud">
@@ -404,7 +407,6 @@
   </div>
 
   <button id="capture-btn" type="button" aria-label="Capture your scene"><span class="label">SCENES WITHOUT SCENES</span><span class="arrow">↗</span></button>
-  <button id="print-btn" type="button" aria-label="Print confirmed scenes"><span class="label">PRINT</span><span class="arrow">↗</span></button>
 
   <script>
     /* ─────────────────────────────────────────────
