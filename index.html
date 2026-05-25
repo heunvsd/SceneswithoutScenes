@@ -13,14 +13,20 @@
     */
     @font-face {
       font-family: 'Pica10Pitch';
-      src: url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
+      src:
+        local('Pica 10 Pitch'),
+        local('Pica10PitchBT-Roman'),
+        url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
     }
     @font-face {
       font-family: 'AntiquaItalic';
-      src: url('./assets/Antiqua%20Italic.ttf') format('truetype');
+      src:
+        local('Antiqua Italic'),
+        local('Antiqua-Italic'),
+        url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -32,6 +38,8 @@
       --ink-deep: #6d0039;
       --ink-hold: #6d0039;
       --ink-outro: #6d0039;
+      --pica-line-height: 1.28;
+      --antiqua-line-height: 1.2;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -77,7 +85,7 @@
       font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
-      line-height: 1;
+      line-height: var(--antiqua-line-height);
       color: var(--ink);
       letter-spacing: 0.02em;
       text-transform: uppercase;
@@ -110,7 +118,7 @@
       font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
-      line-height: 1;
+      line-height: var(--antiqua-line-height);
       color: var(--ink);
       letter-spacing: 0.02em;
       text-transform: uppercase;
@@ -143,7 +151,7 @@
       font-family: 'AntiquaItalic';
       font-weight: 400;
       font-size: 15px;
-      line-height: 18px;
+      line-height: calc(15px * var(--antiqua-line-height));
       white-space: nowrap;
       text-transform: uppercase;
     }
@@ -191,7 +199,7 @@
       padding: 14px 16px;
       font-family: 'Pica10Pitch';
       font-size: 14px;
-      line-height: 1.55;
+      line-height: var(--pica-line-height);
       color: var(--ink);
       white-space: pre-wrap;
       word-break: keep-all;
@@ -387,7 +395,7 @@
       padding: 12px 18px 50px 18px;
       font-family: 'Pica10Pitch';
       font-size: 14px;
-      line-height: 1.7;
+      line-height: var(--pica-line-height);
       color: var(--ink-deep);
       white-space: pre-wrap;
       word-break: keep-all;
@@ -416,6 +424,8 @@
     const INK_DEEP  = "#6d0039";
     const INK_HOLD  = "#6d0039";
     const INK_OUTRO = "#6d0039";
+    const PICA_LINE_HEIGHT = 1.28;
+    const ANTIQUA_LINE_HEIGHT = 1.2;
 
     /* ─────────────────────────────────────────────
        상태값
@@ -1254,7 +1264,7 @@
         document.body.appendChild(measure);
 
         const LINE_WIDTH = 360;
-        const LINE_HEIGHT = 24;
+        const LINE_HEIGHT = 14 * PICA_LINE_HEIGHT;
 
         const charWidths = [];
         for (const ch of text) {
@@ -4593,7 +4603,7 @@
         document.body.removeChild(measure);
 
         const LINE_WIDTH  = 360;
-        const LINE_HEIGHT = 24;
+        const LINE_HEIGHT = 14 * PICA_LINE_HEIGHT;
 
         const words = [];
         {
@@ -4940,7 +4950,7 @@
         sentTempCtx.imageSmoothingQuality = "high";
 
         const FONT_PX = 15;
-        const LINE_HEIGHT = FONT_PX * 1.55;
+        const LINE_HEIGHT = FONT_PX * PICA_LINE_HEIGHT;
         const MAX_WIDTH = size - 40;
         const cx = size / 2;
         const cyBase = size / 2;
@@ -8157,14 +8167,20 @@
   <style>
     @font-face {
       font-family: 'Pica10Pitch';
-      src: url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
+      src:
+        local('Pica 10 Pitch'),
+        local('Pica10PitchBT-Roman'),
+        url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
     }
     @font-face {
       font-family: 'AntiquaItalic';
-      src: url('./assets/Antiqua%20Italic.ttf') format('truetype');
+      src:
+        local('Antiqua Italic'),
+        local('Antiqua-Italic'),
+        url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -8180,7 +8196,7 @@
       color: #6d0039;
       font-family: 'Pica10Pitch', Times, serif;
       font-size: 12pt;
-      line-height: 1.35;
+      line-height: 1.28;
     }
     .screen-actions {
       position: sticky;
@@ -8221,7 +8237,7 @@
       font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 34pt;
       font-weight: 400;
-      line-height: 0.95;
+      line-height: 1.05;
       text-transform: uppercase;
       letter-spacing: 0.02em;
     }
@@ -8229,13 +8245,13 @@
       margin-top: 18pt;
       font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 9pt;
-      line-height: 1.45;
+      line-height: 1.2;
       text-transform: uppercase;
     }
     .print-note {
       max-width: 26em;
       font-size: 15pt;
-      line-height: 1.25;
+      line-height: 1.28;
     }
     .entries {
       column-count: 2;
@@ -8282,7 +8298,7 @@
       max-width: 30em;
       margin-top: 30pt;
       font-size: 16pt;
-      line-height: 1.25;
+      line-height: 1.28;
     }
     @media print {
       .screen-actions { display: none; }
@@ -8564,7 +8580,7 @@
         const tl = screenToCanvas(r.left, r.top);
         const br = screenToCanvas(r.right, r.bottom);
         const boxW = br.x - tl.x;
-        const lineHeight = textBoxFontPx * 1.55;
+        const lineHeight = textBoxFontPx * PICA_LINE_HEIGHT;
         const maxWidth = boxW - 32;
         const words = txt.split(/(\s+)/);
         let line = "";
