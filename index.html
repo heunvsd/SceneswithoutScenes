@@ -9,7 +9,8 @@
     /* ───────── 로컬 폰트 ─────────
        두 가지만 사용:
        - Pica10Pitch: 본문/동적 텍스트 모두
-       - AntiquaMixed: HUD / 버튼 / 프린트 UI (A-Z는 Monotype Corsiva)
+       - AntiquaMixed: HUD / 버튼 / 프린트 UI (A-Z는 Monotype Corsiva, 나머지는 Vivaldi)
+       - AGaramondPro: 프린트 버튼
     */
     @font-face {
       font-family: 'Pica10Pitch';
@@ -32,14 +33,19 @@
     @font-face {
       font-family: 'AntiquaMixed';
       src:
-        local('Antiqua Italic'),
-        local('Antiqua-Italic'),
-        url('./assets/Antiqua-Italic.woff') format('woff'),
-        url('./assets/Antiqua%20Italic.ttf') format('truetype');
+        local('Vivaldi'),
+        url('./assets/vivaldi.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
       unicode-range: U+0000-0040, U+005B-10FFFF;
+    }
+    @font-face {
+      font-family: 'AGaramondPro';
+      src: url('./assets/AGaramondPro-Regular.otf') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
     }
 
     /* ───────── 공통 색상 변수 ───────── */
@@ -98,7 +104,7 @@
       line-height: var(--antiqua-line-height);
       color: var(--ink);
       letter-spacing: 0;
-      text-transform: uppercase;
+      text-transform: none;
       white-space: nowrap;
       display: inline-flex;
       align-items: center;
@@ -115,28 +121,41 @@
     #capture-btn:active { transform: scale(0.97); }
     #capture-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
-    #print-btn {
+    #print-panel {
       position: absolute;
       left: 6000px;
       top: 6500px;
+      width: 450px;
+      height: 260px;
+      z-index: 50;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      background-image: url('./assets/print.png');
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: 1728px 972px;
+    }
+
+    #print-btn {
+      position: absolute;
+      left: 50px;
+      top: 182px;
       background: transparent;
       border: none;
-      padding: 4px 2px;
+      padding: 0;
       cursor: pointer;
-      z-index: 50;
       pointer-events: auto;
-      font-family: 'AntiquaMixed';
+      font-family: 'AGaramondPro';
       font-weight: 400;
-      font-size: 15px;
-      line-height: var(--antiqua-line-height);
+      font-size: 17px;
+      line-height: 1.2;
       color: var(--ink);
       letter-spacing: 0;
-      text-transform: uppercase;
+      text-transform: none;
       white-space: nowrap;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transform: translate(-50%, -50%);
       transition: opacity 0.18s ease, transform 0.18s ease;
     }
     #print-btn .arrow {
@@ -145,7 +164,7 @@
       transform: translateY(-1px);
     }
     #print-btn:hover { opacity: 0.7; }
-    #print-btn:active { transform: translate(-50%, -50%) scale(0.97); }
+    #print-btn:active { transform: scale(0.97); }
     #print-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ─────────
@@ -163,7 +182,7 @@
       font-size: 15px;
       line-height: calc(15px * var(--antiqua-line-height));
       white-space: nowrap;
-      text-transform: uppercase;
+      text-transform: none;
     }
     .hud .row { display: block; }
     .hud .row-position { color: var(--ink-outro); }
@@ -417,14 +436,16 @@
 
   <div id="world">
     <div id="reveal-root"></div>
-    <button id="print-btn" type="button" aria-label="Print confirmed scenes"><span class="label">PRINT</span><span class="arrow">↗</span></button>
+    <div id="print-panel" aria-label="Print information">
+      <button id="print-btn" type="button" aria-label="Print confirmed scenes"><span class="label">Print</span><span class="arrow">↗</span></button>
+    </div>
   </div>
 
   <div class="hud" id="hud">
-    <span class="row row-position">POSITION X:<span class="num after-colon" id="num-pos-x">000</span> Y:<span class="num after-colon" id="num-pos-y">000</span></span>
+    <span class="row row-position">Position X:<span class="num after-colon" id="num-pos-x">000</span> Y:<span class="num after-colon" id="num-pos-y">000</span></span>
   </div>
 
-  <button id="capture-btn" type="button" aria-label="Capture your scene"><span class="label">SCENES WITHOUT SCENES</span><span class="arrow">↗</span></button>
+  <button id="capture-btn" type="button" aria-label="Capture your scene"><span class="label">Scenes Without Scenes</span><span class="arrow">↗</span></button>
 
   <script>
     /* ─────────────────────────────────────────────
