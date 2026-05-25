@@ -26,6 +26,7 @@
       src:
         local('Antiqua Italic'),
         local('Antiqua-Italic'),
+        url('./assets/Antiqua-Italic.woff') format('woff'),
         url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
@@ -8180,6 +8181,7 @@
       src:
         local('Antiqua Italic'),
         local('Antiqua-Italic'),
+        url('./assets/Antiqua-Italic.woff') format('woff'),
         url('./assets/Antiqua%20Italic.ttf') format('truetype');
       font-weight: 400;
       font-style: normal;
@@ -8215,6 +8217,7 @@
       color: #6d0039;
       font-family: 'AntiquaItalic', Arial, sans-serif;
       font-size: 12px;
+      line-height: 1.2;
       padding: 7px 10px;
       cursor: pointer;
       text-transform: uppercase;
@@ -8604,12 +8607,13 @@
       const hudEl = document.getElementById("hud");
       octx.font = "15px AntiquaItalic";
       const lines = hudEl.innerText.split("\n");
-      let hy = canvasH - 14 - (lines.length - 1) * 18 - 4;
+      const hudLineHeight = 15 * ANTIQUA_LINE_HEIGHT;
+      let hy = canvasH - 14 - (lines.length - 1) * hudLineHeight - 4;
       for (const ln of lines) {
         const upper = ln.toUpperCase();
         octx.fillStyle = upper.startsWith("POSITION") ? INK_OUTRO : INK_COLOR;
         octx.fillText(upper, 16, hy);
-        hy += 18;
+        hy += hudLineHeight;
       }
 
       return out;
