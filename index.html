@@ -8367,6 +8367,7 @@
       try {
         await Promise.all([
           document.fonts.load("14px Pica10Pitch"),
+          document.fonts.load("14px AntiquaItalic"),
           document.fonts.load("15px AntiquaItalic"),
         ]);
       } catch (e) {
@@ -8435,12 +8436,12 @@
       // 궤적 텍스트 → reveal/글리프/HUD 순으로 그림 (캔버스 = viewport)
       octx.globalCompositeOperation = "source-over";
 
-      // 궤적 따라 흐르는 텍스트 — Pica10Pitch
+      // 궤적 따라 흐르는 텍스트 — AntiquaItalic
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 14;
         if (fontPx >= 4) {
-          octx.font = `${fontPx}px Pica10Pitch`;
+          octx.font = `${fontPx}px AntiquaItalic`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
           octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: #00cc9b
