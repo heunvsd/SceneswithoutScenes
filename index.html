@@ -50,10 +50,10 @@
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
-      --ink: #6d0039;       /* 모든 텍스트 통일 색상 */
-      --ink-deep: #6d0039;
-      --ink-hold: #6d0039;
-      --ink-outro: #6d0039;
+      --ink: #000000;       /* 모든 텍스트 통일 색상 */
+      --ink-deep: #000000;
+      --ink-hold: #000000;
+      --ink-outro: #000000;
       --pica-line-height: 1.28;
       --antiqua-line-height: 1.2;
     }
@@ -125,21 +125,22 @@
       position: absolute;
       left: 6000px;
       top: 6500px;
-      width: 300px;
-      height: 173px;
+      width: min(330px, calc(100vw - 12px));
+      aspect-ratio: 330 / 190;
+      height: auto;
       z-index: 50;
       pointer-events: none;
       transform: translate(-50%, -50%);
       background-image: url('./assets/print.png');
       background-repeat: no-repeat;
       background-position: center center;
-      background-size: 1188px 668px;
+      background-size: 396% 387%;
     }
 
     #print-btn {
       position: absolute;
-      left: 32px;
-      top: 121px;
+      left: 10.6%;
+      top: 59.5%;
       background: transparent;
       border: none;
       padding: 0;
@@ -451,10 +452,10 @@
     /* ─────────────────────────────────────────────
        잉크 색상 상수 (캔버스 캡처용)
        ───────────────────────────────────────────── */
-    const INK_COLOR = "#6d0039";   // 모든 텍스트 통일 색상
-    const INK_DEEP  = "#6d0039";
-    const INK_HOLD  = "#6d0039";
-    const INK_OUTRO = "#6d0039";
+    const INK_COLOR = "#000000";   // 모든 텍스트 통일 색상
+    const INK_DEEP  = "#000000";
+    const INK_HOLD  = "#000000";
+    const INK_OUTRO = "#000000";
     const PICA_LINE_HEIGHT = 1.28;
     const ANTIQUA_LINE_HEIGHT = 1.2;
 
@@ -2729,7 +2730,7 @@
           const phaseOffset = ((i / 4) % 3) * 0.15;
           if (isSirenChar) {
             const myPulse = Math.max(0, Math.min(1, pulse + Math.sin(elapsed * 8 + phaseOffset) * 0.1));
-            g.el.style.color = "#d6306b";
+            g.el.style.color = "var(--ink)";
             const alpha = introEased * (0.40 + myPulse * 0.55);
             const scale = 1 + myPulse * 0.08;
             const off = applyIntroOffset(g, introT);
@@ -7068,17 +7069,17 @@
             };
           }
 
-          // ─── 텍스트 컬러: 베이스 #6d0039 + 채도 영역 위는 밝아짐 (성능 우선) ───
+          // ─── 텍스트 컬러: 베이스 검정 + 채도 영역 위는 밝아짐 (성능 우선) ───
           //  목표:
           //    (a) 글자가 reveal 이미지 채도 영역 위에 있을 때 → 밝아짐 (핑크 톤)
-          //    (b) 글자가 흰 배경 / reveal 바깥에 있을 때 → 거의 #6d0039 그대로
+          //    (b) 글자가 흰 배경 / reveal 바깥에 있을 때 → 거의 검정 그대로
           //
           //  구현 (픽셀 처리 없음, blend mode 한 번):
-          //    1) 베이스 글자 #6d0039를 source-over로 깔기
+          //    1) 베이스 글자 검정을 source-over로 깔기
           //    2) 임시 캔버스에 글자 모양 안 reveal 이미지 클리핑
           //    3) 임시 캔버스를 메인에 'screen' 합성 (전체 알파 낮춤)
           //       → 채도 영역: reveal 색이 베이스에 더해져 핑크/밝은 톤
-          //       → 흰 영역: 알파가 낮아서 베이스(#6d0039)가 거의 그대로 보임
+          //       → 흰 영역: 알파가 낮아서 베이스 검정이 거의 그대로 보임
           if (!sentTempCanvas) {
             sentTempCanvas = document.createElement("canvas");
             sentTempCtx = sentTempCanvas.getContext("2d");
@@ -7092,7 +7093,7 @@
           sentTempCtx.imageSmoothingEnabled = true;
           sentTempCtx.imageSmoothingQuality = "high";
 
-          // ── 1) 베이스 글자 #6d0039 (source-over) ──
+          // ── 1) 베이스 글자 검정 (source-over) ──
           sentenceCtx.save();
           sentenceCtx.setTransform(1, 0, 0, 1, 0, 0);
           sentenceCtx.globalAlpha = opacity;
@@ -7140,7 +7141,7 @@
 
           // ── 3) 임시 캔버스를 메인에 'multiply'로 합성 ──
           //   multiply: 픽셀별 채널 곱셈
-          //   - 흰 픽셀 (255,255,255) × 베이스 = 베이스 그대로 → 흰 영역에선 #6d0039 유지
+          //   - 흰 픽셀 (255,255,255) × 베이스 = 베이스 그대로 → 흰 영역에선 검정 유지
           //   - 빨강 픽셀 × 베이스 = 어두운 자주/적색 (빨강 영향)
           //   - 파랑 픽셀 × 베이스 = 어두운 보라 (파랑 영향)
           //   - 노랑 픽셀 × 베이스 = 자주 + 노랑 = 갈색/올리브
@@ -8232,7 +8233,7 @@
     body {
       margin: 0;
       background: #ffffff;
-      color: #6d0039;
+      color: #000000;
       font-family: 'Pica10Pitch', Times, serif;
       font-size: 12pt;
       line-height: 1.28;
@@ -8245,13 +8246,13 @@
       justify-content: flex-end;
       padding: 10px 12px;
       background: rgba(255,255,255,0.92);
-      border-bottom: 1px solid #6d0039;
+      border-bottom: 1px solid #000000;
       z-index: 2;
     }
     .screen-actions button {
-      border: 1px solid #6d0039;
+      border: 1px solid #000000;
       background: #ffffff;
-      color: #6d0039;
+      color: #000000;
       font-family: 'AntiquaMixed', Arial, sans-serif;
       font-size: 12px;
       line-height: 1.2;
@@ -8332,7 +8333,7 @@
     }
     .about {
       font-size: 9pt;
-      opacity: 0.82;
+      opacity: 1;
     }
     .empty-state {
       max-width: 30em;
@@ -8500,7 +8501,7 @@
           octx.font = `${fontPx}px AntiquaMixed`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
-          octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: #00cc9b
+          octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: 검정
 
           // sampleAt: 캔버스 좌표계로 반환 (worldToCanvas 사용)
           function sampleAt(s) {
@@ -8640,7 +8641,7 @@
       }
 
       // HUD — AntiquaMixed (캔버스 좌하단에 고정 배치)
-      //   Position 행은 #00cc9b
+      //   Position 행도 검정
       const hudEl = document.getElementById("hud");
       octx.font = "15px AntiquaMixed";
       const lines = hudEl.innerText.split("\n");
