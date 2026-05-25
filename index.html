@@ -9,7 +9,7 @@
     /* ───────── 로컬 폰트 ─────────
        두 가지만 사용:
        - Pica10Pitch: 본문/동적 텍스트 모두
-       - AntiquaItalic: HUD / 버튼 / 프린트 UI
+       - AntiquaMixed: HUD / 버튼 / 프린트 UI (A-Z는 Monotype Corsiva)
     */
     @font-face {
       font-family: 'Pica10Pitch';
@@ -22,7 +22,15 @@
       font-display: swap;
     }
     @font-face {
-      font-family: 'AntiquaItalic';
+      font-family: 'AntiquaMixed';
+      src: url('./assets/monotype-corsiva-italic.otf') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      unicode-range: U+0041-005A;
+    }
+    @font-face {
+      font-family: 'AntiquaMixed';
       src:
         local('Antiqua Italic'),
         local('Antiqua-Italic'),
@@ -31,6 +39,7 @@
       font-weight: 400;
       font-style: normal;
       font-display: swap;
+      unicode-range: U+0000-0040, U+005B-10FFFF;
     }
 
     /* ───────── 공통 색상 변수 ───────── */
@@ -83,12 +92,12 @@
       padding: 4px 2px;
       cursor: pointer;
       z-index: 100;
-      font-family: 'AntiquaItalic';
+      font-family: 'AntiquaMixed';
       font-weight: 400;
       font-size: 15px;
       line-height: var(--antiqua-line-height);
       color: var(--ink);
-      letter-spacing: 0.02em;
+      letter-spacing: 0;
       text-transform: uppercase;
       white-space: nowrap;
       display: inline-flex;
@@ -116,12 +125,12 @@
       cursor: pointer;
       z-index: 50;
       pointer-events: auto;
-      font-family: 'AntiquaItalic';
+      font-family: 'AntiquaMixed';
       font-weight: 400;
       font-size: 15px;
       line-height: var(--antiqua-line-height);
       color: var(--ink);
-      letter-spacing: 0.02em;
+      letter-spacing: 0;
       text-transform: uppercase;
       white-space: nowrap;
       display: inline-flex;
@@ -140,7 +149,7 @@
     #print-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ─────────
-       HUD만 AntiquaItalic 사용
+       HUD만 AntiquaMixed 사용
     */
     .hud {
       position: fixed;
@@ -149,7 +158,7 @@
       z-index: 10;
       pointer-events: none;
       color: var(--ink);
-      font-family: 'AntiquaItalic';
+      font-family: 'AntiquaMixed';
       font-weight: 400;
       font-size: 15px;
       line-height: calc(15px * var(--antiqua-line-height));
@@ -8177,7 +8186,15 @@
       font-display: swap;
     }
     @font-face {
-      font-family: 'AntiquaItalic';
+      font-family: 'AntiquaMixed';
+      src: url('./assets/monotype-corsiva-italic.otf') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      unicode-range: U+0041-005A;
+    }
+    @font-face {
+      font-family: 'AntiquaMixed';
       src:
         local('Antiqua Italic'),
         local('Antiqua-Italic'),
@@ -8186,6 +8203,7 @@
       font-weight: 400;
       font-style: normal;
       font-display: swap;
+      unicode-range: U+0000-0040, U+005B-10FFFF;
     }
     @page {
       size: letter;
@@ -8215,7 +8233,7 @@
       border: 1px solid #6d0039;
       background: #ffffff;
       color: #6d0039;
-      font-family: 'AntiquaItalic', Arial, sans-serif;
+      font-family: 'AntiquaMixed', Arial, sans-serif;
       font-size: 12px;
       line-height: 1.2;
       padding: 7px 10px;
@@ -8237,16 +8255,16 @@
     }
     h1 {
       margin: 0;
-      font-family: 'AntiquaItalic', Arial, sans-serif;
+      font-family: 'AntiquaMixed', Arial, sans-serif;
       font-size: 34pt;
       font-weight: 400;
       line-height: 1.05;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
+      letter-spacing: 0;
     }
     .meta {
       margin-top: 18pt;
-      font-family: 'AntiquaItalic', Arial, sans-serif;
+      font-family: 'AntiquaMixed', Arial, sans-serif;
       font-size: 9pt;
       line-height: 1.2;
       text-transform: uppercase;
@@ -8274,7 +8292,7 @@
       margin-bottom: 6pt;
       padding-bottom: 4pt;
       border-bottom: 1px solid currentColor;
-      font-family: 'AntiquaItalic', Arial, sans-serif;
+      font-family: 'AntiquaMixed', Arial, sans-serif;
       font-size: 9pt;
       text-transform: uppercase;
     }
@@ -8386,8 +8404,8 @@
       try {
         await Promise.all([
           document.fonts.load("14px Pica10Pitch"),
-          document.fonts.load("14px AntiquaItalic"),
-          document.fonts.load("15px AntiquaItalic"),
+          document.fonts.load("14px AntiquaMixed"),
+          document.fonts.load("15px AntiquaMixed"),
         ]);
       } catch (e) {
         console.warn("[capture] font load failed:", e);
@@ -8455,12 +8473,12 @@
       // 궤적 텍스트 → reveal/글리프/HUD 순으로 그림 (캔버스 = viewport)
       octx.globalCompositeOperation = "source-over";
 
-      // 궤적 따라 흐르는 텍스트 — AntiquaItalic
+      // 궤적 따라 흐르는 텍스트 — AntiquaMixed
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
         const fontPx = 14;
         if (fontPx >= 4) {
-          octx.font = `${fontPx}px AntiquaItalic`;
+          octx.font = `${fontPx}px AntiquaMixed`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
           octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: #00cc9b
@@ -8602,10 +8620,10 @@
         if (line) octx.fillText(line, tl.x + 16, y);
       }
 
-      // HUD — AntiquaItalic (캔버스 좌하단에 고정 배치)
+      // HUD — AntiquaMixed (캔버스 좌하단에 고정 배치)
       //   DISTANCE 행은 #776c54, POSITION 행은 #00cc9b
       const hudEl = document.getElementById("hud");
-      octx.font = "15px AntiquaItalic";
+      octx.font = "15px AntiquaMixed";
       const lines = hudEl.innerText.split("\n");
       const hudLineHeight = 15 * ANTIQUA_LINE_HEIGHT;
       let hy = canvasH - 14 - (lines.length - 1) * hudLineHeight - 4;
