@@ -8025,30 +8025,14 @@
           inst.loadFrameSeries(fallback);
           inst.setText("");
           if (inst.expandable && inst.setExpandData) inst.setExpandData(fallback, "");
-          printItemsByName[inst.name] = {
-            name: inst.name,
-            row,
-            image: fallback,
-            text: "",
-            about: "",
-          };
           continue;
         }
         const filename = item[SHEET_TARGET_COL_NAME] || fallback;
-        const description = item["당사자의 직접 설명"] || "";
-        const about = item["About"] || "";
         inst.loadFrameSeries(filename);
-        inst.setText(description);
+        inst.setText(item["당사자의 직접 설명"] || "");
         if (inst.expandable && inst.setExpandData) {
-          inst.setExpandData(filename, about);
+          inst.setExpandData(filename, item["About"] || "");
         }
-        printItemsByName[inst.name] = {
-          name: inst.name,
-          row,
-          image: filename,
-          text: description,
-          about,
-        };
         console.info(`[sheet] row ${row} →`, item);
       }
     }
@@ -8057,7 +8041,6 @@
        궤적 추적
        ───────────────────────────────────────────── */
     const trajectory = [];
-    const printItemsByName = {};
     let lastTrajectoryName = null;
 
     function recordTrajectory(inst) {
@@ -8122,13 +8105,12 @@
         if (!entry.name || seen.has(entry.name)) continue;
         seen.add(entry.name);
         const cfg = getInstanceConfigByName(entry.name);
-        const stored = printItemsByName[entry.name] || {};
         items.push({
           name: entry.name,
-          row: stored.row || (cfg && cfg.sheetRow) || "",
-          image: stored.image || (cfg && cfg.fallback) || "",
-          text: stored.text || entry.text || "",
-          about: stored.about || "",
+          row: (cfg && cfg.sheetRow) || "",
+          image: (cfg && cfg.fallback) || "",
+          text: entry.text || "",
+          about: "",
           confirmedAt: entry.t,
         });
       }
@@ -8739,15 +8721,7 @@
       for (const { inst, fallback } of allInstances) {
         inst.loadFrameSeries(fallback);
         const key = fallback.replace(".png", "");
-        const text = fallbackTexts[key] || "";
-        inst.setText(text);
-        printItemsByName[inst.name] = {
-          name: inst.name,
-          row: "",
-          image: fallback,
-          text,
-          about: "",
-        };
+        inst.setText(fallbackTexts[key] || "");
       }
       console.info("[sheet] fallback (시트 미연결) — 임시 텍스트 사용");
     }
