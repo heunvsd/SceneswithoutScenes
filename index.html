@@ -161,7 +161,7 @@
       position: absolute;
       left: 6000px;
       top: 6500px;
-      width: min(1080px, calc(100vw - 72px));
+      width: min(760px, calc(100vw - 120px));
       aspect-ratio: 16 / 9;
       height: auto;
       z-index: 50;
@@ -187,8 +187,8 @@
 
     #print-btn {
       position: absolute;
-      left: 10.9%;
-      top: 59.5%;
+      left: 43.5%;
+      top: 53.6%;
       background: transparent;
       border: none;
       padding: 0;
@@ -196,7 +196,7 @@
       pointer-events: none;
       font-family: 'AGaramondPro', Garamond, serif;
       font-weight: 400;
-      font-size: 46px;
+      font-size: 32px;
       line-height: 1.2;
       color: var(--ink);
       letter-spacing: 0;
@@ -8320,28 +8320,25 @@
        ───────────────────────────────────────────── */
     const printPanel = document.getElementById("print-panel");
     const printBtn = document.getElementById("print-btn");
-    let printPanelDiscovered = false;
 
     function updatePrintPanelDiscovery(clientX, clientY) {
-      if (printPanelDiscovered || !printPanel) return;
+      if (!printPanel) return;
       const r = printPanel.getBoundingClientRect();
       const dx = Math.max(r.left - clientX, 0, clientX - r.right);
       const dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
       const distanceToPanel = Math.hypot(dx, dy);
-      if (distanceToPanel <= 260) {
-        printPanel.classList.add("is-peeking");
-      } else {
-        printPanel.classList.remove("is-peeking");
-      }
-      if (distanceToPanel <= 70) {
-        printPanelDiscovered = true;
-        printPanel.classList.remove("is-peeking");
-        printPanel.classList.add("is-discovered");
-      }
+      printPanel.classList.toggle("is-peeking", distanceToPanel <= 260 && distanceToPanel > 70);
+      printPanel.classList.toggle("is-discovered", distanceToPanel <= 70);
     }
 
     window.addEventListener("mousemove", (e) => {
       updatePrintPanelDiscovery(e.clientX, e.clientY);
+    });
+
+    window.addEventListener("mouseleave", () => {
+      if (printPanel) {
+        printPanel.classList.remove("is-peeking", "is-discovered");
+      }
     });
 
     function escapeHTML(value) {
