@@ -159,23 +159,30 @@
 
     #print-panel {
       position: absolute;
-      left: 5520px;
-      top: 6660px;
-      width: min(360px, calc(100vw - 2px));
+      left: 6000px;
+      top: 6500px;
+      width: min(1080px, calc(100vw - 72px));
       aspect-ratio: 16 / 9;
       height: auto;
       z-index: 50;
       pointer-events: none;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scale(0.96);
       background-image: url('./assets/printingbutton.png');
       background-repeat: no-repeat;
-      background-position: center center;
-      background-size: contain;
+      background-position: 33.4% 28.7%;
+      background-size: 176.5% 174.2%;
       opacity: 0;
-      transition: opacity 0.28s ease;
+      filter: blur(18px);
+      transition: opacity 0.42s ease, filter 0.42s ease, transform 0.42s ease;
+    }
+    #print-panel.is-peeking {
+      opacity: 0.28;
+      filter: blur(10px);
     }
     #print-panel.is-discovered {
       opacity: 1;
+      filter: blur(0);
+      transform: translate(-50%, -50%) scale(1);
     }
 
     #print-btn {
@@ -189,7 +196,7 @@
       pointer-events: none;
       font-family: 'AGaramondPro', Garamond, serif;
       font-weight: 400;
-      font-size: 15px;
+      font-size: 46px;
       line-height: 1.2;
       color: var(--ink);
       letter-spacing: 0;
@@ -8320,8 +8327,15 @@
       const r = printPanel.getBoundingClientRect();
       const dx = Math.max(r.left - clientX, 0, clientX - r.right);
       const dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
-      if (Math.hypot(dx, dy) <= 120) {
+      const distanceToPanel = Math.hypot(dx, dy);
+      if (distanceToPanel <= 260) {
+        printPanel.classList.add("is-peeking");
+      } else {
+        printPanel.classList.remove("is-peeking");
+      }
+      if (distanceToPanel <= 70) {
         printPanelDiscovered = true;
+        printPanel.classList.remove("is-peeking");
         printPanel.classList.add("is-discovered");
       }
     }
