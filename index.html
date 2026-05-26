@@ -187,10 +187,9 @@
 
     #print-btn {
       position: absolute;
-      left: 8.4%;
-      top: 51.4%;
-      width: 110px;
-      height: 46px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       background: transparent;
       border: none;
       padding: 0;
@@ -204,19 +203,13 @@
       letter-spacing: 0;
       text-transform: none;
       white-space: nowrap;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+      display: block;
       opacity: 1;
+      -webkit-tap-highlight-color: transparent;
       transition: transform 0.18s ease;
     }
     #print-panel.is-discovered #print-btn {
       pointer-events: auto;
-    }
-    #print-btn .label,
-    #print-btn .arrow {
-      display: inline-block;
-      opacity: 0;
     }
     #print-btn:active { transform: scale(0.97); }
     #print-btn.is-busy { pointer-events: none; }
@@ -502,7 +495,7 @@
   <div id="world">
     <div id="reveal-root"></div>
     <div id="print-panel" aria-label="Print information">
-      <button id="print-btn" type="button" aria-label="Print confirmed scenes"><span class="label">Print</span><span class="arrow">↗</span></button>
+      <button id="print-btn" type="button" aria-label="Print confirmed scenes"></button>
     </div>
   </div>
 
