@@ -1005,7 +1005,7 @@
         out.height = PRINT_TYPE_CANVAS_H;
         const oc = out.getContext("2d");
         oc.clearRect(0, 0, out.width, out.height);
-        const scale = Math.min(out.width / srcCanvas.width, out.height / srcCanvas.height) * 0.96;
+        const scale = Math.min(out.width / srcCanvas.width, out.height / srcCanvas.height);
         const dw = srcCanvas.width * scale;
         const dh = srcCanvas.height * scale;
         oc.drawImage(srcCanvas, (out.width - dw) / 2, (out.height - dh) / 2, dw, dh);
@@ -1063,7 +1063,7 @@
 
         const contentW = Math.max(1, maxX - minX);
         const contentH = Math.max(1, maxY - minY);
-        const fit = Math.min((out.width * 0.9) / contentW, (out.height * 0.86) / contentH, 5.6);
+        const fit = Math.min((out.width * 0.98) / contentW, (out.height * 0.94) / contentH, 6);
         const centerX = (minX + maxX) / 2;
         const centerY = (minY + maxY) / 2;
 
@@ -8836,8 +8836,10 @@
             <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
             <div class="motion-slot motion-slot-hold">${holdHTML}</div>
             <div class="motion-slot motion-slot-after">${afterHTML}</div>
-            <div class="sheet-text text-direct-label">Direct Statement</div>
-            <div class="sheet-text text-direct-value"><span>${escapeHTML(item.directStatement)}</span></div>
+            <div class="direct-statement-block">
+              <div class="sheet-text text-direct-label">Direct Statement</div>
+              <div class="sheet-text text-direct-value"><span>${escapeHTML(item.directStatement)}</span></div>
+            </div>
             <div class="sheet-text text-organization-label">Memory Organization</div>
             <div class="sheet-text text-organization-value">${escapeHTML(item.memoryOrganization)}</div>
             <div class="sheet-text text-format-label">Memory Format</div>
@@ -9040,8 +9042,9 @@
     .text-sdam-label,
     .text-reliving-label {
       text-decoration: underline;
-      text-underline-offset: 2px;
-      text-decoration-thickness: 0.6pt;
+      text-decoration-style: dashed;
+      text-underline-offset: 5px;
+      text-decoration-thickness: 0.5pt;
     }
     .text-title-label { left: 5mm; top: 5mm; width: 60mm; height: 7mm; }
     .text-title-value {
@@ -9052,21 +9055,38 @@
       white-space: nowrap;
       overflow: visible;
     }
-    .text-direct-label { left: 5mm; top: 102mm; width: 70mm; height: 7mm; }
-    .text-direct-value {
+    .direct-statement-block {
+      position: absolute;
+      z-index: 1;
       left: 5mm;
-      top: 108mm;
+      top: 96mm;
       width: 160mm;
-      height: 34mm;
+      height: 38mm;
       display: flex;
-      align-items: flex-end;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+    }
+    .direct-statement-block .sheet-text {
+      position: static;
+      overflow: visible;
+    }
+    .text-direct-label {
+      width: 70mm;
+      height: auto;
+    }
+    .text-direct-value {
+      width: 160mm;
+      max-height: 31mm;
+      display: block;
+      overflow: hidden;
     }
     .text-direct-value span {
       display: block;
       width: 100%;
     }
-    .text-organization-label { left: 5mm; top: 150mm; width: 84mm; height: 7mm; }
-    .text-organization-value { left: 5mm; top: 156mm; width: 104mm; height: 14mm; }
+    .text-organization-label { left: 5mm; top: 146mm; width: 84mm; height: 7mm; }
+    .text-organization-value { left: 5mm; top: 152mm; width: 104mm; height: 14mm; }
     .text-format-label { left: 74mm; top: 164mm; width: 72mm; height: 7mm; }
     .text-format-value { left: 74mm; top: 170mm; width: 106mm; height: 12mm; }
     .text-core-label { right: 5mm; top: 176mm; width: 80mm; height: 7mm; }
@@ -9080,20 +9100,19 @@
     .motion-slot {
       position: absolute;
       z-index: 1;
-      width: 44mm;
-      height: 54mm;
+      width: 46mm;
+      height: 58mm;
       overflow: hidden;
       display: grid;
       place-items: center;
-      border: 0.4pt dotted #000000;
     }
     .motion-slot-hold {
-      left: 114mm;
-      top: 18mm;
+      left: 112mm;
+      top: 16mm;
     }
     .motion-slot-after {
-      left: 160mm;
-      top: 18mm;
+      left: 159mm;
+      top: 16mm;
     }
     .motion-image {
       display: block;
