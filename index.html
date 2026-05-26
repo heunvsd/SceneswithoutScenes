@@ -119,39 +119,39 @@
       z-index: 100;
       font-family: 'AntiquaMixed';
       font-weight: 400;
-      font-size: 19pt;
+      font-size: 16px;
       line-height: var(--antiqua-line-height);
       color: var(--ink);
-      letter-spacing: 0.02em;
+      letter-spacing: 0.005em;
       text-transform: none;
       white-space: nowrap;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       transition: opacity 0.18s ease, transform 0.18s ease;
     }
     #capture-btn .mixed-label {
       display: inline-flex;
       align-items: baseline;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.012em;
       line-height: 1;
     }
     #capture-btn .mixed-label .cap {
       font-size: calc(1em + 3pt);
       line-height: 1;
-      margin-right: 0.08em;
+      margin-right: 0.018em;
     }
     #capture-btn .mixed-label .lower {
       line-height: 1;
     }
     #capture-btn .mixed-label .word-space {
-      width: 0.46em;
-      flex: 0 0 0.46em;
+      width: 0.36em;
+      flex: 0 0 0.36em;
     }
     #capture-btn .arrow {
       display: inline-block;
       font-size: 0.92em;
-      transform: translateY(4px);
+      transform: translateY(3px);
     }
     #capture-btn:hover { opacity: 0.7; }
     #capture-btn:active { transform: scale(0.97); }
@@ -159,18 +159,23 @@
 
     #print-panel {
       position: absolute;
-      left: 6000px;
-      top: 6500px;
+      left: 5520px;
+      top: 6660px;
       width: min(360px, calc(100vw - 2px));
-      aspect-ratio: 360 / 207;
+      aspect-ratio: 16 / 9;
       height: auto;
       z-index: 50;
       pointer-events: none;
       transform: translate(-50%, -50%);
-      background-image: url('./assets/print.png');
+      background-image: url('./assets/printingbutton.png');
       background-repeat: no-repeat;
       background-position: center center;
-      background-size: 396% 387%;
+      background-size: contain;
+      opacity: 0;
+      transition: opacity 0.28s ease;
+    }
+    #print-panel.is-discovered {
+      opacity: 1;
     }
 
     #print-btn {
@@ -181,9 +186,9 @@
       border: none;
       padding: 0;
       cursor: pointer;
-      pointer-events: auto;
-      font-family: var(--neutronic-font);
-      font-weight: 100;
+      pointer-events: none;
+      font-family: 'AGaramondPro', Garamond, serif;
+      font-weight: 400;
       font-size: 15px;
       line-height: 1.2;
       color: var(--ink);
@@ -194,6 +199,9 @@
       align-items: center;
       gap: 6px;
       transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    #print-panel.is-discovered #print-btn {
+      pointer-events: auto;
     }
     #print-btn .arrow {
       display: inline-block;
@@ -227,7 +235,7 @@
 
     /* ───────── Reveal Image ───────── */
     :root {
-      --reveal-image-opacity: 0.3;
+      --reveal-image-opacity: 0.2;
       --reveal-image-filter: grayscale(100%);
     }
     .reveal {
@@ -705,8 +713,13 @@
     const SHEET_TARGET_COL_NAME = "기억 주제";
 
     const IMAGE_BASE_PATH = "./assets/";
-    const REVEAL_IMAGE_OPACITY = 0.3;
+    const REVEAL_IMAGE_OPACITY = 0.2;
     const REVEAL_IMAGE_FILTER = "grayscale(100%)";
+    const MIXED_TEXT_FONT_PX = 16;
+    const MIXED_TEXT_CAP_EXTRA_PX = 4;
+    const MIXED_TEXT_CAP_GAP_EM = 0.018;
+    const MIXED_TEXT_LETTER_GAP_EM = 0.012;
+    const MIXED_TEXT_WORD_SPACE_EM = 0.36;
 
     function parseCSV(text) {
       const rows = [];
@@ -8298,7 +8311,24 @@
     /* ─────────────────────────────────────────────
        인쇄 시스템
        ───────────────────────────────────────────── */
+    const printPanel = document.getElementById("print-panel");
     const printBtn = document.getElementById("print-btn");
+    let printPanelDiscovered = false;
+
+    function updatePrintPanelDiscovery(clientX, clientY) {
+      if (printPanelDiscovered || !printPanel) return;
+      const r = printPanel.getBoundingClientRect();
+      const dx = Math.max(r.left - clientX, 0, clientX - r.right);
+      const dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
+      if (Math.hypot(dx, dy) <= 120) {
+        printPanelDiscovered = true;
+        printPanel.classList.add("is-discovered");
+      }
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      updatePrintPanelDiscovery(e.clientX, e.clientY);
+    });
 
     function escapeHTML(value) {
       return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({
@@ -8855,7 +8885,7 @@
           </section>`;
       }).join("");
 
-      const sheetHTML = items.map((item, index) => {
+      const sheetHTML = items.map((item) => {
         const holdHTML = item.holdMotionImage
           ? `<img class="motion-image motion-hold" src="${escapeHTML(item.holdMotionImage)}" alt="">`
           : "";
@@ -8865,7 +8895,6 @@
         return `
           <section class="print-sheet">
             <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
-            <div class="sheet-page-label">No.${index + 1}</div>
             <div class="sheet-text text-title-label">Memory Title</div>
             <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
             <div class="motion-slot motion-slot-hold">${holdHTML}</div>
@@ -9067,26 +9096,6 @@
       white-space: pre-wrap;
       overflow: hidden;
       letter-spacing: 0;
-    }
-    .sheet-page-label {
-      position: absolute;
-      z-index: 1;
-      right: 8mm;
-      top: 128mm;
-      width: 56mm;
-      height: 30mm;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fdfce3;
-      color: #000000;
-      font-family: 'AdobeGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 39pt;
-      line-height: 39pt;
-      letter-spacing: 0;
-      transform: rotate(-14deg);
-      transform-origin: center center;
     }
     .text-title-label,
     .text-direct-label,
@@ -9293,7 +9302,8 @@
         await Promise.all([
           document.fonts.load("14px Pica10Pitch"),
           document.fonts.load("14px AntiquaMixed"),
-          document.fonts.load("15px AntiquaMixed"),
+          document.fonts.load(`${MIXED_TEXT_FONT_PX}px AntiquaMixed`),
+          document.fonts.load(`${MIXED_TEXT_FONT_PX + MIXED_TEXT_CAP_EXTRA_PX}px AntiquaMixed`),
         ]);
       } catch (e) {
         console.warn("[capture] font load failed:", e);
@@ -9364,9 +9374,14 @@
       // 궤적 따라 흐르는 텍스트 — AntiquaMixed
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
-        const fontPx = 14;
+        const fontPx = MIXED_TEXT_FONT_PX;
+        const capFontPx = MIXED_TEXT_FONT_PX + MIXED_TEXT_CAP_EXTRA_PX;
+        const letterGap = fontPx * MIXED_TEXT_LETTER_GAP_EM;
+        const capGap = fontPx * MIXED_TEXT_CAP_GAP_EM;
+        const wordSpace = fontPx * MIXED_TEXT_WORD_SPACE_EM;
+        const isCapChar = (ch) => /^[A-Z]$/.test(ch);
+        const isLowerChar = (ch) => /^[a-z]$/.test(ch);
         if (fontPx >= 4) {
-          octx.font = `${fontPx}px AntiquaMixed`;
           octx.textBaseline = "middle";
           octx.textAlign = "left";
           octx.fillStyle = INK_OUTRO;  // 캡처 시 궤적 텍스트 컬러: 검정
@@ -9413,7 +9428,10 @@
             while (s <= pathScreenLen && safety < safetyMax) {
               safety++;
               const ch = loop[i % loop.length];
-              const chW = octx.measureText(ch).width || 4;
+              const nextCh = loop[(i + 1) % loop.length];
+              const cap = isCapChar(ch);
+              octx.font = `${cap ? capFontPx : fontPx}px AntiquaMixed`;
+              const chW = ch === " " ? wordSpace : (octx.measureText(ch).width || 4);
               if (ch !== " ") {
                 const sample = sampleAt(s);
                 octx.save();
@@ -9422,7 +9440,7 @@
                 octx.fillText(ch, 0, 0);
                 octx.restore();
               }
-              s += chW;
+              s += chW + letterGap + (cap && isLowerChar(nextCh) ? capGap : 0);
               i++;
             }
           }
