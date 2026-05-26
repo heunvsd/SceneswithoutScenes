@@ -8288,9 +8288,10 @@
       return INSTANCE_CONFIGS.find((cfg) => cfg.name === name) || null;
     }
 
-    const PRINT_SHEET_TEMPLATE = "./assets/printsheet.png";
+    const PRINT_SHEET_TEMPLATE = "./assets/printpage.png";
     const PRINT_TYPE_CANVAS_W = 1400;
     const PRINT_TYPE_CANVAS_H = 812;
+    const PRINT_EMPTY = " ";
 
     function hashString(value) {
       let h = 2166136261;
@@ -8313,7 +8314,7 @@
       };
     }
 
-    function createTypeMotionSnapshot(item, index) {
+    function createTypeMotionSnapshot(item, index, phase) {
       const canvas = document.createElement("canvas");
       canvas.width = PRINT_TYPE_CANVAS_W;
       canvas.height = PRINT_TYPE_CANVAS_H;
@@ -8323,16 +8324,16 @@
       ctx.strokeStyle = "#000000";
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
-      ctx.font = "22px Pica10Pitch, NeutronicHangeulLocal, sans-serif";
+      ctx.font = "22px Pica10Pitch, 'Courier New', monospace";
 
       const source = String(item.text || item.name || "Scenes Without Scenes")
         .replace(/\s+/g, " ")
         .trim();
       const text = source.length > 0 ? source : "Scenes Without Scenes";
       const chars = Array.from(text);
-      const seedValue = hashString(`${item.name}|${item.typeStyle}|${text}|${index}`);
+      const seedValue = hashString(`${item.name}|${item.typeStyle}|${phase}|${text}|${index}`);
       const rng = makeSeededRng(seedValue);
-      const mode = seedValue % 5;
+      const mode = (seedValue + (phase === "hold" ? 1 : 0)) % 5;
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
       const maxGlyphs = Math.min(900, Math.max(180, chars.length * 10));
@@ -8414,11 +8415,53 @@
       return canvas.toDataURL("image/png");
     }
 
+    function getSheetItemForPrint(cfg) {
+      if (!latestSheetRows || !cfg) return null;
+      return pickRowFromSheet(latestSheetRows, cfg.sheetRow);
+    }
+
+    function firstFilled(...values) {
+      for (const value of values) {
+        const str = String(value == null ? "" : value).trim();
+        if (str) return str;
+      }
+      return PRINT_EMPTY;
+    }
+
+    function formatDateForPrint(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return PRINT_EMPTY;
+      const match = raw.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+      if (!match) return raw;
+      return `${match[1]}.${match[2].padStart(2, "0")}.${match[3].padStart(2, "0")}`;
+    }
+
+    function formatTimeForPrint(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return PRINT_EMPTY;
+      const match = raw.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+      if (!match) return raw;
+      let hour = parseInt(match[1], 10);
+      const minute = match[2].padStart(2, "0");
+      const second = (match[3] || "00").padStart(2, "0");
+      const suffix = hour >= 12 ? "PM" : "AM";
+      hour = hour % 12;
+      if (hour === 0) hour = 12;
+      return `${hour}:${minute}:${second}${suffix}`;
+    }
+
+    function formatFractionForPrint(value, spaced) {
+      const raw = String(value || "").trim();
+      if (!raw) return PRINT_EMPTY;
+      const match = raw.match(/\d+/);
+      if (!match) return raw;
+      return spaced ? `${match[0]} / 4` : `${match[0]}/4`;
+    }
+
     async function preparePrintAssets() {
       if (!document.fonts) return;
       await Promise.all([
         document.fonts.load("22px Pica10Pitch"),
-        document.fonts.load("22px NeutronicHangeulLocal"),
         document.fonts.ready,
       ]).catch(() => {});
     }
@@ -8430,18 +8473,39 @@
         if (!entry.name || seen.has(entry.name)) continue;
         seen.add(entry.name);
         const cfg = getInstanceConfigByName(entry.name);
+        const sheetItem = getSheetItemForPrint(cfg) || {};
+        const inst = instanceByName[entry.name];
+        const motionSnapshots = inst && inst.getPrintMotionSnapshots
+          ? inst.getPrintMotionSnapshots()
+          : {};
         items.push({
           name: entry.name,
           row: (cfg && cfg.sheetRow) || "",
           image: (cfg && cfg.fallback) || "",
           text: entry.text || "",
+          memoryTitle: firstFilled(sheetItem["Memory Title"], `Memory ${entry.name}`),
+          directStatement: firstFilled(sheetItem["Direct Statement (Original)"], entry.text),
+          memoryOrganization: firstFilled(sheetItem["Memory Organization"]),
+          memoryFormat: firstFilled(sheetItem["Memory Format"]),
+          coreRemnant: firstFilled(sheetItem["Core Remnant"]),
+          reliving: formatFractionForPrint(sheetItem["Reliving (1-4)"], false),
+          sdamLevel: formatFractionForPrint(sheetItem["SDAM Level (1-4)"], true),
+          dateCreated: formatDateForPrint(sheetItem["Date Created"]),
+          timeCreated: formatTimeForPrint(sheetItem["Time Created"]),
           about: "",
           confirmedAt: entry.t,
           typeStyle: (cfg && (cfg.outroMode || cfg.holdSentenceStyle)) || "",
+          holdMotionImage: motionSnapshots.hold || "",
+          afterMotionImage: motionSnapshots.after || "",
         });
       }
       for (let i = 0; i < items.length; i++) {
-        items[i].typeMotionImage = createTypeMotionSnapshot(items[i], i);
+        if (!items[i].holdMotionImage) {
+          items[i].holdMotionImage = createTypeMotionSnapshot(items[i], i, "hold");
+        }
+        if (!items[i].afterMotionImage) {
+          items[i].afterMotionImage = createTypeMotionSnapshot(items[i], i, "after");
+        }
       }
       return items;
     }
@@ -8712,27 +8776,40 @@
     function buildPrintSheetDocumentHTML(items) {
       const sheetHTML = items.length > 0
         ? items.map((item) => {
-            const imagePath = resolvePrintImagePath(item.image);
-            const memoryHTML = imagePath
-              ? `<img class="slot-image memory-image" src="${escapeHTML(imagePath)}" alt="">`
+            const holdHTML = item.holdMotionImage
+              ? `<img class="motion-image motion-hold" src="${escapeHTML(item.holdMotionImage)}" alt="">`
               : "";
-            const typeHTML = item.typeMotionImage
-              ? `<img class="slot-image type-image" src="${escapeHTML(item.typeMotionImage)}" alt="">`
+            const afterHTML = item.afterMotionImage
+              ? `<img class="motion-image motion-after" src="${escapeHTML(item.afterMotionImage)}" alt="">`
               : "";
             return `
               <section class="print-sheet">
                 <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
-                <div class="slot slot-memory">${memoryHTML}</div>
-                <div class="slot slot-type">${typeHTML}</div>
+                <div class="sheet-text text-title-label">Memory Title</div>
+                <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
+                <div class="motion-slot motion-slot-hold">${holdHTML}</div>
+                <div class="motion-slot motion-slot-after">${afterHTML}</div>
+                <div class="sheet-text text-direct-label">Direct Statement</div>
+                <div class="sheet-text text-direct-value">${escapeHTML(item.directStatement)}</div>
+                <div class="sheet-text text-organization-label">Memory Organization</div>
+                <div class="sheet-text text-organization-value">${escapeHTML(item.memoryOrganization)}</div>
+                <div class="sheet-text text-format-label">Memory Format</div>
+                <div class="sheet-text text-format-value">${escapeHTML(item.memoryFormat)}</div>
+                <div class="sheet-text text-core-label">Core Remnant</div>
+                <div class="sheet-text text-core-value">${escapeHTML(item.coreRemnant)}</div>
+                <div class="sheet-text text-sdam-label">SDAM Level</div>
+                <div class="sheet-text text-sdam-value">${escapeHTML(item.sdamLevel)}</div>
+                <div class="sheet-text text-reliving-label">Reliving</div>
+                <div class="sheet-text text-reliving-value">${escapeHTML(item.reliving)}</div>
+                <div class="sheet-text text-date">${escapeHTML(item.dateCreated)}</div>
+                <div class="sheet-text text-time">${escapeHTML(item.timeCreated)}</div>
               </section>`;
           }).join("")
         : `
           <section class="print-sheet">
             <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
-            <div class="slot slot-memory"></div>
-            <div class="slot slot-type">
-              <p class="empty-state">No confirmed scenes yet.</p>
-            </div>
+            <div class="sheet-text text-title-label">Memory Title</div>
+            <div class="sheet-text text-title-value">No confirmed scenes yet.</div>
           </section>`;
 
       return `<!DOCTYPE html>
@@ -8744,24 +8821,18 @@
   <title>Scenes Without Scenes - Print Sheet</title>
   <style>
     @font-face {
-      font-family: 'NeutronicHangeulLocal';
+      font-family: 'Pica10Pitch';
       src:
-        local('Neutronic Hangeul Narrow Thin'),
-        local('NeutronicHangeul-NarrowThin'),
-        local('뉴트로닉한글 Narrow Thin'),
-        local('뉴트로닉한글 NarrowThin'),
-        local('Neutronic Hangeul'),
-        local('뉴트로닉한글');
-      font-weight: 100;
+        local('Pica 10 Pitch'),
+        local('Pica10PitchBT-Roman'),
+        url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
+      font-weight: 400;
       font-style: normal;
       font-display: swap;
     }
     @page {
       size: A4;
       margin: 0;
-    }
-    :root {
-      --neutronic-font: 'neutronic-hangeul', 'NeutronicHangeulLocal', 'Neutronic Hangeul', '뉴트로닉한글', sans-serif;
     }
     * { box-sizing: border-box; }
     html,
@@ -8770,8 +8841,10 @@
       min-height: 100%;
       background: #f2f2f2;
       color: #000000;
-      font-family: var(--neutronic-font);
-      font-weight: 100;
+      font-family: 'Pica10Pitch', 'Courier New', monospace;
+      font-weight: 400;
+      font-size: 14pt;
+      line-height: 18pt;
     }
     .screen-actions {
       position: sticky;
@@ -8788,8 +8861,8 @@
       border: 1px solid #000000;
       background: #ffffff;
       color: #000000;
-      font-family: var(--neutronic-font);
-      font-weight: 100;
+      font-family: 'Pica10Pitch', 'Courier New', monospace;
+      font-weight: 400;
       font-size: 12px;
       line-height: 1.2;
       padding: 7px 10px;
@@ -8821,36 +8894,68 @@
       pointer-events: none;
       user-select: none;
     }
-    .slot {
+    .sheet-text {
       position: absolute;
-      left: 5mm;
       z-index: 1;
-      width: 200mm;
-      border: 0.25mm solid #000000;
-      background: rgba(255,255,255,0.01);
+      font-family: 'Pica10Pitch', 'Courier New', monospace;
+      font-size: 14pt;
+      line-height: 18pt;
+      font-weight: 400;
+      color: #000000;
+      white-space: pre-wrap;
+      overflow: hidden;
+      letter-spacing: 0;
+    }
+    .text-title-label,
+    .text-direct-label,
+    .text-organization-label,
+    .text-format-label,
+    .text-core-label,
+    .text-sdam-label,
+    .text-reliving-label {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-thickness: 0.6pt;
+    }
+    .text-title-label { left: 5mm; top: 5mm; width: 60mm; height: 7mm; }
+    .text-title-value { left: 5mm; top: 11.4mm; width: 112mm; height: 17mm; }
+    .text-direct-label { left: 5mm; top: 102mm; width: 70mm; height: 7mm; }
+    .text-direct-value { left: 5mm; top: 108.5mm; width: 158mm; height: 33mm; }
+    .text-organization-label { left: 5mm; top: 150.5mm; width: 84mm; height: 7mm; }
+    .text-organization-value { left: 5mm; top: 157mm; width: 102mm; height: 13mm; }
+    .text-format-label { left: 73.8mm; top: 163.5mm; width: 72mm; height: 7mm; }
+    .text-format-value { left: 73.8mm; top: 170mm; width: 105mm; height: 12mm; }
+    .text-core-label { left: 102.8mm; top: 177.5mm; width: 70mm; height: 7mm; }
+    .text-core-value { left: 102.8mm; top: 184mm; width: 96mm; height: 12mm; }
+    .text-sdam-label { left: 73.8mm; top: 229.5mm; width: 44mm; height: 7mm; }
+    .text-sdam-value { left: 73.8mm; top: 236mm; width: 30mm; height: 7mm; }
+    .text-reliving-label { left: 136.2mm; top: 229.5mm; width: 44mm; height: 7mm; }
+    .text-reliving-value { left: 136.2mm; top: 236mm; width: 30mm; height: 7mm; }
+    .text-date { left: 5mm; top: 268.6mm; width: 60mm; height: 7mm; }
+    .text-time { left: 5mm; top: 276.4mm; width: 60mm; height: 7mm; }
+    .motion-slot {
+      position: absolute;
+      z-index: 1;
+      width: 40.2mm;
+      height: 50.1mm;
       overflow: hidden;
       display: grid;
       place-items: center;
     }
-    .slot-memory {
-      top: 20mm;
-      height: 117mm;
+    .motion-slot-hold {
+      left: 120.0mm;
+      top: 18.9mm;
     }
-    .slot-type {
-      top: 160mm;
-      height: 117mm;
+    .motion-slot-after {
+      left: 164.9mm;
+      top: 18.9mm;
     }
-    .slot-image {
+    .motion-image {
       display: block;
       width: 100%;
       height: 100%;
+      object-fit: contain;
       object-position: center center;
-    }
-    .memory-image {
-      object-fit: contain;
-    }
-    .type-image {
-      object-fit: contain;
     }
     .empty-state {
       margin: 0;
@@ -8901,8 +9006,7 @@
     function waitForFonts() {
       if (!document.fonts) return Promise.resolve();
       return Promise.all([
-        document.fonts.load('12pt neutronic-hangeul'),
-        document.fonts.load('12pt NeutronicHangeulLocal'),
+        document.fonts.load('14pt Pica10Pitch'),
         document.fonts.ready
       ]).catch(function() {});
     }
