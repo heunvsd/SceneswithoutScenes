@@ -211,6 +211,28 @@
     #print-panel.is-discovered #print-btn {
       pointer-events: auto;
     }
+    #print-btn::before {
+      content: "Print";
+      position: absolute;
+      left: 47.6%;
+      top: 51.6%;
+      font-family: 'AGaramondPro', Garamond, serif;
+      font-weight: 400;
+      font-size: 22px;
+      line-height: 1;
+      color: var(--ink);
+    }
+    #print-btn::after {
+      content: "↗";
+      position: absolute;
+      left: calc(47.6% + 60px);
+      top: 50.8%;
+      font-family: 'AGaramondPro', Garamond, serif;
+      font-weight: 400;
+      font-size: 21px;
+      line-height: 1;
+      color: var(--ink);
+    }
     #print-btn:active { transform: scale(0.97); }
     #print-btn.is-busy { pointer-events: none; }
 
