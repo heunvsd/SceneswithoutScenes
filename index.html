@@ -1005,7 +1005,7 @@
         out.height = PRINT_TYPE_CANVAS_H;
         const oc = out.getContext("2d");
         oc.clearRect(0, 0, out.width, out.height);
-        const scale = Math.min(out.width / srcCanvas.width, out.height / srcCanvas.height) * 0.92;
+        const scale = Math.min(out.width / srcCanvas.width, out.height / srcCanvas.height) * 0.96;
         const dw = srcCanvas.width * scale;
         const dh = srcCanvas.height * scale;
         oc.drawImage(srcCanvas, (out.width - dw) / 2, (out.height - dh) / 2, dw, dh);
@@ -1063,7 +1063,7 @@
 
         const contentW = Math.max(1, maxX - minX);
         const contentH = Math.max(1, maxY - minY);
-        const fit = Math.min((out.width * 0.82) / contentW, (out.height * 0.76) / contentH, 5.2);
+        const fit = Math.min((out.width * 0.9) / contentW, (out.height * 0.86) / contentH, 5.6);
         const centerX = (minX + maxX) / 2;
         const centerY = (minY + maxY) / 2;
 
@@ -8774,43 +8774,84 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      const sheetHTML = items.length > 0
-        ? items.map((item) => {
-            const holdHTML = item.holdMotionImage
-              ? `<img class="motion-image motion-hold" src="${escapeHTML(item.holdMotionImage)}" alt="">`
-              : "";
-            const afterHTML = item.afterMotionImage
-              ? `<img class="motion-image motion-after" src="${escapeHTML(item.afterMotionImage)}" alt="">`
-              : "";
-            return `
-              <section class="print-sheet">
-                <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
-                <div class="sheet-text text-title-label">Memory Title</div>
-                <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
-                <div class="motion-slot motion-slot-hold">${holdHTML}</div>
-                <div class="motion-slot motion-slot-after">${afterHTML}</div>
-                <div class="sheet-text text-direct-label">Direct Statement</div>
-                <div class="sheet-text text-direct-value">${escapeHTML(item.directStatement)}</div>
-                <div class="sheet-text text-organization-label">Memory Organization</div>
-                <div class="sheet-text text-organization-value">${escapeHTML(item.memoryOrganization)}</div>
-                <div class="sheet-text text-format-label">Memory Format</div>
-                <div class="sheet-text text-format-value">${escapeHTML(item.memoryFormat)}</div>
-                <div class="sheet-text text-core-label">Core Remnant</div>
-                <div class="sheet-text text-core-value">${escapeHTML(item.coreRemnant)}</div>
-                <div class="sheet-text text-sdam-label">SDAM Level</div>
-                <div class="sheet-text text-sdam-value">${escapeHTML(item.sdamLevel)}</div>
-                <div class="sheet-text text-reliving-label">Reliving</div>
-                <div class="sheet-text text-reliving-value">${escapeHTML(item.reliving)}</div>
-                <div class="sheet-text text-date">${escapeHTML(item.dateCreated)}</div>
-                <div class="sheet-text text-time">${escapeHTML(item.timeCreated)}</div>
-              </section>`;
-          }).join("")
-        : `
+      function splitContentsLabel(value, fallback) {
+        const words = String(value || fallback || "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .split(" ")
+          .filter(Boolean);
+        if (words.length === 0) return PRINT_EMPTY;
+        const lines = [];
+        let current = "";
+        for (const word of words) {
+          const next = current ? `${current} ${word}` : word;
+          if (next.length > 13 && current) {
+            lines.push(current);
+            current = word;
+          } else {
+            current = next;
+          }
+        }
+        if (current) lines.push(current);
+        return lines.slice(0, 4).join("\n");
+      }
+
+      const contentsItemsPerPage = 6;
+      const contentsTops = [58, 96, 134, 172, 210, 248];
+      const contentsPageCount = Math.max(1, Math.ceil(items.length / contentsItemsPerPage));
+      const contentsHTML = Array.from({ length: contentsPageCount }, (_, pageIndex) => {
+        const start = pageIndex * contentsItemsPerPage;
+        const pageItems = items.slice(start, start + contentsItemsPerPage);
+        const rowsHTML = pageItems.length > 0
+          ? pageItems.map((item, localIndex) => {
+              const order = start + localIndex + 1;
+              const printPage = contentsPageCount + order;
+              const label = splitContentsLabel(item.memoryOrganization, `Memory ${order}`);
+              return `
+                <li class="contents-row" style="--row-top: ${contentsTops[localIndex]}mm;">
+                  <div class="contents-left">${escapeHTML(label)}</div>
+                  <div class="contents-memory-title">${escapeHTML(item.memoryTitle)}</div>
+                  <div class="contents-page-no">${String(printPage).padStart(2, "0")}</div>
+                </li>`;
+            }).join("")
+          : `<li class="contents-empty">No confirmed scenes yet.</li>`;
+        return `
+          <section class="print-sheet contents-page">
+            <h1 class="contents-title">Contents</h1>
+            <ol class="contents-list">${rowsHTML}</ol>
+          </section>`;
+      }).join("");
+
+      const sheetHTML = items.map((item) => {
+        const holdHTML = item.holdMotionImage
+          ? `<img class="motion-image motion-hold" src="${escapeHTML(item.holdMotionImage)}" alt="">`
+          : "";
+        const afterHTML = item.afterMotionImage
+          ? `<img class="motion-image motion-after" src="${escapeHTML(item.afterMotionImage)}" alt="">`
+          : "";
+        return `
           <section class="print-sheet">
             <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
             <div class="sheet-text text-title-label">Memory Title</div>
-            <div class="sheet-text text-title-value">No confirmed scenes yet.</div>
+            <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
+            <div class="motion-slot motion-slot-hold">${holdHTML}</div>
+            <div class="motion-slot motion-slot-after">${afterHTML}</div>
+            <div class="sheet-text text-direct-label">Direct Statement</div>
+            <div class="sheet-text text-direct-value"><span>${escapeHTML(item.directStatement)}</span></div>
+            <div class="sheet-text text-organization-label">Memory Organization</div>
+            <div class="sheet-text text-organization-value">${escapeHTML(item.memoryOrganization)}</div>
+            <div class="sheet-text text-format-label">Memory Format</div>
+            <div class="sheet-text text-format-value">${escapeHTML(item.memoryFormat)}</div>
+            <div class="sheet-text text-core-label">Core Remnant</div>
+            <div class="sheet-text text-core-value">${escapeHTML(item.coreRemnant)}</div>
+            <div class="sheet-text text-sdam-label">SDAM Level</div>
+            <div class="sheet-text text-sdam-value">${escapeHTML(item.sdamLevel)}</div>
+            <div class="sheet-text text-reliving-label">Reliving</div>
+            <div class="sheet-text text-reliving-value">${escapeHTML(item.reliving)}</div>
+            <div class="sheet-text text-date">${escapeHTML(item.dateCreated)}</div>
+            <div class="sheet-text text-time">${escapeHTML(item.timeCreated)}</div>
           </section>`;
+      }).join("");
 
       return `<!DOCTYPE html>
 <html lang="ko">
@@ -8826,6 +8867,16 @@
         local('Pica 10 Pitch'),
         local('Pica10PitchBT-Roman'),
         url('./assets/Pica%2010%20Pitch%20Regular.otf') format('opentype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'AdobeGaramondPro';
+      src:
+        local('Adobe Garamond Pro'),
+        local('AGaramondPro-Regular'),
+        url('./assets/AGaramondPro-Regular.otf') format('opentype');
       font-weight: 400;
       font-style: normal;
       font-display: swap;
@@ -8894,6 +8945,81 @@
       pointer-events: none;
       user-select: none;
     }
+    .contents-page {
+      padding: 5mm;
+    }
+    .contents-title {
+      position: absolute;
+      left: 5mm;
+      top: 8mm;
+      width: 200mm;
+      margin: 0;
+      font-family: 'AdobeGaramondPro', Garamond, serif;
+      font-weight: 400;
+      font-size: 14pt;
+      line-height: 18pt;
+      letter-spacing: 0;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .contents-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .contents-row {
+      position: absolute;
+      left: 5mm;
+      top: var(--row-top);
+      width: 200mm;
+      min-height: 28mm;
+      color: #000000;
+    }
+    .contents-left {
+      position: absolute;
+      left: 9mm;
+      top: 0;
+      width: 54mm;
+      font-family: 'Pica10Pitch', 'Courier New', monospace;
+      font-size: 15pt;
+      line-height: 20pt;
+      white-space: pre-line;
+    }
+    .contents-memory-title {
+      position: absolute;
+      left: 70mm;
+      top: 0;
+      width: 94mm;
+      font-family: 'AdobeGaramondPro', Garamond, serif;
+      font-weight: 400;
+      font-size: 20pt;
+      line-height: 24pt;
+      letter-spacing: 0;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .contents-page-no {
+      position: absolute;
+      right: 18mm;
+      top: 0;
+      width: 18mm;
+      font-family: 'AdobeGaramondPro', Garamond, serif;
+      font-size: 18pt;
+      line-height: 22pt;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .contents-empty {
+      position: absolute;
+      left: 5mm;
+      top: 134mm;
+      width: 200mm;
+      list-style: none;
+      font-family: 'Pica10Pitch', 'Courier New', monospace;
+      font-size: 14pt;
+      line-height: 18pt;
+      text-align: center;
+    }
     .sheet-text {
       position: absolute;
       z-index: 1;
@@ -8918,37 +9044,56 @@
       text-decoration-thickness: 0.6pt;
     }
     .text-title-label { left: 5mm; top: 5mm; width: 60mm; height: 7mm; }
-    .text-title-value { left: 5mm; top: 11.4mm; width: 112mm; height: 17mm; }
+    .text-title-value {
+      left: 5mm;
+      top: 12mm;
+      width: 200mm;
+      height: 8mm;
+      white-space: nowrap;
+      overflow: visible;
+    }
     .text-direct-label { left: 5mm; top: 102mm; width: 70mm; height: 7mm; }
-    .text-direct-value { left: 5mm; top: 108.5mm; width: 158mm; height: 33mm; }
-    .text-organization-label { left: 5mm; top: 150.5mm; width: 84mm; height: 7mm; }
-    .text-organization-value { left: 5mm; top: 157mm; width: 102mm; height: 13mm; }
-    .text-format-label { left: 73.8mm; top: 163.5mm; width: 72mm; height: 7mm; }
-    .text-format-value { left: 73.8mm; top: 170mm; width: 105mm; height: 12mm; }
-    .text-core-label { left: 102.8mm; top: 177.5mm; width: 70mm; height: 7mm; }
-    .text-core-value { left: 102.8mm; top: 184mm; width: 96mm; height: 12mm; }
-    .text-sdam-label { left: 73.8mm; top: 229.5mm; width: 44mm; height: 7mm; }
-    .text-sdam-value { left: 73.8mm; top: 236mm; width: 30mm; height: 7mm; }
-    .text-reliving-label { left: 136.2mm; top: 229.5mm; width: 44mm; height: 7mm; }
-    .text-reliving-value { left: 136.2mm; top: 236mm; width: 30mm; height: 7mm; }
-    .text-date { left: 5mm; top: 268.6mm; width: 60mm; height: 7mm; }
-    .text-time { left: 5mm; top: 276.4mm; width: 60mm; height: 7mm; }
+    .text-direct-value {
+      left: 5mm;
+      top: 108mm;
+      width: 160mm;
+      height: 34mm;
+      display: flex;
+      align-items: flex-end;
+    }
+    .text-direct-value span {
+      display: block;
+      width: 100%;
+    }
+    .text-organization-label { left: 5mm; top: 150mm; width: 84mm; height: 7mm; }
+    .text-organization-value { left: 5mm; top: 156mm; width: 104mm; height: 14mm; }
+    .text-format-label { left: 74mm; top: 164mm; width: 72mm; height: 7mm; }
+    .text-format-value { left: 74mm; top: 170mm; width: 106mm; height: 12mm; }
+    .text-core-label { right: 5mm; top: 176mm; width: 80mm; height: 7mm; }
+    .text-core-value { right: 5mm; top: 182mm; width: 80mm; height: 16mm; }
+    .text-sdam-label { left: 74mm; top: 230mm; width: 44mm; height: 7mm; }
+    .text-sdam-value { left: 74mm; top: 236mm; width: 30mm; height: 7mm; }
+    .text-reliving-label { left: 144mm; top: 230mm; width: 44mm; height: 7mm; }
+    .text-reliving-value { left: 144mm; top: 236mm; width: 30mm; height: 7mm; }
+    .text-date { left: 5mm; top: 268mm; width: 60mm; height: 7mm; }
+    .text-time { left: 5mm; top: 276mm; width: 60mm; height: 7mm; }
     .motion-slot {
       position: absolute;
       z-index: 1;
-      width: 40.2mm;
-      height: 50.1mm;
+      width: 44mm;
+      height: 54mm;
       overflow: hidden;
       display: grid;
       place-items: center;
+      border: 0.4pt dotted #000000;
     }
     .motion-slot-hold {
-      left: 120.0mm;
-      top: 18.9mm;
+      left: 114mm;
+      top: 18mm;
     }
     .motion-slot-after {
-      left: 164.9mm;
-      top: 18.9mm;
+      left: 160mm;
+      top: 18mm;
     }
     .motion-image {
       display: block;
@@ -8991,7 +9136,7 @@
     <button type="button" onclick="window.print()">Print / Save PDF</button>
     <button type="button" onclick="window.close()">Close</button>
   </div>
-  <main class="print-stack">${sheetHTML}</main>
+  <main class="print-stack">${contentsHTML}${sheetHTML}</main>
   <script>
     function waitForImages() {
       var images = Array.prototype.slice.call(document.images);
@@ -9007,6 +9152,7 @@
       if (!document.fonts) return Promise.resolve();
       return Promise.all([
         document.fonts.load('14pt Pica10Pitch'),
+        document.fonts.load('48pt AdobeGaramondPro'),
         document.fonts.ready
       ]).catch(function() {});
     }
