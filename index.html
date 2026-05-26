@@ -995,6 +995,102 @@
       let isHolding = false;
       let isVolumeMode = false;
       let holdStartTime = 0;
+      let lastHoldMotionImage = "";
+      let lastAfterMotionImage = "";
+
+      function renderCanvasContainSnapshot(srcCanvas) {
+        if (!srcCanvas || srcCanvas.width <= 0 || srcCanvas.height <= 0) return "";
+        const out = document.createElement("canvas");
+        out.width = PRINT_TYPE_CANVAS_W;
+        out.height = PRINT_TYPE_CANVAS_H;
+        const oc = out.getContext("2d");
+        oc.clearRect(0, 0, out.width, out.height);
+        const scale = Math.min(out.width / srcCanvas.width, out.height / srcCanvas.height) * 0.92;
+        const dw = srcCanvas.width * scale;
+        const dh = srcCanvas.height * scale;
+        oc.drawImage(srcCanvas, (out.width - dw) / 2, (out.height - dh) / 2, dw, dh);
+        return out.toDataURL("image/png");
+      }
+
+      function parseGlyphTransform(transformText) {
+        const transform = String(transformText || "");
+        const translate = transform.match(/translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)/);
+        const rotate = transform.match(/rotate\(([-0-9.]+)rad\)/);
+        const scaleMatch = transform.match(/scale\(([-0-9.]+)\)/);
+        return {
+          x: translate ? parseFloat(translate[1]) : 0,
+          y: translate ? parseFloat(translate[2]) : 0,
+          rot: rotate ? parseFloat(rotate[1]) : 0,
+          scale: scaleMatch ? parseFloat(scaleMatch[1]) : 1,
+        };
+      }
+
+      function renderGlyphSnapshot(glyphs) {
+        if (!glyphs || glyphs.length === 0) return "";
+        const parsed = [];
+        for (const g of glyphs) {
+          if (!g || !g.el) continue;
+          const t = parseGlyphTransform(g.el.style.transform);
+          const opacity = parseFloat(g.el.style.opacity || "1");
+          parsed.push({
+            ch: g.el.textContent || "",
+            x: t.x,
+            y: t.y,
+            rot: t.rot,
+            scale: t.scale,
+            opacity: Number.isFinite(opacity) ? opacity : 1,
+          });
+        }
+        if (!parsed.length) return "";
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const p of parsed) {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        }
+
+        const out = document.createElement("canvas");
+        out.width = PRINT_TYPE_CANVAS_W;
+        out.height = PRINT_TYPE_CANVAS_H;
+        const oc = out.getContext("2d");
+        oc.clearRect(0, 0, out.width, out.height);
+        oc.fillStyle = "#000000";
+        oc.textAlign = "center";
+        oc.textBaseline = "middle";
+        oc.font = "30px Pica10Pitch";
+
+        const contentW = Math.max(1, maxX - minX);
+        const contentH = Math.max(1, maxY - minY);
+        const fit = Math.min((out.width * 0.82) / contentW, (out.height * 0.76) / contentH, 5.2);
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+
+        oc.save();
+        oc.translate(out.width / 2, out.height / 2);
+        oc.scale(fit, fit);
+        oc.translate(-centerX, -centerY);
+        for (const p of parsed) {
+          if (!p.ch || p.opacity <= 0.01) continue;
+          oc.save();
+          oc.globalAlpha = Math.max(0, Math.min(1, p.opacity));
+          oc.translate(p.x, p.y);
+          oc.rotate(p.rot);
+          oc.scale(p.scale, p.scale);
+          oc.fillText(p.ch, 0, 0);
+          oc.restore();
+        }
+        oc.restore();
+        return out.toDataURL("image/png");
+      }
+
+      function renderActiveTextMotionSnapshot() {
+        if (decayGlyphs && decayGlyphs.length > 0) return renderGlyphSnapshot(decayGlyphs);
+        if (volumeGlyphs && volumeGlyphs.length > 0) return renderGlyphSnapshot(volumeGlyphs);
+        if (rippleGlyphs && rippleGlyphs.length > 0) return renderGlyphSnapshot(rippleGlyphs);
+        return "";
+      }
 
       function startHold() {
         if (!interactive) return;
@@ -7201,6 +7297,7 @@
         if (frameLoopTimer) { clearInterval(frameLoopTimer); frameLoopTimer = null; }
 
         if (holdSentence) {
+          lastHoldMotionImage = renderCanvasContainSnapshot(sentenceCanvas);
           teardownSentenceText();
         }
 
@@ -7223,6 +7320,11 @@
           } else {
             buildVolumeText(fullText);
           }
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              lastAfterMotionImage = renderActiveTextMotionSnapshot();
+            });
+          });
         }
       }
 
@@ -7638,6 +7740,10 @@
         getExpandData,
         name: config.name || "",
         setOnInfluenceEnter: (fn) => { onInfluenceEnter = fn; },
+        getPrintMotionSnapshots: () => ({
+          hold: lastHoldMotionImage || renderCanvasContainSnapshot(sentenceCanvas),
+          after: lastAfterMotionImage || renderActiveTextMotionSnapshot(),
+        }),
       };
       revealInstances.push(instance);
       return instance;
@@ -7856,6 +7962,7 @@
     // 인스턴스들이 채워질 객체 (이름 → instance)
     const instanceByName = {};
     const allInstances = [];  // 기존 코드 호환 ({inst, row, fallback})
+    let latestSheetRows = null;
 
     // 시트 row들에서 작성일자/시간을 읽어 min/max 계산 + 각 인스턴스 위치 계산
     function computePositionsFromSheet(rows) {
@@ -8101,6 +8208,7 @@
     });
 
     function applyRowsToInstances(rows) {
+      latestSheetRows = rows;
       for (const { inst, row, fallback } of allInstances) {
         const item = pickRowFromSheet(rows, row);
         if (!item) {
