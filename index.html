@@ -1021,6 +1021,13 @@
         }
 
         if (holdSentence) {
+          trail.length = 0;
+          prevMX = -9999;
+          prevMY = -9999;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (baseCtx && baseCanvas) {
+            baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+          }
           buildSentenceText(fullText);
         }
       }
@@ -7360,6 +7367,18 @@
           return;
         }
 
+        if (isHolding && holdSentence) {
+          prevMX = -9999;
+          prevMY = -9999;
+          trail.length = 0;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (baseCtx && baseCanvas) {
+            baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+          }
+          requestAnimationFrame(tick);
+          return;
+        }
+
         // 일반 모드의 trail 생성 — 아래 inInfluence 변수는 위에서 계산된 값 재사용
         const dx = Math.max(rect.left - mouseX, 0, mouseX - rect.right);
         const dy = Math.max(rect.top  - mouseY, 0, mouseY - rect.bottom);
@@ -8161,6 +8180,141 @@
       return INSTANCE_CONFIGS.find((cfg) => cfg.name === name) || null;
     }
 
+    const PRINT_SHEET_TEMPLATE = "./assets/printsheet.png";
+    const PRINT_TYPE_CANVAS_W = 1400;
+    const PRINT_TYPE_CANVAS_H = 812;
+
+    function hashString(value) {
+      let h = 2166136261;
+      const str = String(value || "");
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function makeSeededRng(seedValue) {
+      let t = seedValue >>> 0;
+      return function() {
+        t += 0x6D2B79F5;
+        let r = t;
+        r = Math.imul(r ^ (r >>> 15), r | 1);
+        r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function createTypeMotionSnapshot(item, index) {
+      const canvas = document.createElement("canvas");
+      canvas.width = PRINT_TYPE_CANVAS_W;
+      canvas.height = PRINT_TYPE_CANVAS_H;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#000000";
+      ctx.strokeStyle = "#000000";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      ctx.font = "22px Pica10Pitch, NeutronicHangeulLocal, sans-serif";
+
+      const source = String(item.text || item.name || "Scenes Without Scenes")
+        .replace(/\s+/g, " ")
+        .trim();
+      const text = source.length > 0 ? source : "Scenes Without Scenes";
+      const chars = Array.from(text);
+      const seedValue = hashString(`${item.name}|${item.typeStyle}|${text}|${index}`);
+      const rng = makeSeededRng(seedValue);
+      const mode = seedValue % 5;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const maxGlyphs = Math.min(900, Math.max(180, chars.length * 10));
+      const points = [];
+
+      for (let i = 0; i < maxGlyphs; i++) {
+        const ch = chars[i % chars.length];
+        if (ch === " ") continue;
+        const n = i / Math.max(1, maxGlyphs - 1);
+        let x, y, rot = 0, scale = 1;
+
+        if (mode === 0) {
+          const cluster = i % 4;
+          const angle = (cluster / 4) * Math.PI * 2 + rng() * 0.5;
+          const anchorX = cx + Math.cos(angle) * 310;
+          const anchorY = cy + Math.sin(angle) * 170;
+          x = anchorX + (rng() - 0.5) * 210;
+          y = anchorY + (rng() - 0.5) * 150;
+          rot = (rng() - 0.5) * 0.28;
+          scale = 0.78 + rng() * 0.42;
+        } else if (mode === 1) {
+          const cols = 24;
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const rowCount = Math.ceil(maxGlyphs / cols);
+          x = cx + (col - (cols - 1) / 2) * 42 + Math.sin(row * 0.7 + index) * 8;
+          y = cy + (row - (rowCount - 1) / 2) * 31 + Math.cos(col * 0.5 + index) * 5;
+          rot = Math.sin(i * 0.19 + index) * 0.05;
+          scale = 0.72 + ((i + index) % 5) * 0.07;
+        } else if (mode === 2) {
+          const angle = n * Math.PI * 9 + rng() * 0.4;
+          const radius = 40 + n * 360;
+          x = cx + Math.cos(angle) * radius;
+          y = cy + Math.sin(angle) * radius * 0.52;
+          rot = angle * 0.12;
+          scale = 0.78 + Math.sin(n * Math.PI) * 0.32;
+        } else if (mode === 3) {
+          x = 120 + n * (canvas.width - 240);
+          y = cy + Math.sin(n * Math.PI * 8 + index) * 150 + Math.sin(n * Math.PI * 21) * 24;
+          rot = Math.cos(n * Math.PI * 6) * 0.13;
+          scale = 0.78 + Math.sin(n * Math.PI * 2) * 0.16;
+        } else {
+          const nodeX = cx + (rng() - 0.5) * 940;
+          const nodeY = cy + (rng() - 0.5) * 520;
+          x = nodeX + Math.sin(i * 0.37) * 18;
+          y = nodeY + Math.cos(i * 0.29) * 12;
+          rot = (rng() - 0.5) * 0.18;
+          scale = 0.62 + rng() * 0.42;
+        }
+
+        points.push({ ch, x, y, rot, scale, alpha: 0.46 + rng() * 0.48 });
+      }
+
+      if (mode === 4) {
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < points.length - 1; i += 7) {
+          const a = points[i];
+          const b = points[(i + 13) % points.length];
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      for (const p of points) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.scale(p.scale, p.scale);
+        ctx.fillText(p.ch, 0, 0);
+        ctx.restore();
+      }
+
+      return canvas.toDataURL("image/png");
+    }
+
+    async function preparePrintAssets() {
+      if (!document.fonts) return;
+      await Promise.all([
+        document.fonts.load("22px Pica10Pitch"),
+        document.fonts.load("22px NeutronicHangeulLocal"),
+        document.fonts.ready,
+      ]).catch(() => {});
+    }
+
     function getPrintableItems() {
       const seen = new Set();
       const items = [];
@@ -8175,7 +8329,11 @@
           text: entry.text || "",
           about: "",
           confirmedAt: entry.t,
+          typeStyle: (cfg && (cfg.outroMode || cfg.holdSentenceStyle)) || "",
         });
+      }
+      for (let i = 0; i < items.length; i++) {
+        items[i].typeMotionImage = createTypeMotionSnapshot(items[i], i);
       }
       return items;
     }
@@ -8443,7 +8601,218 @@
 </html>`;
     }
 
-    function openPrintDocument() {
+    function buildPrintSheetDocumentHTML(items) {
+      const sheetHTML = items.length > 0
+        ? items.map((item) => {
+            const imagePath = resolvePrintImagePath(item.image);
+            const memoryHTML = imagePath
+              ? `<img class="slot-image memory-image" src="${escapeHTML(imagePath)}" alt="">`
+              : "";
+            const typeHTML = item.typeMotionImage
+              ? `<img class="slot-image type-image" src="${escapeHTML(item.typeMotionImage)}" alt="">`
+              : "";
+            return `
+              <section class="print-sheet">
+                <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
+                <div class="slot slot-memory">${memoryHTML}</div>
+                <div class="slot slot-type">${typeHTML}</div>
+              </section>`;
+          }).join("")
+        : `
+          <section class="print-sheet">
+            <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
+            <div class="slot slot-memory"></div>
+            <div class="slot slot-type">
+              <p class="empty-state">No confirmed scenes yet.</p>
+            </div>
+          </section>`;
+
+      return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${escapeHTML(document.baseURI)}">
+  <title>Scenes Without Scenes - Print Sheet</title>
+  <style>
+    @font-face {
+      font-family: 'NeutronicHangeulLocal';
+      src:
+        local('Neutronic Hangeul Narrow Thin'),
+        local('NeutronicHangeul-NarrowThin'),
+        local('뉴트로닉한글 Narrow Thin'),
+        local('뉴트로닉한글 NarrowThin'),
+        local('Neutronic Hangeul'),
+        local('뉴트로닉한글');
+      font-weight: 100;
+      font-style: normal;
+      font-display: swap;
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    :root {
+      --neutronic-font: 'neutronic-hangeul', 'NeutronicHangeulLocal', 'Neutronic Hangeul', '뉴트로닉한글', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #f2f2f2;
+      color: #000000;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
+    }
+    .screen-actions {
+      position: sticky;
+      top: 0;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid #000000;
+      z-index: 3;
+    }
+    .screen-actions button {
+      border: 1px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
+      font-size: 12px;
+      line-height: 1.2;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .print-stack {
+      display: grid;
+      gap: 16px;
+      justify-content: center;
+      padding: 18px 0;
+    }
+    .print-sheet {
+      position: relative;
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 3px 20px rgba(0,0,0,0.18);
+      break-after: page;
+      page-break-after: always;
+    }
+    .sheet-background {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      pointer-events: none;
+      user-select: none;
+    }
+    .slot {
+      position: absolute;
+      left: 5mm;
+      z-index: 1;
+      width: 200mm;
+      border: 0.25mm solid #000000;
+      background: rgba(255,255,255,0.01);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+    .slot-memory {
+      top: 20mm;
+      height: 117mm;
+    }
+    .slot-type {
+      top: 160mm;
+      height: 117mm;
+    }
+    .slot-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-position: center center;
+    }
+    .memory-image {
+      object-fit: contain;
+    }
+    .type-image {
+      object-fit: contain;
+    }
+    .empty-state {
+      margin: 0;
+      padding: 0 12mm;
+      font-size: 12pt;
+      line-height: 1.35;
+      text-align: center;
+    }
+    @media print {
+      html,
+      body {
+        width: 210mm;
+        background: #ffffff;
+      }
+      .screen-actions { display: none; }
+      .print-stack {
+        display: block;
+        padding: 0;
+      }
+      .print-sheet {
+        margin: 0;
+        box-shadow: none;
+      }
+      .print-sheet:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen-actions">
+    <button type="button" onclick="window.print()">Print / Save PDF</button>
+    <button type="button" onclick="window.close()">Close</button>
+  </div>
+  <main class="print-stack">${sheetHTML}</main>
+  <script>
+    function waitForImages() {
+      var images = Array.prototype.slice.call(document.images);
+      return Promise.all(images.map(function(img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function(resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+    function waitForFonts() {
+      if (!document.fonts) return Promise.resolve();
+      return Promise.all([
+        document.fonts.load('12pt neutronic-hangeul'),
+        document.fonts.load('12pt NeutronicHangeulLocal'),
+        document.fonts.ready
+      ]).catch(function() {});
+    }
+    window.addEventListener('load', function() {
+      Promise.all([waitForImages(), waitForFonts()]).then(function() {
+        setTimeout(function() {
+          window.focus();
+          window.print();
+        }, 350);
+      });
+    });
+  <\/script>
+</body>
+</html>`;
+    }
+
+    async function openPrintDocument() {
+      await preparePrintAssets();
       const items = getPrintableItems();
       const printWindow = window.open("", "_blank");
       if (!printWindow) {
@@ -8451,14 +8820,19 @@
         return;
       }
       printWindow.document.open();
-      printWindow.document.write(buildPrintDocumentHTML(items));
+      printWindow.document.write(buildPrintSheetDocumentHTML(items));
       printWindow.document.close();
     }
 
-    printBtn.addEventListener("click", (e) => {
+    printBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      openPrintDocument();
+      printBtn.classList.add("is-busy");
+      try {
+        await openPrintDocument();
+      } finally {
+        printBtn.classList.remove("is-busy");
+      }
     });
 
     printBtn.addEventListener("mousedown", (e) => e.stopPropagation());
