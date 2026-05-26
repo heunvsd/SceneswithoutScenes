@@ -10,7 +10,12 @@
        두 가지만 사용:
        - Pica10Pitch: 본문/동적 텍스트 모두
        - AntiquaMixed: HUD / 버튼 / 프린트 UI (A-Z는 Monotype Corsiva, 나머지는 Vivaldi)
-       - AGaramondPro: 프린트 버튼
+       - AGaramondPro: 기존 프린트 버튼 대체용
+       - NeutronicHangeulLocal: Adobe Fonts 활성화/설치 폰트 우선 사용
+    */
+    /*
+       Adobe Fonts에서 Web Project를 만들면 아래 형식의 링크를 여기에 추가하면 됨:
+       <link rel="stylesheet" href="https://use.typekit.net/xxxxxxx.css">
     */
     @font-face {
       font-family: 'Pica10Pitch';
@@ -47,6 +52,19 @@
       font-style: normal;
       font-display: swap;
     }
+    @font-face {
+      font-family: 'NeutronicHangeulLocal';
+      src:
+        local('Neutronic Hangeul Narrow Thin'),
+        local('NeutronicHangeul-NarrowThin'),
+        local('뉴트로닉한글 Narrow Thin'),
+        local('뉴트로닉한글 NarrowThin'),
+        local('Neutronic Hangeul'),
+        local('뉴트로닉한글');
+      font-weight: 100;
+      font-style: normal;
+      font-display: swap;
+    }
 
     /* ───────── 공통 색상 변수 ───────── */
     :root {
@@ -54,6 +72,7 @@
       --ink-deep: #000000;
       --ink-hold: #000000;
       --ink-outro: #000000;
+      --neutronic-font: 'neutronic-hangeul', 'NeutronicHangeulLocal', 'Neutronic Hangeul', '뉴트로닉한글', sans-serif;
       --pica-line-height: 1.28;
       --antiqua-line-height: 1.2;
     }
@@ -146,8 +165,8 @@
       padding: 0;
       cursor: pointer;
       pointer-events: auto;
-      font-family: 'AGaramondPro';
-      font-weight: 400;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
       font-size: 15px;
       line-height: 1.2;
       color: var(--ink);
@@ -8225,18 +8244,35 @@
       font-display: swap;
       unicode-range: U+0000-0040, U+005B-10FFFF;
     }
+    @font-face {
+      font-family: 'NeutronicHangeulLocal';
+      src:
+        local('Neutronic Hangeul Narrow Thin'),
+        local('NeutronicHangeul-NarrowThin'),
+        local('뉴트로닉한글 Narrow Thin'),
+        local('뉴트로닉한글 NarrowThin'),
+        local('Neutronic Hangeul'),
+        local('뉴트로닉한글');
+      font-weight: 100;
+      font-style: normal;
+      font-display: swap;
+    }
     @page {
       size: letter;
       margin: 14mm;
+    }
+    :root {
+      --neutronic-font: 'neutronic-hangeul', 'NeutronicHangeulLocal', 'Neutronic Hangeul', '뉴트로닉한글', sans-serif;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       background: #ffffff;
       color: #000000;
-      font-family: 'Pica10Pitch', Times, serif;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
       font-size: 12pt;
-      line-height: 1.28;
+      line-height: 1.32;
     }
     .screen-actions {
       position: sticky;
@@ -8253,7 +8289,8 @@
       border: 1px solid #000000;
       background: #ffffff;
       color: #000000;
-      font-family: 'AntiquaMixed', Arial, sans-serif;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
       font-size: 12px;
       line-height: 1.2;
       padding: 7px 10px;
@@ -8275,16 +8312,17 @@
     }
     h1 {
       margin: 0;
-      font-family: 'AntiquaMixed', Arial, sans-serif;
+      font-family: var(--neutronic-font);
       font-size: 34pt;
-      font-weight: 400;
+      font-weight: 100;
       line-height: 1.05;
       text-transform: none;
       letter-spacing: 0;
     }
     .meta {
       margin-top: 18pt;
-      font-family: 'AntiquaMixed', Arial, sans-serif;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
       font-size: 9pt;
       line-height: 1.2;
       text-transform: none;
@@ -8312,7 +8350,8 @@
       margin-bottom: 6pt;
       padding-bottom: 4pt;
       border-bottom: 1px solid currentColor;
-      font-family: 'AntiquaMixed', Arial, sans-serif;
+      font-family: var(--neutronic-font);
+      font-weight: 100;
       font-size: 9pt;
       text-transform: none;
     }
@@ -8381,8 +8420,18 @@
         });
       }));
     }
+    function waitForFonts() {
+      if (!document.fonts) return Promise.resolve();
+      return Promise.all([
+        document.fonts.load('12pt neutronic-hangeul'),
+        document.fonts.load('34pt neutronic-hangeul'),
+        document.fonts.load('12pt NeutronicHangeulLocal'),
+        document.fonts.load('34pt NeutronicHangeulLocal'),
+        document.fonts.ready
+      ]).catch(function() {});
+    }
     window.addEventListener('load', function() {
-      waitForImages().then(function() {
+      Promise.all([waitForImages(), waitForFonts()]).then(function() {
         setTimeout(function() {
           window.focus();
           window.print();
