@@ -208,6 +208,10 @@
     .hud .row-position { color: var(--ink-outro); }
 
     /* ───────── Reveal Image ───────── */
+    :root {
+      --reveal-image-opacity: 0.3;
+      --reveal-image-filter: grayscale(100%);
+    }
     .reveal {
       position: fixed;
       z-index: 5;
@@ -224,6 +228,10 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
+    }
+    .reveal-base-area canvas,
+    .reveal-img-area canvas {
+      filter: var(--reveal-image-filter);
     }
     .reveal-text-box {
       position: absolute;
@@ -399,6 +407,8 @@
       pointer-events: none;
       -webkit-user-drag: none;
       user-select: none;
+      filter: var(--reveal-image-filter);
+      opacity: var(--reveal-image-opacity);
     }
 
     .expanded-panel-spotlight {
@@ -677,6 +687,8 @@
     const SHEET_TARGET_COL_NAME = "기억 주제";
 
     const IMAGE_BASE_PATH = "./assets/";
+    const REVEAL_IMAGE_OPACITY = 0.3;
+    const REVEAL_IMAGE_FILTER = "grayscale(100%)";
 
     function parseCSV(text) {
       const rows = [];
@@ -7702,9 +7714,12 @@
             }
 
             const prevAlpha = targetCtx.globalAlpha;
-            targetCtx.globalAlpha = Math.max(0, Math.min(1, layerAlpha));
+            const prevFilter = targetCtx.filter || "none";
+            targetCtx.globalAlpha = Math.max(0, Math.min(1, layerAlpha)) * REVEAL_IMAGE_OPACITY;
+            if ("filter" in targetCtx) targetCtx.filter = REVEAL_IMAGE_FILTER;
             targetCtx.drawImage(compCanvas, 0, 0, boxW, boxH);
             targetCtx.globalAlpha = prevAlpha;
+            if ("filter" in targetCtx) targetCtx.filter = prevFilter;
           }
 
           const baseTargetCtx = baseCtx || ctx;
