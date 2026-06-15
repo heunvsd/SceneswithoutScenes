@@ -9223,8 +9223,8 @@
       bottom: calc(5mm + 2pt);
       align-items: end;
     }
-    .sheet-meta::before,
-    .sheet-meta::after {
+    .sheet-meta-top::after,
+    .sheet-meta-bottom::before {
       content: "";
       position: absolute;
       left: 0;
@@ -9232,11 +9232,11 @@
       height: 0;
       border-top: 0.25pt solid #000000;
     }
-    .sheet-meta::before {
-      top: -2pt;
-    }
-    .sheet-meta::after {
+    .sheet-meta-top::after {
       bottom: -2pt;
+    }
+    .sheet-meta-bottom::before {
+      top: -2pt;
     }
     .sheet-meta div {
       min-width: 0;
