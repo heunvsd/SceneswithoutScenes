@@ -8867,15 +8867,15 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      const CONTENTS_LINES_PER_COLUMN = 54;
-      const CONTENTS_TITLE_CHARS_PER_LINE = 34;
-      const contentsTopMeta = [
+      const CONTENTS_LINES_PER_COLUMN = 67;
+      const CONTENTS_TITLE_CHARS_PER_LINE = 39;
+      const printTopMeta = [
         "Scenes Without Scenes",
         "Limited Edition of 80",
         "SDAM Memory Archive, 2026",
         "Based on Firsthand Descriptions",
       ];
-      const contentsBottomMeta = [
+      const printBottomMeta = [
         "Memories Found Through the Website",
         "Unopened Memories Remain Absent",
         "Courtesy of the Scenes Without Scenes Archive",
@@ -8972,20 +8972,21 @@
           : `<li class="contents-empty">No confirmed scenes yet.</li>`;
         return `
           <section class="print-sheet contents-page">
-            <div class="contents-meta contents-meta-top">
-              ${contentsTopMeta.map((text) => `<div>${escapeHTML(text)}</div>`).join("")}
-            </div>
             <ol class="contents-list contents-list-left">${renderContentsRows(page.left)}${emptyHTML}</ol>
             <ol class="contents-list contents-list-right">${renderContentsRows(page.right)}</ol>
-            <div class="contents-meta contents-meta-bottom">
-              ${contentsBottomMeta.map((text) => `<div>${escapeHTML(text)}</div>`).join("")}
-            </div>
           </section>`;
       }).join("");
       const coverHTML = `
         <section class="print-sheet first-cover-page">
           <img class="first-cover-image" src="${escapeHTML(PRINT_FIRST_PAGE_COVER)}" alt="" onerror="this.onerror=null;this.src='${escapeHTML(PRINT_FIRST_PAGE_COVER_FALLBACK)}';">
         </section>`;
+
+      function renderPrintMeta(className, metaItems) {
+        return `
+          <div class="sheet-meta ${className}">
+            ${metaItems.map((text) => `<div>${escapeHTML(text)}</div>`).join("")}
+          </div>`;
+      }
 
       const sheetHTML = items.map((item) => {
         const holdHTML = item.holdMotionImage
@@ -8997,6 +8998,8 @@
         return `
           <section class="print-sheet">
             <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
+            ${renderPrintMeta("sheet-meta-top", printTopMeta)}
+            ${renderPrintMeta("sheet-meta-bottom", printBottomMeta)}
             <div class="sheet-text text-title-label">Memory Title</div>
             <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
             <div class="motion-slot motion-slot-hold">${holdHTML}</div>
@@ -9134,14 +9137,13 @@
     .contents-page {
       padding: 5mm 10mm;
     }
-    .contents-meta,
     .contents-list {
       position: absolute;
       margin: 0;
       padding: 0;
       font-family: 'TGFrekMono', 'Courier New', monospace;
-      font-size: 8pt;
-      line-height: 13pt;
+      font-size: 7pt;
+      line-height: 12pt;
       font-weight: 400;
       font-variation-settings: "wght" 400;
       letter-spacing: -0.01em;
@@ -9151,31 +9153,10 @@
       -webkit-hyphens: none;
       -ms-hyphens: none;
     }
-    .contents-meta {
-      left: 10mm;
-      width: 190mm;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      align-items: start;
-      column-gap: 0;
-    }
-    .contents-meta-top {
-      top: 5mm;
-    }
-    .contents-meta-bottom {
-      bottom: 5mm;
-      align-items: end;
-    }
-    .contents-meta div {
-      min-width: 0;
-      padding-right: 3mm;
-      overflow-wrap: normal;
-      word-break: normal;
-    }
     .contents-list {
-      top: 22mm;
+      top: 5mm;
       width: 95mm;
-      height: 250mm;
+      height: 287mm;
       list-style: none;
     }
     .contents-list-left {
@@ -9189,7 +9170,7 @@
       grid-template-columns: 22mm 59mm;
       align-items: start;
       width: 81mm;
-      min-height: 13pt;
+      min-height: 12pt;
       break-inside: avoid;
       page-break-inside: avoid;
     }
@@ -9212,6 +9193,41 @@
     .contents-empty {
       list-style: none;
       width: 95mm;
+    }
+    .sheet-meta {
+      position: absolute;
+      z-index: 2;
+      left: 10mm;
+      width: 190mm;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: start;
+      column-gap: 0;
+      font-family: 'TGFrekMono', 'Courier New', monospace;
+      font-size: 7pt;
+      line-height: 12pt;
+      font-weight: 400;
+      font-variation-settings: "wght" 400;
+      letter-spacing: -0.01em;
+      font-kerning: none;
+      color: #000000;
+      pointer-events: none;
+      hyphens: none;
+      -webkit-hyphens: none;
+      -ms-hyphens: none;
+    }
+    .sheet-meta-top {
+      top: 5mm;
+    }
+    .sheet-meta-bottom {
+      bottom: 5mm;
+      align-items: end;
+    }
+    .sheet-meta div {
+      min-width: 0;
+      padding-right: 3mm;
+      overflow-wrap: normal;
+      word-break: normal;
     }
     .sheet-text {
       position: absolute;
@@ -9377,7 +9393,7 @@
       if (!document.fonts) return Promise.resolve();
       return Promise.all([
         document.fonts.load('14pt Pica10Pitch'),
-        document.fonts.load('8pt TGFrekMono'),
+        document.fonts.load('7pt TGFrekMono'),
         document.fonts.load('48pt AdobeGaramondPro'),
         document.fonts.ready
       ]).catch(function() {});
