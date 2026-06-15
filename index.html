@@ -9217,11 +9217,26 @@
       -ms-hyphens: none;
     }
     .sheet-meta-top {
-      top: 5mm;
+      top: calc(5mm + 2pt);
     }
     .sheet-meta-bottom {
-      bottom: 5mm;
+      bottom: calc(5mm + 2pt);
       align-items: end;
+    }
+    .sheet-meta::before,
+    .sheet-meta::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 0;
+      border-top: 0.25pt solid #000000;
+    }
+    .sheet-meta::before {
+      top: -2pt;
+    }
+    .sheet-meta::after {
+      bottom: -2pt;
     }
     .sheet-meta div {
       min-width: 0;
