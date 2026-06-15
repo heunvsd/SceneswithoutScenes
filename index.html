@@ -8865,7 +8865,10 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      function splitContentsLabel(value, fallback) {
+      const CONTENTS_LINES_PER_COLUMN = 56;
+      const CONTENTS_TITLE_CHARS_PER_LINE = 31;
+
+      function wrapContentsTitle(value, fallback) {
         const words = String(value || fallback || "")
           .replace(/\s+/g, " ")
           .trim()
@@ -8876,7 +8879,7 @@
         let current = "";
         for (const word of words) {
           const next = current ? `${current} ${word}` : word;
-          if (next.length > 13 && current) {
+          if (next.length > CONTENTS_TITLE_CHARS_PER_LINE && current) {
             lines.push(current);
             current = word;
           } else {
@@ -8884,32 +8887,78 @@
           }
         }
         if (current) lines.push(current);
-        return lines.slice(0, 4).join("\n");
+        return lines.join("\n");
       }
 
-      const contentsItemsPerPage = 6;
-      const contentsTops = [58, 96, 134, 172, 210, 248];
-      const contentsPageCount = Math.max(1, Math.ceil(items.length / contentsItemsPerPage));
-      const contentsHTML = Array.from({ length: contentsPageCount }, (_, pageIndex) => {
-        const start = pageIndex * contentsItemsPerPage;
-        const pageItems = items.slice(start, start + contentsItemsPerPage);
-        const rowsHTML = pageItems.length > 0
-          ? pageItems.map((item, localIndex) => {
-              const order = start + localIndex + 1;
-              const printPage = contentsPageCount + order;
-              const label = splitContentsLabel(item.memoryOrganization, `Memory ${order}`);
-              return `
-                <li class="contents-row" style="--row-top: ${contentsTops[localIndex]}mm;">
-                  <div class="contents-left">${escapeHTML(label)}</div>
-                  <div class="contents-memory-title">${escapeHTML(item.memoryTitle)}</div>
-                  <div class="contents-page-no">${String(printPage).padStart(2, "0")}</div>
-                </li>`;
-            }).join("")
+      function getContentsLineCount(title) {
+        return Math.max(1, String(title || PRINT_EMPTY).split("\n").length);
+      }
+
+      function paginateContentsRows(rows) {
+        const pages = [];
+        let page = { left: [], right: [] };
+        let side = "left";
+        let usedLines = 0;
+
+        function advanceColumn() {
+          if (side === "left") {
+            side = "right";
+            usedLines = 0;
+            return;
+          }
+          pages.push(page);
+          page = { left: [], right: [] };
+          side = "left";
+          usedLines = 0;
+        }
+
+        for (const row of rows) {
+          const rowLines = Math.max(1, Math.min(CONTENTS_LINES_PER_COLUMN, row.lines));
+          if (usedLines > 0 && usedLines + rowLines > CONTENTS_LINES_PER_COLUMN) {
+            advanceColumn();
+          }
+          page[side].push(row);
+          usedLines += rowLines;
+        }
+
+        if (page.left.length || page.right.length || pages.length === 0) {
+          pages.push(page);
+        }
+
+        return pages;
+      }
+
+      const contentsRows = items.map((item, index) => {
+        const title = wrapContentsTitle(item.memoryTitle, `Memory ${index + 1}`);
+        return {
+          index,
+          title,
+          lines: getContentsLineCount(title),
+        };
+      });
+      const contentsPages = paginateContentsRows(contentsRows);
+      const contentsPageCount = contentsPages.length;
+
+      function renderContentsRows(rows) {
+        return rows.map((row) => {
+          const order = row.index + 1;
+          const printPage = contentsPageCount + order;
+          return `
+            <li class="contents-row">
+              <div class="contents-page-no">Pg ${printPage}</div>
+              <div class="contents-memory-title">${escapeHTML(row.title)}</div>
+            </li>`;
+        }).join("");
+      }
+
+      const contentsHTML = contentsPages.map((page) => {
+        const emptyHTML = contentsRows.length > 0
+          ? ""
           : `<li class="contents-empty">No confirmed scenes yet.</li>`;
         return `
           <section class="print-sheet contents-page">
-            <h1 class="contents-title">Contents</h1>
-            <ol class="contents-list">${rowsHTML}</ol>
+            <ol class="contents-list contents-list-left">${renderContentsRows(page.left)}${emptyHTML}</ol>
+            <ol class="contents-list contents-list-right">${renderContentsRows(page.right)}</ol>
           </section>`;
       }).join("");
 
@@ -8971,6 +9020,16 @@
         local('AGaramondPro-Regular'),
         url('./assets/AGaramondPro-Regular.otf') format('opentype');
       font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'TGFrekMono';
+      src:
+        local('TG Frekuent Mono'),
+        local('TG-Frekuent-Mono'),
+        url('./assets/FontsFree-Net-TG-Frekuent-Mono-Variable-1.ttf') format('truetype');
+      font-weight: 100 900;
       font-style: normal;
       font-display: swap;
     }
@@ -9039,79 +9098,59 @@
       user-select: none;
     }
     .contents-page {
-      padding: 5mm;
-    }
-    .contents-title {
-      position: absolute;
-      left: 5mm;
-      top: 8mm;
-      width: 200mm;
-      margin: 0;
-      font-family: 'AdobeGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 9pt;
-      line-height: 12pt;
-      letter-spacing: 0;
-      text-align: center;
-      text-transform: uppercase;
+      padding: 10mm 15mm;
     }
     .contents-list {
+      position: absolute;
+      top: 10mm;
+      width: 90mm;
+      height: 277mm;
       margin: 0;
       padding: 0;
       list-style: none;
-    }
-    .contents-row {
-      position: absolute;
-      left: 5mm;
-      top: var(--row-top);
-      width: 200mm;
-      min-height: 28mm;
+      font-family: 'TGFrekMono', 'Courier New', monospace;
+      font-size: 9pt;
+      line-height: 14pt;
+      font-weight: 400;
+      font-variation-settings: "wght" 400;
+      letter-spacing: -0.01em;
+      font-kerning: none;
       color: #000000;
     }
-    .contents-left {
-      position: absolute;
-      left: 9mm;
-      top: 0;
-      width: 54mm;
-      font-family: 'Pica10Pitch', 'Courier New', monospace;
-      font-size: 14pt;
-      line-height: 18pt;
-      white-space: pre-line;
+    .contents-list-left {
+      left: 15mm;
+    }
+    .contents-list-right {
+      left: 105mm;
+    }
+    .contents-row {
+      display: grid;
+      grid-template-columns: 30mm 60mm;
+      align-items: start;
+      width: 90mm;
+      min-height: 14pt;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     .contents-memory-title {
-      position: absolute;
-      left: 78mm;
-      top: 0;
-      width: 92mm;
-      font-family: 'AdobeGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 12pt;
-      line-height: 16pt;
-      letter-spacing: 0;
-      text-align: center;
-      text-transform: uppercase;
+      width: 60mm;
+      white-space: pre-line;
+      overflow-wrap: normal;
+      word-break: normal;
+      hyphens: none;
+      -webkit-hyphens: none;
+      -ms-hyphens: none;
     }
     .contents-page-no {
-      position: absolute;
-      right: 5mm;
-      top: 0;
-      width: 18mm;
-      font-family: 'AdobeGaramondPro', Garamond, serif;
-      font-size: 12pt;
-      line-height: 16pt;
-      text-align: right;
+      width: 30mm;
       white-space: nowrap;
+      hyphens: none;
+      -webkit-hyphens: none;
+      -ms-hyphens: none;
     }
     .contents-empty {
-      position: absolute;
-      left: 5mm;
-      top: 134mm;
-      width: 200mm;
       list-style: none;
-      font-family: 'Pica10Pitch', 'Courier New', monospace;
-      font-size: 14pt;
-      line-height: 18pt;
-      text-align: center;
+      width: 90mm;
     }
     .sheet-text {
       position: absolute;
@@ -9277,6 +9316,7 @@
       if (!document.fonts) return Promise.resolve();
       return Promise.all([
         document.fonts.load('14pt Pica10Pitch'),
+        document.fonts.load('9pt TGFrekMono'),
         document.fonts.load('48pt AdobeGaramondPro'),
         document.fonts.ready
       ]).catch(function() {});
