@@ -8513,6 +8513,30 @@
       return pickRowFromSheet(latestSheetRows, cfg.sheetRow);
     }
 
+    function getSpreadsheetColumnName(index) {
+      let n = index + 1;
+      let name = "";
+      while (n > 0) {
+        const rem = (n - 1) % 26;
+        name = String.fromCharCode(65 + rem) + name;
+        n = Math.floor((n - 1) / 26);
+      }
+      return name;
+    }
+
+    function getPrintDataColumns(cfg, sheetItem) {
+      const header = (latestSheetRows && latestSheetRows[0]) || [];
+      const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
+      const columns = [];
+      for (let index = 11; index <= 14; index++) {
+        const columnName = getSpreadsheetColumnName(index);
+        const label = firstFilled(header[index], `Column ${columnName}`);
+        const value = firstFilled(dataRow[index], sheetItem && sheetItem[label], PRINT_EMPTY);
+        columns.push({ label, value });
+      }
+      return columns;
+    }
+
     function firstFilled(...values) {
       for (const value of values) {
         const str = String(value == null ? "" : value).trim();
@@ -8567,10 +8591,6 @@
         seen.add(entry.name);
         const cfg = getInstanceConfigByName(entry.name);
         const sheetItem = getSheetItemForPrint(cfg) || {};
-        const inst = instanceByName[entry.name];
-        const motionSnapshots = inst && inst.getPrintMotionSnapshots
-          ? inst.getPrintMotionSnapshots()
-          : {};
         items.push({
           name: entry.name,
           row: (cfg && cfg.sheetRow) || "",
@@ -8585,20 +8605,11 @@
           sdamLevel: formatFractionForPrint(sheetItem["SDAM Level (1-4)"], true),
           dateCreated: formatDateForPrint(sheetItem["Date Created"]),
           timeCreated: formatTimeForPrint(sheetItem["Time Created"]),
+          printColumns: getPrintDataColumns(cfg, sheetItem),
           about: "",
           confirmedAt: entry.t,
           typeStyle: (cfg && (cfg.outroMode || cfg.holdSentenceStyle)) || "",
-          holdMotionImage: motionSnapshots.hold || "",
-          afterMotionImage: motionSnapshots.after || "",
         });
-      }
-      for (let i = 0; i < items.length; i++) {
-        if (!items[i].holdMotionImage) {
-          items[i].holdMotionImage = createTypeMotionSnapshot(items[i], i, "hold");
-        }
-        if (!items[i].afterMotionImage) {
-          items[i].afterMotionImage = createTypeMotionSnapshot(items[i], i, "after");
-        }
       }
       return items;
     }
@@ -8988,38 +8999,27 @@
           </div>`;
       }
 
-      const sheetHTML = items.map((item) => {
-        const holdHTML = item.holdMotionImage
-          ? `<img class="motion-image motion-hold" src="${escapeHTML(item.holdMotionImage)}" alt="">`
-          : "";
-        const afterHTML = item.afterMotionImage
-          ? `<img class="motion-image motion-after" src="${escapeHTML(item.afterMotionImage)}" alt="">`
-          : "";
+      function renderSheetDataGrid(columns) {
+        const safeColumns = columns && columns.length ? columns : [];
+        const headingsHTML = safeColumns
+          .map((column) => `<h2 class="sheet-data-heading">${escapeHTML(column.label)}</h2>`)
+          .join("");
+        const bodyHTML = safeColumns
+          .map((column) => `<div class="sheet-data-value">${escapeHTML(column.value)}</div>`)
+          .join("");
         return `
-          <section class="print-sheet">
-            <img class="sheet-background" src="${escapeHTML(PRINT_SHEET_TEMPLATE)}" alt="">
+          <div class="sheet-data-grid">
+            <div class="sheet-data-headings">${headingsHTML}</div>
+            <div class="sheet-data-body">${bodyHTML}</div>
+          </div>`;
+      }
+
+      const sheetHTML = items.map((item) => {
+        return `
+          <section class="print-sheet memory-data-page">
             ${renderPrintMeta("sheet-meta-top", printTopMeta)}
             ${renderPrintMeta("sheet-meta-bottom", printBottomMeta)}
-            <div class="sheet-text text-title-label">Memory Title</div>
-            <div class="sheet-text text-title-value">${escapeHTML(item.memoryTitle)}</div>
-            <div class="motion-slot motion-slot-hold">${holdHTML}</div>
-            <div class="motion-slot motion-slot-after">${afterHTML}</div>
-            <div class="direct-statement-block">
-              <div class="sheet-text text-direct-label">Direct Statement</div>
-              <div class="sheet-text text-direct-value"><span>${escapeHTML(item.directStatement)}</span></div>
-            </div>
-            <div class="sheet-text text-organization-label">Memory Organization</div>
-            <div class="sheet-text text-organization-value">${escapeHTML(item.memoryOrganization)}</div>
-            <div class="sheet-text text-format-label">Memory Format</div>
-            <div class="sheet-text text-format-value">${escapeHTML(item.memoryFormat)}</div>
-            <div class="sheet-text text-core-label">Core Remnant</div>
-            <div class="sheet-text text-core-value">${escapeHTML(item.coreRemnant)}</div>
-            <div class="sheet-text text-sdam-label">SDAM Level</div>
-            <div class="sheet-text text-sdam-value">${escapeHTML(item.sdamLevel)}</div>
-            <div class="sheet-text text-reliving-label">Reliving</div>
-            <div class="sheet-text text-reliving-value">${escapeHTML(item.reliving)}</div>
-            <div class="sheet-text text-date">${escapeHTML(item.dateCreated)}</div>
-            <div class="sheet-text text-time">${escapeHTML(item.timeCreated)}</div>
+            ${renderSheetDataGrid(item.printColumns)}
           </section>`;
       }).join("");
 
@@ -9241,6 +9241,66 @@
     .sheet-meta div {
       min-width: 0;
       padding-right: 3mm;
+      overflow-wrap: normal;
+      word-break: normal;
+    }
+    .sheet-data-grid {
+      position: absolute;
+      z-index: 1;
+      left: 10mm;
+      right: 10mm;
+      top: calc(5mm + 16pt + 30px);
+      bottom: calc(5mm + 16pt);
+      font-family: 'TGFrekMono', 'Courier New', monospace;
+      font-size: 7pt;
+      line-height: 12pt;
+      font-weight: 400;
+      font-variation-settings: "wght" 400;
+      letter-spacing: -0.01em;
+      font-kerning: none;
+      color: #000000;
+      hyphens: none;
+      -webkit-hyphens: none;
+      -ms-hyphens: none;
+    }
+    .sheet-data-headings {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      column-gap: 0;
+      padding-bottom: 2pt;
+    }
+    .sheet-data-headings::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 0;
+      border-top: 0.25pt solid #000000;
+    }
+    .sheet-data-heading {
+      min-width: 0;
+      margin: 0;
+      padding: 0 3mm 0 0;
+      font: inherit;
+      font-weight: 400;
+      overflow-wrap: normal;
+      word-break: normal;
+    }
+    .sheet-data-body {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      column-gap: 0;
+      padding-top: 2pt;
+      height: calc(100% - 14pt);
+      overflow: hidden;
+    }
+    .sheet-data-value {
+      min-width: 0;
+      padding-right: 3mm;
+      white-space: pre-wrap;
+      overflow: hidden;
       overflow-wrap: normal;
       word-break: normal;
     }
