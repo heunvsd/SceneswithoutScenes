@@ -9004,11 +9004,16 @@
 
       function renderSheetDataGrid(columnRows) {
         const safeRows = columnRows && columnRows.length ? columnRows : [];
-        const sectionsHTML = safeRows.map((columns) => {
-          const headingsHTML = columns
+        const sectionsHTML = Array.from({ length: 6 }, (_, rowIndex) => {
+          const columns = safeRows[rowIndex] || [];
+          const cells = Array.from({ length: 4 }, (_, columnIndex) => columns[columnIndex] || {
+            label: PRINT_EMPTY,
+            value: PRINT_EMPTY,
+          });
+          const headingsHTML = cells
             .map((column) => `<h2 class="sheet-data-heading">${escapeHTML(column.label)}</h2>`)
             .join("");
-          const bodyHTML = columns
+          const bodyHTML = cells
             .map((column) => `<div class="sheet-data-value">${escapeHTML(column.value)}</div>`)
             .join("");
           return `
@@ -9258,6 +9263,8 @@
       right: 10mm;
       top: calc(5mm + 12pt + 100px);
       bottom: calc(5mm + 16pt);
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
       font-family: 'TGFrekMono', 'Courier New', monospace;
       font-size: 7pt;
       line-height: 12pt;
@@ -9271,14 +9278,14 @@
       -ms-hyphens: none;
     }
     .sheet-data-section {
-      margin-bottom: 18pt;
-    }
-    .sheet-data-section:last-child {
-      margin-bottom: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
     }
     .sheet-data-headings {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       column-gap: 0;
       padding-bottom: 2pt;
     }
@@ -9293,7 +9300,7 @@
     }
     .sheet-data-body {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       column-gap: 0;
       padding-top: 2pt;
       overflow: hidden;
