@@ -8524,11 +8524,11 @@
       return name;
     }
 
-    function getPrintDataColumns(cfg, sheetItem) {
+    function getPrintDataColumns(cfg, sheetItem, startIndex, endIndex) {
       const header = (latestSheetRows && latestSheetRows[0]) || [];
       const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
       const columns = [];
-      for (let index = 11; index <= 14; index++) {
+      for (let index = startIndex; index <= endIndex; index++) {
         const columnName = getSpreadsheetColumnName(index);
         const label = firstFilled(header[index], `Column ${columnName}`);
         const value = firstFilled(dataRow[index], sheetItem && sheetItem[label], PRINT_EMPTY);
@@ -8605,7 +8605,10 @@
           sdamLevel: formatFractionForPrint(sheetItem["SDAM Level (1-4)"], true),
           dateCreated: formatDateForPrint(sheetItem["Date Created"]),
           timeCreated: formatTimeForPrint(sheetItem["Time Created"]),
-          printColumns: getPrintDataColumns(cfg, sheetItem),
+          printColumnRows: [
+            getPrintDataColumns(cfg, sheetItem, 11, 14),
+            getPrintDataColumns(cfg, sheetItem, 15, 18),
+          ],
           about: "",
           confirmedAt: entry.t,
           typeStyle: (cfg && (cfg.outroMode || cfg.holdSentenceStyle)) || "",
@@ -8999,19 +9002,23 @@
           </div>`;
       }
 
-      function renderSheetDataGrid(columns) {
-        const safeColumns = columns && columns.length ? columns : [];
-        const headingsHTML = safeColumns
-          .map((column) => `<h2 class="sheet-data-heading">${escapeHTML(column.label)}</h2>`)
-          .join("");
-        const bodyHTML = safeColumns
-          .map((column) => `<div class="sheet-data-value">${escapeHTML(column.value)}</div>`)
-          .join("");
+      function renderSheetDataGrid(columnRows) {
+        const safeRows = columnRows && columnRows.length ? columnRows : [];
+        const sectionsHTML = safeRows.map((columns) => {
+          const headingsHTML = columns
+            .map((column) => `<h2 class="sheet-data-heading">${escapeHTML(column.label)}</h2>`)
+            .join("");
+          const bodyHTML = columns
+            .map((column) => `<div class="sheet-data-value">${escapeHTML(column.value)}</div>`)
+            .join("");
+          return `
+            <section class="sheet-data-section">
+              <div class="sheet-data-headings">${headingsHTML}</div>
+              <div class="sheet-data-body">${bodyHTML}</div>
+            </section>`;
+        }).join("");
         return `
-          <div class="sheet-data-grid">
-            <div class="sheet-data-headings">${headingsHTML}</div>
-            <div class="sheet-data-body">${bodyHTML}</div>
-          </div>`;
+          <div class="sheet-data-grid">${sectionsHTML}</div>`;
       }
 
       const sheetHTML = items.map((item) => {
@@ -9019,7 +9026,7 @@
           <section class="print-sheet memory-data-page">
             ${renderPrintMeta("sheet-meta-top", printTopMeta)}
             ${renderPrintMeta("sheet-meta-bottom", printBottomMeta)}
-            ${renderSheetDataGrid(item.printColumns)}
+            ${renderSheetDataGrid(item.printColumnRows)}
           </section>`;
       }).join("");
 
@@ -9249,7 +9256,7 @@
       z-index: 1;
       left: 10mm;
       right: 10mm;
-      top: calc(5mm + 16pt + 30px);
+      top: calc(5mm + 12pt + 100px);
       bottom: calc(5mm + 16pt);
       font-family: 'TGFrekMono', 'Courier New', monospace;
       font-size: 7pt;
@@ -9263,21 +9270,17 @@
       -webkit-hyphens: none;
       -ms-hyphens: none;
     }
+    .sheet-data-section {
+      margin-bottom: 18pt;
+    }
+    .sheet-data-section:last-child {
+      margin-bottom: 0;
+    }
     .sheet-data-headings {
-      position: relative;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       column-gap: 0;
       padding-bottom: 2pt;
-    }
-    .sheet-data-headings::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 0;
-      border-top: 0.25pt solid #000000;
     }
     .sheet-data-heading {
       min-width: 0;
@@ -9290,10 +9293,9 @@
     }
     .sheet-data-body {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       column-gap: 0;
       padding-top: 2pt;
-      height: calc(100% - 14pt);
       overflow: hidden;
     }
     .sheet-data-value {
