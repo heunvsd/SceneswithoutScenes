@@ -8865,7 +8865,7 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      const CONTENTS_LINES_PER_COLUMN = 56;
+      const CONTENTS_LINES_PER_COLUMN = 60;
       const CONTENTS_TITLE_CHARS_PER_LINE = 31;
 
       function wrapContentsTitle(value, fallback) {
@@ -9109,8 +9109,8 @@
       padding: 0;
       list-style: none;
       font-family: 'TGFrekMono', 'Courier New', monospace;
-      font-size: 9pt;
-      line-height: 14pt;
+      font-size: 8pt;
+      line-height: 13pt;
       font-weight: 400;
       font-variation-settings: "wght" 400;
       letter-spacing: -0.01em;
@@ -9125,15 +9125,15 @@
     }
     .contents-row {
       display: grid;
-      grid-template-columns: 30mm 60mm;
+      grid-template-columns: 22mm 54mm;
       align-items: start;
-      width: 90mm;
-      min-height: 14pt;
+      width: 76mm;
+      min-height: 13pt;
       break-inside: avoid;
       page-break-inside: avoid;
     }
     .contents-memory-title {
-      width: 60mm;
+      width: 54mm;
       white-space: pre-line;
       overflow-wrap: normal;
       word-break: normal;
@@ -9142,7 +9142,7 @@
       -ms-hyphens: none;
     }
     .contents-page-no {
-      width: 30mm;
+      width: 22mm;
       white-space: nowrap;
       hyphens: none;
       -webkit-hyphens: none;
@@ -9316,7 +9316,7 @@
       if (!document.fonts) return Promise.resolve();
       return Promise.all([
         document.fonts.load('14pt Pica10Pitch'),
-        document.fonts.load('9pt TGFrekMono'),
+        document.fonts.load('8pt TGFrekMono'),
         document.fonts.load('48pt AdobeGaramondPro'),
         document.fonts.ready
       ]).catch(function() {});
