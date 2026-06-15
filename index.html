@@ -8529,12 +8529,30 @@
       const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
       const columns = [];
       for (let index = startIndex; index <= endIndex; index++) {
-        const columnName = getSpreadsheetColumnName(index);
-        const label = firstFilled(header[index], `Column ${columnName}`);
-        const value = firstFilled(dataRow[index], sheetItem && sheetItem[label], PRINT_EMPTY);
-        columns.push({ label, value });
+        columns.push(getPrintDataColumn(header, dataRow, sheetItem, index));
       }
       return columns;
+    }
+
+    function getPrintDataColumn(header, dataRow, sheetItem, index) {
+      const columnName = getSpreadsheetColumnName(index);
+      const label = firstFilled(header[index], `Column ${columnName}`);
+      const value = firstFilled(dataRow[index], sheetItem && sheetItem[label], PRINT_EMPTY);
+      return { label, value };
+    }
+
+    function getEmptyPrintDataColumn() {
+      return { label: PRINT_EMPTY, value: PRINT_EMPTY };
+    }
+
+    function getPrintDataColumnsAt(cfg, sheetItem, indexesBySlot) {
+      const header = (latestSheetRows && latestSheetRows[0]) || [];
+      const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
+      return indexesBySlot.map((index) => (
+        Number.isFinite(index)
+          ? getPrintDataColumn(header, dataRow, sheetItem, index)
+          : getEmptyPrintDataColumn()
+      ));
     }
 
     function firstFilled(...values) {
@@ -8608,6 +8626,7 @@
           printColumnRows: [
             getPrintDataColumns(cfg, sheetItem, 11, 14),
             getPrintDataColumns(cfg, sheetItem, 15, 18),
+            getPrintDataColumnsAt(cfg, sheetItem, [19, null, 20, 21]),
           ],
           about: "",
           confirmedAt: entry.t,
