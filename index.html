@@ -8865,8 +8865,8 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      const CONTENTS_LINES_PER_COLUMN = 60;
-      const CONTENTS_TITLE_CHARS_PER_LINE = 31;
+      const CONTENTS_LINES_PER_COLUMN = 62;
+      const CONTENTS_TITLE_CHARS_PER_LINE = 34;
 
       function wrapContentsTitle(value, fallback) {
         const words = String(value || fallback || "")
@@ -9098,13 +9098,13 @@
       user-select: none;
     }
     .contents-page {
-      padding: 10mm 15mm;
+      padding: 5mm 10mm;
     }
     .contents-list {
       position: absolute;
-      top: 10mm;
-      width: 90mm;
-      height: 277mm;
+      top: 5mm;
+      width: 95mm;
+      height: 287mm;
       margin: 0;
       padding: 0;
       list-style: none;
@@ -9118,22 +9118,22 @@
       color: #000000;
     }
     .contents-list-left {
-      left: 15mm;
+      left: 10mm;
     }
     .contents-list-right {
       left: 105mm;
     }
     .contents-row {
       display: grid;
-      grid-template-columns: 22mm 54mm;
+      grid-template-columns: 22mm 59mm;
       align-items: start;
-      width: 76mm;
+      width: 81mm;
       min-height: 13pt;
       break-inside: avoid;
       page-break-inside: avoid;
     }
     .contents-memory-title {
-      width: 54mm;
+      width: 59mm;
       white-space: pre-line;
       overflow-wrap: normal;
       word-break: normal;
@@ -9150,7 +9150,7 @@
     }
     .contents-empty {
       list-style: none;
-      width: 90mm;
+      width: 95mm;
     }
     .sheet-text {
       position: absolute;
