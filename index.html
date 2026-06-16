@@ -508,7 +508,7 @@
       </button>
     </div>
     <div id="print-panel-book" class="print-panel print-panel-book" aria-label="Book print information">
-      <button id="print-book-btn" class="print-trigger" type="button" data-print-mode="arena-book" aria-label="Open book print preview">
+      <button id="print-book-btn" class="print-trigger" type="button" data-print-mode="book-pdf" aria-label="Open book print preview">
         <img src="./assets/printcss2-click.png?v=20260616-1048" alt="">
       </button>
     </div>
@@ -8330,7 +8330,8 @@
        ───────────────────────────────────────────── */
     const printPanels = Array.from(document.querySelectorAll(".print-panel"));
     const printButtons = Array.from(document.querySelectorAll(".print-trigger"));
-    const ARENA_BOOK_PRINT_URL = "https://print.are.na/book/pages-zjpjn8qvkci?author=true&source=true&description=true&toc=true&reverse=true&width=4.5in&height=5.5in";
+    const PRINTCSS2_BOOK_PAGE_COUNT = 48;
+    const PRINTCSS2_BOOK_PAGE_DIR = "./assets/printcss2-book-pages";
 
     function updatePrintPanelDiscovery(clientX, clientY) {
       for (const panel of printPanels) {
@@ -9844,6 +9845,373 @@
 </html>`;
     }
 
+    function buildPrintcss2BookDocumentHTML() {
+      const pagesHTML = Array.from({ length: PRINTCSS2_BOOK_PAGE_COUNT }, (_, index) => {
+        const pageNo = String(index + 1).padStart(3, "0");
+        const src = `${PRINTCSS2_BOOK_PAGE_DIR}/page-${pageNo}.png`;
+        return `
+    <section class="book-page" data-page="${index + 1}">
+      <span class="crop-mark crop-tl"></span>
+      <span class="crop-mark crop-tr"></span>
+      <span class="crop-mark crop-bl"></span>
+      <span class="crop-mark crop-br"></span>
+      <div class="book-page-inner">
+        <img src="${escapeHTML(src)}" alt="Printcss2 book page ${index + 1}">
+        <span class="bleed-guide"></span>
+      </div>
+    </section>`;
+      }).join("");
+      const coverSrc = `${PRINTCSS2_BOOK_PAGE_DIR}/page-001.png`;
+
+      return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${escapeHTML(document.baseURI)}">
+  <title>Printcss2 Book - Print Preview</title>
+  <style>
+    @page {
+      size: 110mm 200mm;
+      margin: 0;
+    }
+    @page bookPage {
+      size: 110mm 200mm;
+      margin: 0;
+    }
+    @page bookBleedPage {
+      size: 116mm 206mm;
+      margin: 0;
+    }
+    @page letterPage {
+      size: letter portrait;
+      margin: 0;
+    }
+    @page a4Page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    * { box-sizing: border-box; }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #f4f4f4;
+      color: #111111;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    .book-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 18px;
+      background: #f4f4f4;
+    }
+    .book-spacer {
+      flex: 1 1 auto;
+    }
+    .book-toolbar select,
+    .book-toolbar button,
+    .cover-actions button {
+      min-height: 40px;
+      border: 1px solid #d8d8d8;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #111111;
+      font: inherit;
+      font-weight: 500;
+      padding: 7px 14px;
+      cursor: pointer;
+    }
+    .book-toolbar button {
+      background: #000000;
+      border-color: #000000;
+      color: #ffffff;
+    }
+    .book-stack {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 34px;
+      padding: 22px 24px 48px;
+    }
+    .book-stack.mode-print-preview,
+    .book-stack.mode-flipbook {
+      display: grid;
+      justify-items: center;
+      gap: 28px;
+    }
+    .book-stack.mode-flipbook .book-page:not(:first-child) {
+      display: none;
+    }
+    .book-page {
+      page: bookPage;
+      position: relative;
+      width: 110mm;
+      height: 200mm;
+      background: #ffffff;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.2);
+      break-after: page;
+      page-break-after: always;
+    }
+    .book-page-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+    .book-page img,
+    .cover-sheet img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      user-select: none;
+      pointer-events: none;
+    }
+    body.preset-bleed .book-page,
+    body.preset-marks .book-page {
+      page: bookBleedPage;
+      width: 116mm;
+      height: 206mm;
+      padding: 3mm;
+    }
+    body.preset-letter .book-page {
+      page: letterPage;
+      width: 8.5in;
+      height: 11in;
+      padding: 0.5in;
+    }
+    body.preset-a4 .book-page {
+      page: a4Page;
+      width: 210mm;
+      height: 297mm;
+      padding: 18mm;
+    }
+    body.preset-letter .book-page img,
+    body.preset-a4 .book-page img {
+      object-fit: contain;
+    }
+    .bleed-guide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      border: 0.5px dotted #00e9ff;
+      pointer-events: none;
+      z-index: 2;
+    }
+    body.preset-bleed .bleed-guide,
+    body.preset-marks .bleed-guide {
+      display: block;
+    }
+    .crop-mark {
+      display: none;
+      position: absolute;
+      width: 9mm;
+      height: 9mm;
+      pointer-events: none;
+      z-index: 3;
+    }
+    body.preset-marks .crop-mark {
+      display: block;
+    }
+    .crop-tl {
+      left: 0;
+      top: 0;
+      border-right: 0.35pt solid #000000;
+      border-bottom: 0.35pt solid #000000;
+    }
+    .crop-tr {
+      right: 0;
+      top: 0;
+      border-left: 0.35pt solid #000000;
+      border-bottom: 0.35pt solid #000000;
+    }
+    .crop-bl {
+      left: 0;
+      bottom: 0;
+      border-right: 0.35pt solid #000000;
+      border-top: 0.35pt solid #000000;
+    }
+    .crop-br {
+      right: 0;
+      bottom: 0;
+      border-left: 0.35pt solid #000000;
+      border-top: 0.35pt solid #000000;
+    }
+    .cover-preview {
+      display: none;
+      min-height: calc(100vh - 72px);
+      padding: 80px 8vw;
+      background: #0500ff;
+      place-items: center;
+    }
+    .cover-actions {
+      position: fixed;
+      top: 24px;
+      right: 28px;
+      z-index: 12;
+      display: flex;
+      gap: 14px;
+    }
+    .cover-sheet {
+      width: min(70vw, 110mm);
+      aspect-ratio: 110 / 200;
+      background: #ffffff;
+      box-shadow: 0 2px 18px rgba(0,0,0,0.28);
+    }
+    body.cover-mode .book-toolbar,
+    body.cover-mode .book-stack {
+      display: none;
+    }
+    body.cover-mode .cover-preview {
+      display: grid;
+    }
+    @media print {
+      html,
+      body {
+        width: auto;
+        background: #ffffff;
+      }
+      .book-toolbar,
+      .cover-actions {
+        display: none !important;
+      }
+      .book-stack {
+        display: block !important;
+        padding: 0;
+      }
+      .book-page {
+        margin: 0;
+        box-shadow: none;
+      }
+      .book-page:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+      body.cover-mode .book-stack {
+        display: none !important;
+      }
+      body.cover-mode .cover-preview {
+        display: grid !important;
+        min-height: 100vh;
+        padding: 0;
+        background: #ffffff;
+      }
+      body.cover-mode .cover-sheet {
+        width: 110mm;
+        height: 200mm;
+        aspect-ratio: auto;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body class="preset-pdf">
+  <div class="book-toolbar">
+    <select id="book-view-select" aria-label="Preview mode">
+      <option value="grid" selected>Grid</option>
+      <option value="flipbook">Flipbook</option>
+      <option value="print-preview">Print Preview</option>
+    </select>
+    <select id="book-size-select" aria-label="Print size">
+      <option value="pdf" selected>Printcss2 Book</option>
+      <option value="bleed">Printcss2 Book + Bleed</option>
+      <option value="marks">Printcss2 Book + Marks</option>
+      <option value="letter">Letter Portrait</option>
+      <option value="a4">A4 Portrait</option>
+    </select>
+    <span class="book-spacer"></span>
+    <button id="book-print-btn" type="button">Print</button>
+    <button id="book-cover-btn" type="button">Cover</button>
+  </div>
+  <section class="cover-preview" aria-label="Cover preview">
+    <div class="cover-actions">
+      <button id="book-print-cover-btn" type="button">Print Cover</button>
+      <button id="book-close-cover-btn" type="button">Close</button>
+    </div>
+    <div class="cover-sheet">
+      <img src="${escapeHTML(coverSrc)}" alt="Printcss2 book cover">
+    </div>
+  </section>
+  <main id="book-stack" class="book-stack mode-grid">${pagesHTML}</main>
+  <script>
+    var stack = document.getElementById('book-stack');
+    var viewSelect = document.getElementById('book-view-select');
+    var sizeSelect = document.getElementById('book-size-select');
+    var printButton = document.getElementById('book-print-btn');
+    var coverButton = document.getElementById('book-cover-btn');
+    var printCoverButton = document.getElementById('book-print-cover-btn');
+    var closeCoverButton = document.getElementById('book-close-cover-btn');
+    var presetClasses = ['preset-pdf', 'preset-bleed', 'preset-marks', 'preset-letter', 'preset-a4'];
+
+    function waitForImages() {
+      var images = Array.prototype.slice.call(document.images);
+      return Promise.all(images.map(function(img) {
+        if (img.complete) return Promise.resolve();
+        return new Promise(function(resolve) {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+    }
+    function setViewMode(mode) {
+      if (!stack) return;
+      stack.classList.remove('mode-grid', 'mode-flipbook', 'mode-print-preview');
+      stack.classList.add('mode-' + mode);
+    }
+    function setPreset(preset) {
+      document.body.classList.remove.apply(document.body.classList, presetClasses);
+      document.body.classList.add('preset-' + preset);
+    }
+    if (viewSelect) {
+      viewSelect.addEventListener('change', function() {
+        setViewMode(viewSelect.value);
+      });
+    }
+    if (sizeSelect) {
+      sizeSelect.addEventListener('change', function() {
+        setPreset(sizeSelect.value);
+      });
+    }
+    if (printButton) {
+      printButton.addEventListener('click', function() {
+        window.focus();
+        window.print();
+      });
+    }
+    if (coverButton) {
+      coverButton.addEventListener('click', function() {
+        document.body.classList.add('cover-mode');
+      });
+    }
+    if (closeCoverButton) {
+      closeCoverButton.addEventListener('click', function() {
+        document.body.classList.remove('cover-mode');
+      });
+    }
+    if (printCoverButton) {
+      printCoverButton.addEventListener('click', function() {
+        window.focus();
+        window.print();
+      });
+    }
+    window.addEventListener('load', function() {
+      waitForImages().then(function() {
+        document.body.classList.add('is-ready');
+      });
+    });
+  <\/script>
+</body>
+</html>`;
+    }
+
     async function openPrintDocument() {
       await preparePrintAssets();
       const items = getPrintableItems();
@@ -9857,13 +10225,15 @@
       printWindow.document.close();
     }
 
-    function openArenaBookPrintPreview() {
-      const target = window.open(ARENA_BOOK_PRINT_URL, "_blank");
-      if (target) {
-        target.opener = null;
-      } else {
-        window.location.href = ARENA_BOOK_PRINT_URL;
+    function openPrintcss2BookPreview() {
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        alert("Print preview could not open. Please allow pop-ups for this page.");
+        return;
       }
+      printWindow.document.open();
+      printWindow.document.write(buildPrintcss2BookDocumentHTML());
+      printWindow.document.close();
     }
 
     for (const printButton of printButtons) {
@@ -9873,8 +10243,8 @@
         const printMode = printButton.dataset.printMode || "a4";
         printButton.classList.add("is-busy");
         try {
-          if (printMode === "arena-book") {
-            openArenaBookPrintPreview();
+          if (printMode === "book-pdf") {
+            openPrintcss2BookPreview();
           } else {
             await openPrintDocument();
           }
