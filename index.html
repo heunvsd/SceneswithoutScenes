@@ -157,32 +157,41 @@
     #capture-btn:active { transform: scale(0.97); }
     #capture-btn.is-busy { opacity: 0.4; pointer-events: none; }
 
-    #print-panel {
+    .print-panel {
       position: absolute;
-      left: 6000px;
-      top: 6500px;
-      width: min(260px, calc(100vw - 80px));
+      width: min(150px, calc(100vw - 80px));
       aspect-ratio: 8 / 5;
       height: auto;
       z-index: 50;
       pointer-events: none;
-      transform: translate(-50%, -50%) rotate(3deg) scale(0.96);
+      --print-rotation: 0deg;
+      transform: translate(-50%, -50%) rotate(var(--print-rotation)) scale(0.96);
       background: transparent;
       opacity: 0;
       filter: blur(18px);
       transition: opacity 0.42s ease, filter 0.42s ease, transform 0.42s ease;
     }
-    #print-panel.is-peeking {
+    .print-panel-a4 {
+      left: 6000px;
+      top: 6500px;
+      --print-rotation: 3deg;
+    }
+    .print-panel-book {
+      left: 6175px;
+      top: 6507px;
+      --print-rotation: -5deg;
+    }
+    .print-panel.is-peeking {
       opacity: 0.28;
       filter: blur(10px);
     }
-    #print-panel.is-discovered {
+    .print-panel.is-discovered {
       opacity: 1;
       filter: blur(0);
-      transform: translate(-50%, -50%) rotate(3deg) scale(1);
+      transform: translate(-50%, -50%) rotate(var(--print-rotation)) scale(1);
     }
 
-    #print-btn {
+    .print-trigger {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -199,10 +208,10 @@
       -webkit-tap-highlight-color: transparent;
       transition: transform 0.18s ease;
     }
-    #print-panel.is-discovered #print-btn {
+    .print-panel.is-discovered .print-trigger {
       pointer-events: auto;
     }
-    #print-btn img {
+    .print-trigger img {
       display: block;
       width: 100%;
       height: 100%;
@@ -210,8 +219,8 @@
       user-select: none;
       pointer-events: none;
     }
-    #print-btn:active { transform: scale(0.97); }
-    #print-btn.is-busy { pointer-events: none; }
+    .print-trigger:active { transform: scale(0.97); }
+    .print-trigger.is-busy { pointer-events: none; }
 
     /* ───────── 좌측 하단 HUD ─────────
        HUD만 AntiquaMixed 사용
@@ -493,9 +502,14 @@
 
   <div id="world">
     <div id="reveal-root"></div>
-    <div id="print-panel" aria-label="Print information">
-      <button id="print-btn" type="button" aria-label="Print confirmed scenes">
+    <div id="print-panel" class="print-panel print-panel-a4" aria-label="A4 print information">
+      <button id="print-btn" class="print-trigger" type="button" data-print-mode="a4" aria-label="Print confirmed scenes">
         <img src="./assets/printcss1-click.png?v=20260616-1030" alt="">
+      </button>
+    </div>
+    <div id="print-panel-book" class="print-panel print-panel-book" aria-label="Book print information">
+      <button id="print-book-btn" class="print-trigger" type="button" data-print-mode="arena-book" aria-label="Open book print preview">
+        <img src="./assets/printcss2-click.png?v=20260616-1048" alt="">
       </button>
     </div>
   </div>
@@ -8314,17 +8328,19 @@
     /* ─────────────────────────────────────────────
        인쇄 시스템
        ───────────────────────────────────────────── */
-    const printPanel = document.getElementById("print-panel");
-    const printBtn = document.getElementById("print-btn");
+    const printPanels = Array.from(document.querySelectorAll(".print-panel"));
+    const printButtons = Array.from(document.querySelectorAll(".print-trigger"));
+    const ARENA_BOOK_PRINT_URL = "https://print.are.na/book/pages-zjpjn8qvkci?author=true&source=true&description=true&toc=true&reverse=true&width=4.5in&height=5.5in";
 
     function updatePrintPanelDiscovery(clientX, clientY) {
-      if (!printPanel) return;
-      const r = printPanel.getBoundingClientRect();
-      const dx = Math.max(r.left - clientX, 0, clientX - r.right);
-      const dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
-      const distanceToPanel = Math.hypot(dx, dy);
-      printPanel.classList.toggle("is-peeking", distanceToPanel <= 260 && distanceToPanel > 70);
-      printPanel.classList.toggle("is-discovered", distanceToPanel <= 70);
+      for (const panel of printPanels) {
+        const r = panel.getBoundingClientRect();
+        const dx = Math.max(r.left - clientX, 0, clientX - r.right);
+        const dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
+        const distanceToPanel = Math.hypot(dx, dy);
+        panel.classList.toggle("is-peeking", distanceToPanel <= 260 && distanceToPanel > 70);
+        panel.classList.toggle("is-discovered", distanceToPanel <= 70);
+      }
     }
 
     window.addEventListener("mousemove", (e) => {
@@ -8332,8 +8348,8 @@
     });
 
     window.addEventListener("mouseleave", () => {
-      if (printPanel) {
-        printPanel.classList.remove("is-peeking", "is-discovered");
+      for (const panel of printPanels) {
+        panel.classList.remove("is-peeking", "is-discovered");
       }
     });
 
@@ -9194,23 +9210,121 @@
       position: sticky;
       top: 0;
       display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.92);
-      border-bottom: 1px solid #000000;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      background: #f4f4f4;
       z-index: 3;
     }
-    .screen-actions button {
-      border: 1px solid #000000;
+    .screen-spacer {
+      flex: 1 1 auto;
+    }
+    .screen-actions select,
+    .screen-actions button,
+    .cover-actions button {
+      min-height: 38px;
+      border: 1px solid #d7d7d7;
+      border-radius: 7px;
+      background: #ffffff;
+      color: #111111;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      font-weight: 500;
+      font-size: 18px;
+      line-height: 1.1;
+      padding: 7px 14px;
+      cursor: pointer;
+    }
+    .screen-actions button,
+    .cover-actions button {
+      background: #000000;
+      border-color: #000000;
+      color: #ffffff;
+    }
+    .print-stack.mode-print-preview {
+      display: grid;
+      gap: 28px;
+      padding-top: 28px;
+    }
+    .print-stack.mode-flipbook {
+      min-height: calc(100vh - 66px);
+      align-content: center;
+    }
+    .print-stack.mode-flipbook .print-sheet:not(:first-child) {
+      display: none;
+    }
+    .cover-preview {
+      display: none;
+      min-height: calc(100vh - 66px);
+      padding: 88px 9vw;
+      background: #0500ff;
+      place-items: center;
+      position: relative;
+    }
+    .cover-actions {
+      position: fixed;
+      top: 24px;
+      right: 28px;
+      display: flex;
+      gap: 14px;
+      z-index: 5;
+    }
+    .cover-actions button {
+      background: #ffffff;
+      border-color: #d7d7d7;
+      color: #111111;
+    }
+    .cover-preview-sheet {
+      position: relative;
+      width: min(82vw, 1020px);
+      aspect-ratio: 16 / 8.5;
       background: #ffffff;
       color: #000000;
-      font-family: 'Pica10Pitch', 'Courier New', monospace;
-      font-weight: 400;
-      font-size: 12px;
-      line-height: 1.2;
-      padding: 7px 10px;
-      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.15;
+      box-shadow: 0 3px 16px rgba(0,0,0,0.24);
+    }
+    .cover-preview-sheet .cover-mark {
+      position: absolute;
+      left: 24px;
+      top: 24px;
+      font-size: 28px;
+      line-height: 1;
+    }
+    .cover-preview-sheet .cover-spine {
+      position: absolute;
+      left: 50%;
+      top: 54px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 24px;
+      transform: translateX(-50%);
+    }
+    .cover-preview-sheet .cover-title {
+      position: absolute;
+      left: 63%;
+      top: 52px;
+      font-size: 24px;
+    }
+    .cover-preview-sheet .cover-url {
+      position: absolute;
+      left: 24px;
+      bottom: 32px;
+      font-size: 14px;
+    }
+    .cover-preview-sheet .cover-author {
+      position: absolute;
+      left: 63%;
+      bottom: 28px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    body.cover-mode .screen-actions,
+    body.cover-mode .print-stack {
+      display: none;
+    }
+    body.cover-mode .cover-preview {
+      display: grid;
     }
     .print-stack {
       display: grid;
@@ -9598,6 +9712,25 @@
         background: #ffffff;
       }
       .screen-actions { display: none; }
+      .cover-preview,
+      .cover-actions {
+        display: none !important;
+      }
+      body.cover-mode .cover-preview {
+        display: grid !important;
+        min-height: 100vh;
+        padding: 0;
+        background: #ffffff;
+      }
+      body.cover-mode .cover-preview-sheet {
+        width: 100vw;
+        height: 100vh;
+        aspect-ratio: auto;
+        box-shadow: none;
+      }
+      body.cover-mode .print-stack {
+        display: none !important;
+      }
       .print-stack {
         display: block;
         padding: 0;
@@ -9615,10 +9748,32 @@
 </head>
 <body>
   <div class="screen-actions">
-    <button type="button" onclick="window.print()">Print / Save PDF</button>
-    <button type="button" onclick="window.close()">Close</button>
+    <select id="screen-view-select" aria-label="Preview mode">
+      <option value="grid" selected>Grid</option>
+      <option value="flipbook">Flipbook</option>
+      <option value="print-preview">Print Preview</option>
+    </select>
+    <select id="screen-size-select" aria-label="Print size">
+      <option selected>A4 Portrait</option>
+    </select>
+    <span class="screen-spacer"></span>
+    <button id="screen-print-btn" type="button">Print</button>
+    <button id="screen-cover-btn" type="button">Cover</button>
   </div>
-  <main class="print-stack">${coverHTML}${contentsHTML}${sheetHTML}</main>
+  <section class="cover-preview" aria-label="Cover preview">
+    <div class="cover-actions">
+      <button id="screen-print-cover-btn" type="button">Print Cover</button>
+      <button id="screen-close-cover-btn" type="button">Close</button>
+    </div>
+    <div class="cover-preview-sheet">
+      <div class="cover-mark">**</div>
+      <div class="cover-spine">Scenes Without Scenes</div>
+      <div class="cover-title">Scenes Without Scenes</div>
+      <div class="cover-url">https://scenes-without-scenes.local/print</div>
+      <div class="cover-author">SDAM Memory Archive</div>
+    </div>
+  </section>
+  <main id="print-stack" class="print-stack mode-grid">${coverHTML}${contentsHTML}${sheetHTML}</main>
   <script>
     function waitForImages() {
       var images = Array.prototype.slice.call(document.images);
@@ -9639,12 +9794,49 @@
         document.fonts.ready
       ]).catch(function() {});
     }
+    var printStack = document.getElementById('print-stack');
+    var viewSelect = document.getElementById('screen-view-select');
+    var printButton = document.getElementById('screen-print-btn');
+    var coverButton = document.getElementById('screen-cover-btn');
+    var printCoverButton = document.getElementById('screen-print-cover-btn');
+    var closeCoverButton = document.getElementById('screen-close-cover-btn');
+
+    function setViewMode(mode) {
+      if (!printStack) return;
+      printStack.classList.remove('mode-grid', 'mode-flipbook', 'mode-print-preview');
+      printStack.classList.add('mode-' + mode);
+    }
+
+    if (viewSelect) {
+      viewSelect.addEventListener('change', function() {
+        setViewMode(viewSelect.value);
+      });
+    }
+    if (printButton) {
+      printButton.addEventListener('click', function() {
+        window.focus();
+        window.print();
+      });
+    }
+    if (coverButton) {
+      coverButton.addEventListener('click', function() {
+        document.body.classList.add('cover-mode');
+      });
+    }
+    if (closeCoverButton) {
+      closeCoverButton.addEventListener('click', function() {
+        document.body.classList.remove('cover-mode');
+      });
+    }
+    if (printCoverButton) {
+      printCoverButton.addEventListener('click', function() {
+        window.focus();
+        window.print();
+      });
+    }
     window.addEventListener('load', function() {
       Promise.all([waitForImages(), waitForFonts()]).then(function() {
-        setTimeout(function() {
-          window.focus();
-          window.print();
-        }, 350);
+        document.body.classList.add('is-ready');
       });
     });
   <\/script>
@@ -9665,18 +9857,34 @@
       printWindow.document.close();
     }
 
-    printBtn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      printBtn.classList.add("is-busy");
-      try {
-        await openPrintDocument();
-      } finally {
-        printBtn.classList.remove("is-busy");
+    function openArenaBookPrintPreview() {
+      const target = window.open(ARENA_BOOK_PRINT_URL, "_blank");
+      if (target) {
+        target.opener = null;
+      } else {
+        window.location.href = ARENA_BOOK_PRINT_URL;
       }
-    });
+    }
 
-    printBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    for (const printButton of printButtons) {
+      printButton.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const printMode = printButton.dataset.printMode || "a4";
+        printButton.classList.add("is-busy");
+        try {
+          if (printMode === "arena-book") {
+            openArenaBookPrintPreview();
+          } else {
+            await openPrintDocument();
+          }
+        } finally {
+          printButton.classList.remove("is-busy");
+        }
+      });
+
+      printButton.addEventListener("mousedown", (e) => e.stopPropagation());
+    }
 
     /* ─────────────────────────────────────────────
        캡처 시스템
