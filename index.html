@@ -53,6 +53,13 @@
       font-display: swap;
     }
     @font-face {
+      font-family: 'CaxtonCapture';
+      src: url('./assets/CAXTON~4.TTF') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
       font-family: 'NeutronicHangeulLocal';
       src:
         local('Neutronic Hangeul Narrow Thin'),
@@ -135,6 +142,7 @@
       align-items: baseline;
       letter-spacing: 0.012em;
       line-height: 1;
+      font-family: 'CaxtonCapture', 'AntiquaMixed';
     }
     #capture-btn .mixed-label .cap {
       font-size: calc(1em + 3pt);
@@ -159,7 +167,7 @@
 
     .print-panel {
       position: absolute;
-      width: min(230px, calc(100vw - 60px));
+      width: min(252px, calc(100vw - 60px));
       aspect-ratio: 8 / 5;
       height: auto;
       z-index: 50;
@@ -9764,7 +9772,7 @@
       left: 0;
       right: 0;
       height: 0;
-      border-top: 0.1pt solid #000000;
+      border-top: 0.04pt solid #000000;
     }
     .sheet-meta-top::after {
       bottom: -2pt;
@@ -10829,8 +10837,8 @@
       // 궤적 따라 흐르는 텍스트 — AntiquaMixed
       // 폰트는 화면에서 보이는 그대로의 크기(14px)로 고정 → 줌아웃해도 작아지지 않음
       if (pendingText && pathPts.length >= 2) {
-        const fontPx = MIXED_TEXT_FONT_PX;
-        const capFontPx = MIXED_TEXT_FONT_PX + MIXED_TEXT_CAP_EXTRA_PX;
+        const fontPx = MEMORY_TEXT_FONT_PX;
+        const capFontPx = MEMORY_TEXT_FONT_PX;
         const letterGap = fontPx * MIXED_TEXT_LETTER_GAP_EM;
         const capGap = fontPx * MIXED_TEXT_CAP_GAP_EM;
         const wordSpace = fontPx * MIXED_TEXT_WORD_SPACE_EM;
@@ -10885,7 +10893,7 @@
               const ch = loop[i % loop.length];
               const nextCh = loop[(i + 1) % loop.length];
               const cap = isCapChar(ch);
-              octx.font = `${cap ? capFontPx : fontPx}px AntiquaMixed`;
+              octx.font = `${cap ? capFontPx : fontPx}px Pica10Pitch`;
               const chW = ch === " " ? wordSpace : (octx.measureText(ch).width || 4);
               if (ch !== " ") {
                 const sample = sampleAt(s);
