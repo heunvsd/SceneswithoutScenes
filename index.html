@@ -161,12 +161,12 @@
       position: absolute;
       left: 6000px;
       top: 6500px;
-      width: min(760px, calc(100vw - 120px));
+      width: min(260px, calc(100vw - 80px));
       aspect-ratio: 8 / 5;
       height: auto;
       z-index: 50;
       pointer-events: none;
-      transform: translate(-50%, -50%) scale(0.96);
+      transform: translate(-50%, -50%) rotate(3deg) scale(0.96);
       background: transparent;
       opacity: 0;
       filter: blur(18px);
@@ -179,7 +179,7 @@
     #print-panel.is-discovered {
       opacity: 1;
       filter: blur(0);
-      transform: translate(-50%, -50%) scale(1);
+      transform: translate(-50%, -50%) rotate(3deg) scale(1);
     }
 
     #print-btn {
