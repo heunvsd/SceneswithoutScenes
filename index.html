@@ -8545,6 +8545,13 @@
       return { label: PRINT_EMPTY, value: PRINT_EMPTY };
     }
 
+    function getPrintFieldColumn(label, value) {
+      return {
+        label: firstFilled(label),
+        value: firstFilled(value),
+      };
+    }
+
     function getPrintDataColumnsAt(cfg, sheetItem, indexesBySlot) {
       const header = (latestSheetRows && latestSheetRows[0]) || [];
       const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
@@ -8609,24 +8616,50 @@
         seen.add(entry.name);
         const cfg = getInstanceConfigByName(entry.name);
         const sheetItem = getSheetItemForPrint(cfg) || {};
+        const memoryTitle = firstFilled(sheetItem["Memory Title"], `Memory ${entry.name}`);
+        const directStatement = firstFilled(sheetItem["Direct Statement (Original)"], entry.text);
+        const memoryOrganization = firstFilled(sheetItem["Memory Organization"]);
+        const memoryFormat = firstFilled(sheetItem["Memory Format"]);
+        const coreRemnant = firstFilled(sheetItem["Core Remnant"]);
+        const reliving = formatFractionForPrint(sheetItem["Reliving (1-4)"], false);
+        const sdamLevel = formatFractionForPrint(sheetItem["SDAM Level (1-4)"], true);
+        const dateCreated = formatDateForPrint(sheetItem["Date Created"]);
+        const timeCreated = formatTimeForPrint(sheetItem["Time Created"]);
+        const dateTime = [dateCreated, timeCreated]
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+          .join(" ");
         items.push({
           name: entry.name,
           row: (cfg && cfg.sheetRow) || "",
           image: (cfg && cfg.fallback) || "",
           text: entry.text || "",
-          memoryTitle: firstFilled(sheetItem["Memory Title"], `Memory ${entry.name}`),
-          directStatement: firstFilled(sheetItem["Direct Statement (Original)"], entry.text),
-          memoryOrganization: firstFilled(sheetItem["Memory Organization"]),
-          memoryFormat: firstFilled(sheetItem["Memory Format"]),
-          coreRemnant: firstFilled(sheetItem["Core Remnant"]),
-          reliving: formatFractionForPrint(sheetItem["Reliving (1-4)"], false),
-          sdamLevel: formatFractionForPrint(sheetItem["SDAM Level (1-4)"], true),
-          dateCreated: formatDateForPrint(sheetItem["Date Created"]),
-          timeCreated: formatTimeForPrint(sheetItem["Time Created"]),
+          memoryTitle,
+          directStatement,
+          memoryOrganization,
+          memoryFormat,
+          coreRemnant,
+          reliving,
+          sdamLevel,
+          dateCreated,
+          timeCreated,
           printColumnRows: [
+            [
+              getPrintFieldColumn("Direct Statement", directStatement),
+              getPrintFieldColumn("Core Remnant", coreRemnant),
+              getPrintFieldColumn("Memory Title", memoryTitle),
+              getPrintFieldColumn("Memory Organization", memoryOrganization),
+            ],
+            [
+              getPrintFieldColumn("Memory Format", memoryFormat),
+              getPrintFieldColumn("SDAM Level", sdamLevel),
+              getPrintFieldColumn("Reliving", reliving),
+              getPrintFieldColumn("Date / Time", dateTime),
+            ],
             getPrintDataColumns(cfg, sheetItem, 11, 14),
             getPrintDataColumns(cfg, sheetItem, 15, 18),
             getPrintDataColumnsAt(cfg, sheetItem, [19, null, 20, 21]),
+            getPrintDataColumnsAt(cfg, sheetItem, [22, null, 23, null]),
           ],
           about: "",
           confirmedAt: entry.t,
