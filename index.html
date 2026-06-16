@@ -162,15 +162,12 @@
       left: 6000px;
       top: 6500px;
       width: min(760px, calc(100vw - 120px));
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 8 / 5;
       height: auto;
       z-index: 50;
       pointer-events: none;
       transform: translate(-50%, -50%) scale(0.96);
-      background-image: url('./assets/printingbutton.png');
-      background-repeat: no-repeat;
-      background-position: 33.4% 28.7%;
-      background-size: 176.5% 174.2%;
+      background: transparent;
       opacity: 0;
       filter: blur(18px);
       transition: opacity 0.42s ease, filter 0.42s ease, transform 0.42s ease;
@@ -193,17 +190,11 @@
       background: transparent;
       border: none;
       padding: 0;
+      margin: 0;
       cursor: pointer;
       pointer-events: none;
-      font-family: 'AGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 0;
-      line-height: 1.2;
-      color: transparent;
-      letter-spacing: 0;
-      text-transform: none;
-      white-space: nowrap;
-      display: block;
+      display: grid;
+      place-items: stretch;
       opacity: 1;
       -webkit-tap-highlight-color: transparent;
       transition: transform 0.18s ease;
@@ -211,27 +202,13 @@
     #print-panel.is-discovered #print-btn {
       pointer-events: auto;
     }
-    #print-btn::before {
-      content: "Print";
-      position: absolute;
-      left: 47.6%;
-      top: 51.6%;
-      font-family: 'AGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 22px;
-      line-height: 1;
-      color: var(--ink);
-    }
-    #print-btn::after {
-      content: "↗";
-      position: absolute;
-      left: calc(47.6% + 60px);
-      top: 50.8%;
-      font-family: 'AGaramondPro', Garamond, serif;
-      font-weight: 400;
-      font-size: 21px;
-      line-height: 1;
-      color: var(--ink);
+    #print-btn img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      user-select: none;
+      pointer-events: none;
     }
     #print-btn:active { transform: scale(0.97); }
     #print-btn.is-busy { pointer-events: none; }
@@ -517,7 +494,9 @@
   <div id="world">
     <div id="reveal-root"></div>
     <div id="print-panel" aria-label="Print information">
-      <button id="print-btn" type="button" aria-label="Print confirmed scenes"></button>
+      <button id="print-btn" type="button" aria-label="Print confirmed scenes">
+        <img src="./assets/printcss1-click.png" alt="">
+      </button>
     </div>
   </div>
 
@@ -8553,6 +8532,13 @@
       };
     }
 
+    function formatPrintDataValue(value) {
+      return String(value == null ? "" : value)
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/([.!?。！？])\s+/g, "$1\n");
+    }
+
     function getPrintDataColumnsAt(cfg, sheetItem, indexesBySlot) {
       const header = (latestSheetRows && latestSheetRows[0]) || [];
       const dataRow = (latestSheetRows && cfg && latestSheetRows[cfg.sheetRow - 1]) || [];
@@ -9125,7 +9111,7 @@
             .map((column) => `<h2 class="sheet-data-heading">${escapeHTML(column.label)}</h2>`)
             .join("");
           const bodyHTML = cells
-            .map((column) => `<div class="sheet-data-value">${escapeHTML(column.value)}</div>`)
+            .map((column) => `<div class="sheet-data-value">${escapeHTML(formatPrintDataValue(column.value))}</div>`)
             .join("");
           return `
             <section class="sheet-data-section">
