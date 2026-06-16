@@ -8382,6 +8382,7 @@
     const PRINT_SHEET_TEMPLATE = "./assets/printpage.png";
     const PRINT_FIRST_PAGE_COVER = "./Firstpage.png";
     const PRINT_FIRST_PAGE_COVER_FALLBACK = "./assets/Firstpage.png";
+    const PRINT_HEADER_ART = "./assets/2-black-crop.png";
     const PRINT_TYPE_CANVAS_W = 1400;
     const PRINT_TYPE_CANVAS_H = 812;
     const PRINT_EMPTY = " ";
@@ -8933,7 +8934,7 @@
     }
 
     function buildPrintSheetDocumentHTML(items) {
-      const CONTENTS_LINES_PER_COLUMN = 67;
+      const CONTENTS_LINES_PER_COLUMN = 73;
       const CONTENTS_TITLE_CHARS_PER_LINE = 39;
       const printTopMeta = [
         "Scenes Without Scenes",
@@ -9082,6 +9083,9 @@
         return `
           <section class="print-sheet memory-data-page">
             ${renderPrintMeta("sheet-meta-top", printTopMeta)}
+            <div class="sheet-header-art">
+              <img class="sheet-header-art-image" src="${escapeHTML(PRINT_HEADER_ART)}" alt="">
+            </div>
             ${renderPrintMeta("sheet-meta-bottom", printBottomMeta)}
             ${renderSheetDataGrid(item.printColumnRows)}
           </section>`;
@@ -9207,7 +9211,7 @@
       padding: 0;
       font-family: 'TGFrekMono', 'Courier New', monospace;
       font-size: 7pt;
-      line-height: 12pt;
+      line-height: 11pt;
       font-weight: 400;
       font-variation-settings: "wght" 400;
       letter-spacing: -0.01em;
@@ -9269,7 +9273,7 @@
       column-gap: 0;
       font-family: 'TGFrekMono', 'Courier New', monospace;
       font-size: 7pt;
-      line-height: 12pt;
+      line-height: 11pt;
       font-weight: 400;
       font-variation-settings: "wght" 400;
       letter-spacing: -0.01em;
@@ -9288,13 +9292,14 @@
       align-items: end;
     }
     .sheet-meta-top::after,
-    .sheet-meta-bottom::before {
+    .sheet-meta-bottom::before,
+    .sheet-data-grid::before {
       content: "";
       position: absolute;
       left: 0;
       right: 0;
       height: 0;
-      border-top: 0.25pt solid #000000;
+      border-top: 0.15pt solid #000000;
     }
     .sheet-meta-top::after {
       bottom: -2pt;
@@ -9308,6 +9313,28 @@
       overflow-wrap: normal;
       word-break: normal;
     }
+    .sheet-header-art {
+      position: absolute;
+      z-index: 1;
+      left: 10mm;
+      right: 10mm;
+      top: calc(5mm + 18pt);
+      height: calc(100px - 8pt);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      pointer-events: none;
+    }
+    .sheet-header-art-image {
+      display: block;
+      width: auto;
+      height: 100%;
+      max-width: none;
+      object-fit: contain;
+      object-position: left center;
+      user-select: none;
+    }
     .sheet-data-grid {
       position: absolute;
       z-index: 1;
@@ -9317,9 +9344,10 @@
       bottom: calc(5mm + 16pt);
       display: grid;
       grid-template-rows: repeat(6, 1fr);
+      padding-top: 2pt;
       font-family: 'TGFrekMono', 'Courier New', monospace;
       font-size: 7pt;
-      line-height: 12pt;
+      line-height: 11pt;
       font-weight: 400;
       font-variation-settings: "wght" 400;
       letter-spacing: -0.01em;
@@ -9328,6 +9356,9 @@
       hyphens: none;
       -webkit-hyphens: none;
       -ms-hyphens: none;
+    }
+    .sheet-data-grid::before {
+      top: 0;
     }
     .sheet-data-section {
       min-height: 0;
