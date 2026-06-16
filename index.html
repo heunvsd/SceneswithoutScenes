@@ -265,10 +265,58 @@
       height: 100%;
       pointer-events: none;
     }
+    .reveal-img-area canvas,
+    .reveal-base-area canvas {
+      opacity: 0;
+    }
     .reveal-base-area canvas,
     .reveal-img-area canvas {
       filter: var(--reveal-image-filter);
     }
+    .reveal-discovery-text {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(1180px, 78vw);
+      min-height: 2.8em;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0;
+      font-family: 'Pica10Pitch';
+      font-size: 22px;
+      line-height: 1.38;
+      letter-spacing: 0.46em;
+      color: var(--ink);
+      white-space: normal;
+      overflow-wrap: normal;
+      word-break: normal;
+      text-align: left;
+      transition: opacity 0.75s ease;
+      z-index: 8;
+    }
+    .reveal-discovery-text.is-visible {
+      opacity: 0.92;
+    }
+    .reveal-discovery-line {
+      display: block;
+      white-space: nowrap;
+      min-height: 1.38em;
+    }
+    .reveal-discovery-line:nth-child(2) {
+      margin-top: 0.18em;
+    }
+    .reveal-discovery-char {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(3px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      will-change: transform, opacity;
+    }
+    .reveal-discovery-char.is-on {
+      opacity: var(--char-alpha, 0.9);
+      transform: translateY(var(--char-y, 0px));
+    }
+
     .reveal-text-box {
       position: absolute;
       left: 0;
@@ -340,7 +388,7 @@
       left: 0;
       top:  0;
       font-family: 'Pica10Pitch';
-      font-size: 14px;
+      font-size: 22px;
       line-height: 1;
       color: var(--ink-outro);
       white-space: pre;
@@ -370,7 +418,7 @@
       left: 0;
       top:  0;
       font-family: 'Pica10Pitch';
-      font-size: 14px;
+      font-size: 22px;
       line-height: 1;
       color: var(--ink-outro);
       white-space: pre;
@@ -398,7 +446,7 @@
       left: 0;
       top:  0;
       font-family: 'Pica10Pitch';
-      font-size: 14px;
+      font-size: 22px;
       line-height: 1;
       color: var(--ink-outro);
       white-space: pre;
@@ -737,6 +785,12 @@
     const MIXED_TEXT_CAP_GAP_EM = 0.018;
     const MIXED_TEXT_LETTER_GAP_EM = 0.012;
     const MIXED_TEXT_WORD_SPACE_EM = 0.36;
+    const UNIFIED_MEMORY_MOTION = true;
+    const TEXT_ONLY_REVEAL = true;
+    const MEMORY_TEXT_W = 1180;
+    const MEMORY_TEXT_H = 180;
+    const MEMORY_TEXT_FONT_PX = 22;
+    const MEMORY_TEXT_TRACKING_PX = 10;
 
     function parseCSV(text) {
       const rows = [];
@@ -879,6 +933,9 @@
       textInner.className = "reveal-text-content";
       textBox.appendChild(textInner);
 
+      const discoveryText = document.createElement("div");
+      discoveryText.className = "reveal-discovery-text";
+
       const imgArea = document.createElement("div");
       imgArea.className = "reveal-img-area";
       imgArea.style.zIndex = "2";
@@ -913,6 +970,7 @@
       wrap.appendChild(textBox);
       if (baseArea) wrap.appendChild(baseArea);
       wrap.appendChild(imgArea);
+      wrap.appendChild(discoveryText);
       wrap.style.overflow = "visible";
       root.appendChild(wrap);
 
@@ -1024,11 +1082,81 @@
       let fullText = "";
       let typedLen = 0;
       let typeTimer = null;
+      let discoveryGlyphs = [];
+      let discoveryVisible = false;
+      let discoveryStartTime = 0;
+
+      function splitDiscoveryLines(text) {
+        const words = String(text || "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+        if (!words.length) return ["", ""];
+        const totalChars = words.reduce((sum, word) => sum + word.length, 0) + Math.max(0, words.length - 1);
+        const target = Math.max(16, Math.floor(totalChars / 2));
+        const lines = ["", ""];
+        let lineIndex = 0;
+        for (const word of words) {
+          const next = lines[lineIndex] ? `${lines[lineIndex]} ${word}` : word;
+          if (lineIndex === 0 && lines[lineIndex] && next.length > target) {
+            lineIndex = 1;
+          }
+          lines[lineIndex] = lines[lineIndex] ? `${lines[lineIndex]} ${word}` : word;
+        }
+        return lines;
+      }
+
+      function renderDiscoveryText() {
+        discoveryText.innerHTML = "";
+        discoveryGlyphs = [];
+        const lines = splitDiscoveryLines(fullText);
+        for (const line of lines) {
+          const lineEl = document.createElement("span");
+          lineEl.className = "reveal-discovery-line";
+          const chars = line ? Array.from(line) : [""];
+          for (const ch of chars) {
+            const span = document.createElement("span");
+            span.className = "reveal-discovery-char";
+            span.textContent = ch === " " ? "\u00a0" : ch;
+            span.style.setProperty("--char-alpha", "0");
+            span.style.setProperty("--char-y", "3px");
+            lineEl.appendChild(span);
+            discoveryGlyphs.push({
+              el: span,
+              phase: Math.random() * Math.PI * 2,
+              delay: Math.random() * 0.42,
+            });
+          }
+          discoveryText.appendChild(lineEl);
+        }
+      }
+
+      function setDiscoveryVisible(visible) {
+        if (visible === discoveryVisible) return;
+        discoveryVisible = visible;
+        if (visible) discoveryStartTime = performance.now();
+        discoveryText.classList.toggle("is-visible", visible);
+      }
+
+      function updateDiscoveryText(now) {
+        if (!discoveryGlyphs.length) return;
+        const elapsed = (now - discoveryStartTime) / 1000;
+        for (let i = 0; i < discoveryGlyphs.length; i++) {
+          const g = discoveryGlyphs[i];
+          const intro = discoveryVisible
+            ? Math.max(0, Math.min(1, (elapsed - g.delay) / 1.25))
+            : 0;
+          const ease = 1 - Math.pow(1 - intro, 3);
+          const drift = Math.sin(now * 0.00062 + g.phase + i * 0.03) * 1.8;
+          const alpha = ease * (0.54 + Math.sin(now * 0.00041 + g.phase) * 0.18 + (i % 7) * 0.018);
+          g.el.classList.toggle("is-on", discoveryVisible && alpha > 0.01);
+          g.el.style.setProperty("--char-alpha", Math.max(0, Math.min(0.9, alpha)).toFixed(3));
+          g.el.style.setProperty("--char-y", `${((1 - ease) * 4 + drift).toFixed(2)}px`);
+        }
+      }
 
       function setText(text) {
         fullText = text || "";
         typedLen = 0;
         renderTypedText();
+        renderDiscoveryText();
       }
       function renderTypedText() {
         const visible = fullText.slice(0, typedLen);
@@ -1157,6 +1285,7 @@
         if (isHolding) return;
         if (isVolumeMode) return;
         isHolding = true;
+        setDiscoveryVisible(false);
         holdStartTime = performance.now();
 
         // [FIX ②] 영향권 진입 콜백이 어떤 이유로 누락되었더라도,
@@ -1477,13 +1606,14 @@
         measure.style.left = "-9999px";
         document.body.appendChild(measure);
 
-        const LINE_WIDTH = 360;
-        const LINE_HEIGHT = 14 * PICA_LINE_HEIGHT;
+        const LINE_WIDTH = TEXT_ONLY_REVEAL ? MEMORY_TEXT_W : 360;
+        const LINE_HEIGHT = TEXT_ONLY_REVEAL ? MEMORY_TEXT_FONT_PX * 1.38 : 14 * PICA_LINE_HEIGHT;
+        const TRACKING = TEXT_ONLY_REVEAL ? MEMORY_TEXT_TRACKING_PX : 0;
 
         const charWidths = [];
         for (const ch of text) {
           measure.textContent = ch === " " ? "\u00a0" : ch;
-          charWidths.push(measure.getBoundingClientRect().width);
+          charWidths.push(measure.getBoundingClientRect().width + TRACKING);
         }
         document.body.removeChild(measure);
 
@@ -1611,7 +1741,8 @@
         const tickDecay = (now) => {
           if (!decayRoot) return;
           // outroMode에 따라 다른 형상 모션 사용
-          if (outroMode === "coordinates") updateCoordinates(now);
+          if (UNIFIED_MEMORY_MOTION) updateMemoryFlow(now);
+          else if (outroMode === "coordinates") updateCoordinates(now);
           else if (outroMode === "outline") updateOutline(now);
           else if (outroMode === "gravity") updateGravity(now);
           else if (outroMode === "residue") updateResidue(now);
@@ -2250,6 +2381,68 @@
           `rotate(${(rot || 0).toFixed(4)}rad) ` +
           `scale(${(scale || 1).toFixed(3)})`;
         g.el.style.opacity = Math.max(0, Math.min(1, opacity)).toFixed(3);
+      }
+
+      function updateMemoryFlow(now) {
+        const elapsed = (now - decayStartTime) / 1000;
+        const introT = Math.min(1, elapsed / 1.8);
+        const introEased = 1 - Math.pow(1 - introT, 3);
+        const gatherPulse = easeInOut((Math.sin(elapsed * 0.19 - Math.PI / 2) + 1) / 2);
+        const total = decayGlyphs.length;
+
+        if (decayStage) {
+          const sx = Math.sin(elapsed * 0.035) * 5;
+          const sy = Math.cos(elapsed * 0.041) * 4;
+          const sr = Math.sin(elapsed * 0.026) * 0.45;
+          decayStage.style.transform = `translate(${sx.toFixed(2)}px, ${sy.toFixed(2)}px) rotate(${sr.toFixed(3)}deg)`;
+        }
+
+        for (let i = 0; i < total; i++) {
+          const g = decayGlyphs[i];
+          const idx = g.glyphIdx != null ? g.glyphIdx : i;
+          const s1 = seed(idx + 1, 12.9898);
+          const s2 = seed(idx + 1, 78.233);
+          const s3 = seed(idx + 1, 37.719);
+          const s4 = seed(idx + 1, 91.137);
+          const phase = g.phase || s1 * Math.PI * 2;
+
+          const localScatter = Math.max(0.04, Math.min(0.96,
+            gatherPulse + Math.sin(elapsed * 0.17 + phase) * 0.13 + (s3 - 0.5) * 0.12
+          ));
+
+          const orbit = s1 * Math.PI * 2
+            + elapsed * (0.045 + s2 * 0.055)
+            + Math.sin(elapsed * 0.052 + phase) * 0.85;
+          const orbitR = 78 + s2 * 142;
+          const cloudX = Math.cos(orbit) * orbitR
+            + Math.sin(elapsed * 0.073 + s3 * 9) * 74
+            + (s1 - 0.5) * 54;
+          const cloudY = Math.sin(orbit * 0.82 + s4 * 2.2) * orbitR * 0.56
+            + Math.cos(elapsed * 0.061 + s4 * 11) * 62
+            + (s2 - 0.5) * 46;
+
+          const gatherX = g.baseX * 0.72
+            + Math.sin(elapsed * 0.23 + phase) * 10
+            + Math.cos(elapsed * 0.11 + s1 * 8) * 5
+            + (s3 - 0.5) * 10;
+          const gatherY = g.baseY * 0.72
+            + Math.cos(elapsed * 0.21 + phase * 0.7) * 8
+            + Math.sin(elapsed * 0.095 + s2 * 10) * 5
+            + (s4 - 0.5) * 10;
+
+          const driftX = Math.sin(elapsed * 0.033 + s1 * 6) * 10;
+          const driftY = Math.cos(elapsed * 0.038 + s2 * 6) * 8;
+          const x = gatherX * (1 - localScatter) + cloudX * localScatter + driftX;
+          const y = gatherY * (1 - localScatter) + cloudY * localScatter + driftY;
+
+          const off = applyIntroOffset(g, introT);
+          const rot = Math.sin(elapsed * 0.20 + phase) * (0.025 + localScatter * 0.12);
+          const opacity = introEased * Math.max(0.34, Math.min(0.88,
+            0.76 - localScatter * 0.24 + Math.sin(elapsed * 0.31 + phase) * 0.08
+          ));
+          const scale = 0.86 + (1 - localScatter) * 0.11 + Math.sin(elapsed * 0.18 + phase) * 0.025;
+          writeGlyph(g, x + off.ox, y + off.oy, opacity, rot, scale);
+        }
       }
 
       // 글자별 deterministic 난수 (i, mul → 0~1)
@@ -4941,6 +5134,8 @@
       let sentenceStartTime = 0;
       let sentenceCurIdx = 0;
       let sentenceCurStart = 0;
+      let sentenceDrawW = 0;
+      let sentenceDrawH = 0;
 
       const SENT_FADE_IN  = 1200;
       const SENT_HOLD     = 2600;
@@ -4973,15 +5168,17 @@
         sentenceRoot = document.createElement("div");
         sentenceRoot.className = "text-sentence";
         // reveal 이미지와 정확히 같은 위치에 배치
+        sentenceDrawW = TEXT_ONLY_REVEAL ? MEMORY_TEXT_W : size;
+        sentenceDrawH = TEXT_ONLY_REVEAL ? MEMORY_TEXT_H : size;
         if (usePx) {
-          sentenceRoot.style.left = `${leftPx}px`;
-          sentenceRoot.style.top  = `${topPx}px`;
+          sentenceRoot.style.left = `${leftPx + size / 2 - sentenceDrawW / 2}px`;
+          sentenceRoot.style.top  = `${topPx + size / 2 - sentenceDrawH / 2}px`;
         } else {
-          sentenceRoot.style.left = `${leftPct}%`;
-          sentenceRoot.style.top  = `${topPct}%`;
+          sentenceRoot.style.left = `calc(${leftPct}% + ${size / 2}px - ${sentenceDrawW / 2}px)`;
+          sentenceRoot.style.top  = `calc(${topPct}% + ${size / 2}px - ${sentenceDrawH / 2}px)`;
         }
-        sentenceRoot.style.width  = `${size}px`;
-        sentenceRoot.style.height = `${size}px`;
+        sentenceRoot.style.width  = `${sentenceDrawW}px`;
+        sentenceRoot.style.height = `${sentenceDrawH}px`;
 
         // 캔버스 생성: reveal 캔버스와 동일한 픽셀 해상도
         sentenceCanvas = document.createElement("canvas");
@@ -4990,14 +5187,14 @@
         sentenceCanvas.style.width = "100%";
         sentenceCanvas.style.height = "100%";
         sentenceCanvas.style.pointerEvents = "none";
-        const px = resolveCanvasPixelSize();
-        sentenceCanvas.width  = px.w;
-        sentenceCanvas.height = px.h;
+        const dpr = window.devicePixelRatio || 1;
+        sentenceCanvas.width  = Math.round(sentenceDrawW * dpr);
+        sentenceCanvas.height = Math.round(sentenceDrawH * dpr);
         sentenceCtx = sentenceCanvas.getContext("2d");
         sentenceCtx.imageSmoothingEnabled = true;
         sentenceCtx.imageSmoothingQuality = "high";
         // 그리기 좌표계는 size 기준으로 매핑
-        sentenceCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+        sentenceCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         sentenceRoot.appendChild(sentenceCanvas);
         root.appendChild(sentenceRoot);
 
@@ -5064,6 +5261,7 @@
       // perCharFn(charIndex, totalChars) → {dy, alpha, rot} 를 반환하면
       // 각 글자가 그 변환으로 그려짐. (alightworld 스타일 wave/breath)
       function drawWrappedTextPerChar(c, text, cx, cy, maxWidth, fontPx, lineHeight, perCharFn) {
+        const tracking = TEXT_ONLY_REVEAL ? fontPx * 0.46 : 0;
         // 줄바꿈 계산
         const words = text.split(/(\s+)/);
         const lines = [];
@@ -5090,7 +5288,7 @@
 
         for (let li = 0; li < lines.length; li++) {
           const ln = lines[li];
-          const lineWidth = c.measureText(ln).width;
+          const lineWidth = c.measureText(ln).width + Math.max(0, ln.length - 1) * tracking;
           let xCursor = cx - lineWidth / 2;
           for (let i = 0; i < ln.length; i++) {
             const ch = ln[i];
@@ -5111,7 +5309,7 @@
             } else {
               c.fillText(ch, xCursor, y);
             }
-            xCursor += chWidth;
+            xCursor += chWidth + tracking;
             charIdx++;
           }
           y += lineHeight;
@@ -5158,16 +5356,17 @@
           sentTempCanvas.width  = sentenceCanvas.width;
           sentTempCanvas.height = sentenceCanvas.height;
         }
-        const px = resolveCanvasPixelSize();
-        sentTempCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+        const sentenceScaleX = sentenceDrawW > 0 ? sentenceCanvas.width / sentenceDrawW : 1;
+        const sentenceScaleY = sentenceDrawH > 0 ? sentenceCanvas.height / sentenceDrawH : 1;
+        sentTempCtx.setTransform(sentenceScaleX, 0, 0, sentenceScaleY, 0, 0);
         sentTempCtx.imageSmoothingEnabled = true;
         sentTempCtx.imageSmoothingQuality = "high";
 
-        const FONT_PX = 15;
-        const LINE_HEIGHT = FONT_PX * PICA_LINE_HEIGHT;
-        const MAX_WIDTH = size - 40;
-        const cx = size / 2;
-        const cyBase = size / 2;
+        const FONT_PX = TEXT_ONLY_REVEAL ? MEMORY_TEXT_FONT_PX : 15;
+        const LINE_HEIGHT = TEXT_ONLY_REVEAL ? FONT_PX * 1.38 : FONT_PX * PICA_LINE_HEIGHT;
+        const MAX_WIDTH = Math.max(120, sentenceDrawW - (TEXT_ONLY_REVEAL ? 80 : 40));
+        const cx = sentenceDrawW / 2;
+        const cyBase = sentenceDrawH / 2;
 
         for (let i = sentenceBlocks.length - 1; i >= 0; i--) {
           const b = sentenceBlocks[i];
@@ -5230,7 +5429,28 @@
             }
           };
 
-          if (holdSentenceStyle === "typewriter") {
+          if (UNIFIED_MEMORY_MOTION) {
+            wavePerChar = (i, total) => {
+              const s1 = seed(i + 1, 12.9898);
+              const s2 = seed(i + 1, 78.233);
+              const s3 = seed(i + 1, 37.719);
+              const phase = s1 * Math.PI * 2 + b.phase;
+              const pulse = easeInOut((Math.sin(sec * 0.42 - Math.PI / 2) + 1) / 2);
+              const localScatter = Math.max(0.04, Math.min(0.95,
+                pulse + Math.sin(sec * 0.27 + phase) * 0.16 + (s3 - 0.5) * 0.10
+              ));
+              const angle = phase + sec * (0.18 + s2 * 0.12);
+              const dist = (18 + s2 * 58) * localScatter;
+              const dx = Math.cos(angle) * dist + Math.sin(sec * 0.55 + i * 0.09) * 2.2;
+              const dy = Math.sin(angle * 0.86 + s3) * dist * 0.62 + Math.cos(sec * 0.48 + i * 0.11) * 1.8;
+              const alpha = Math.max(0.28, Math.min(0.9,
+                0.78 - localScatter * 0.28 + Math.sin(sec * 0.6 + phase) * 0.08
+              ));
+              const rot = Math.sin(sec * 0.31 + phase) * (0.02 + localScatter * 0.10);
+              const scale = 0.9 + (1 - localScatter) * 0.09 + Math.sin(sec * 0.26 + phase) * 0.025;
+              return { dx, dy, alpha, rot, scale };
+            };
+          } else if (holdSentenceStyle === "typewriter") {
             // 한 글자씩 차례로 타이핑 (왼쪽부터)
             wavePerChar = (i, total) => {
               const ph = phaseOf(cycleT);
@@ -7271,7 +7491,7 @@
             sentTempCanvas.width  = sentenceCanvas.width;
             sentTempCanvas.height = sentenceCanvas.height;
           }
-          sentTempCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+          sentTempCtx.setTransform(sentenceScaleX, 0, 0, sentenceScaleY, 0, 0);
           sentTempCtx.imageSmoothingEnabled = true;
           sentTempCtx.imageSmoothingQuality = "high";
 
@@ -7280,7 +7500,7 @@
           sentenceCtx.setTransform(1, 0, 0, 1, 0, 0);
           sentenceCtx.globalAlpha = opacity;
           sentenceCtx.globalCompositeOperation = "source-over";
-          sentenceCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+          sentenceCtx.setTransform(sentenceScaleX, 0, 0, sentenceScaleY, 0, 0);
           sentenceCtx.translate(cx + swayX, cyBase + y);
           sentenceCtx.scale(scale, scale);
           sentenceCtx.fillStyle = INK_HOLD;
@@ -7299,7 +7519,7 @@
           sentTempCtx.restore();
 
           sentTempCtx.save();
-          sentTempCtx.setTransform(px.w / size, 0, 0, px.h / size, 0, 0);
+          sentTempCtx.setTransform(sentenceScaleX, 0, 0, sentenceScaleY, 0, 0);
           sentTempCtx.translate(cx + swayX, cyBase + y);
           sentTempCtx.scale(scale, scale);
           sentTempCtx.fillStyle = "#ffffff";
@@ -7353,6 +7573,7 @@
       function stopHold() {
         if (!isHolding) return;
         isHolding = false;
+        setDiscoveryVisible(false);
 
         if (frameLoopTimer) { clearInterval(frameLoopTimer); frameLoopTimer = null; }
 
@@ -7391,25 +7612,18 @@
       function isInside(x, y) {
         if (!interactive && !expandable) return false;
         const r = imgArea.getBoundingClientRect();
-        return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        const inImageArea = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        if (!TEXT_ONLY_REVEAL) return inImageArea;
+        const t = discoveryText.getBoundingClientRect();
+        const inTextArea = discoveryVisible && x >= t.left && x <= t.right && y >= t.top && y <= t.bottom;
+        return inImageArea || inTextArea;
       }
 
       // 사진이 충분히 드러났는지 검사 — trail에 충분한 페인트가 쌓였는지 (이미지 영역 안)
       // 트레일 점은 imgArea 좌표 (sx, sy로 변환된 값)에 저장됨
       // 즉, 0 <= x <= size, 0 <= y <= size 안에 있는 alive 트레일 점들 카운트
       function isRevealed() {
-        if (!trail || trail.length === 0) return false;
-        // pigment 종류의 alive 점 (트레일 메인 도장)을 카운트
-        // 너무 많은 점이 살아 있으면 사진이 드러난 것
-        let aliveCount = 0;
-        for (let i = 0; i < trail.length; i++) {
-          const p = trail[i];
-          if (p.age < p.maxAge * 0.85) {  // 거의 사라지지 않은 점
-            aliveCount++;
-            if (aliveCount >= 15) return true;  // 임계값 15
-          }
-        }
-        return false;
+        return discoveryVisible || isInside(mouseX, mouseY);
       }
 
       let expandImageFile = "";
@@ -7541,11 +7755,30 @@
           return;
         }
 
+        if (TEXT_ONLY_REVEAL) {
+          const dxText = Math.max(rect.left - mouseX, 0, mouseX - rect.right);
+          const dyText = Math.max(rect.top  - mouseY, 0, mouseY - rect.bottom);
+          const inTextInfluence = Math.hypot(dxText, dyText) <= REVEAL_INFLUENCE;
+          setDiscoveryVisible(inTextInfluence || isHolding);
+          updateDiscoveryText(performance.now());
+          trail.length = 0;
+          prevMX = -9999;
+          prevMY = -9999;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (baseCtx && baseCanvas) {
+            baseCtx.clearRect(0, 0, baseCanvas.width, baseCanvas.height);
+          }
+          requestAnimationFrame(tick);
+          return;
+        }
+
         // 일반 모드의 trail 생성 — 아래 inInfluence 변수는 위에서 계산된 값 재사용
         const dx = Math.max(rect.left - mouseX, 0, mouseX - rect.right);
         const dy = Math.max(rect.top  - mouseY, 0, mouseY - rect.bottom);
         const distOutside = Math.hypot(dx, dy);
         const inInfluence = distOutside <= REVEAL_INFLUENCE;
+        setDiscoveryVisible(inInfluence || isHolding);
+        updateDiscoveryText(performance.now());
 
         const drawW = size, drawH = size;
         const sx = rect.width  > 0 ? drawW / rect.width  : 1;
@@ -9947,8 +10180,93 @@
       justify-items: center;
       gap: 28px;
     }
-    .book-stack.mode-flipbook .book-page:not(:first-child) {
+    .book-stack.mode-flipbook {
+      min-height: calc(100vh - 84px);
+      align-content: center;
+      perspective: 1800px;
+      cursor: pointer;
+      overflow: visible;
+    }
+    .book-stack.mode-flipbook .book-page {
       display: none;
+    }
+    .book-stack.mode-flipbook .book-page.is-flip-visible {
+      display: block;
+    }
+    .book-stack.mode-flipbook:not(.flipbook-open) .book-page.is-flip-visible {
+      transform: translateX(4%) rotateY(-1.5deg);
+      transform-origin: left center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.14), 14px 10px 0 -8px #f8f8f8, 22px 13px 0 -12px #eeeeee, 30px 16px 0 -16px #e5e5e5;
+    }
+    .book-stack.mode-flipbook:not(.flipbook-open) .book-page.is-flip-visible::after {
+      content: "";
+      position: absolute;
+      top: 5mm;
+      right: -15mm;
+      width: 15mm;
+      height: calc(100% - 10mm);
+      background:
+        linear-gradient(90deg, rgba(0,0,0,0.18), rgba(0,0,0,0.03) 18%, rgba(255,255,255,0.9) 20%, rgba(245,245,245,0.95) 100%),
+        repeating-linear-gradient(90deg, transparent 0 3px, rgba(0,0,0,0.18) 4px, transparent 6px);
+      transform: skewY(7deg);
+      transform-origin: left center;
+      pointer-events: none;
+    }
+    .book-stack.mode-flipbook.flipbook-open {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+      padding-left: 7vw;
+      padding-right: 7vw;
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-flip-visible {
+      box-shadow: 0 2px 11px rgba(0,0,0,0.16);
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-left-page {
+      transform-origin: right center;
+      box-shadow: -2px 2px 9px rgba(0,0,0,0.08);
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-right-page {
+      transform-origin: left center;
+      box-shadow: 2px 2px 12px rgba(0,0,0,0.18), 14px 8px 0 -8px #f8f8f8, 22px 11px 0 -12px #eeeeee, 30px 14px 0 -16px #e5e5e5;
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-left-page::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: -1px;
+      width: 2px;
+      height: 100%;
+      background: rgba(0,0,0,0.08);
+      pointer-events: none;
+      z-index: 4;
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-right-page::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -1px;
+      width: 2px;
+      height: 100%;
+      background: rgba(0,0,0,0.08);
+      pointer-events: none;
+      z-index: 4;
+    }
+    .book-stack.mode-flipbook.flipbook-open .book-page.is-right-page::after {
+      content: "";
+      position: absolute;
+      top: 5mm;
+      right: -15mm;
+      width: 15mm;
+      height: calc(100% - 10mm);
+      background:
+        linear-gradient(90deg, rgba(0,0,0,0.16), rgba(0,0,0,0.03) 18%, rgba(255,255,255,0.9) 20%, rgba(245,245,245,0.95) 100%),
+        repeating-linear-gradient(90deg, transparent 0 4px, rgba(0,0,0,0.16) 5px, transparent 7px);
+      transform: skewY(7deg);
+      transform-origin: left center;
+      pointer-events: none;
     }
     .book-page {
       page: bookPage;
@@ -10087,9 +10405,14 @@
         display: block !important;
         padding: 0;
       }
+      .book-stack.mode-flipbook .book-page,
+      .book-stack.mode-flipbook .book-page.is-flip-visible {
+        display: block !important;
+      }
       .book-page {
         margin: 0;
         box-shadow: none;
+        transform: none !important;
       }
       .book-page:last-child {
         break-after: auto;
@@ -10150,6 +10473,8 @@
     var printCoverButton = document.getElementById('book-print-cover-btn');
     var closeCoverButton = document.getElementById('book-close-cover-btn');
     var presetClasses = ['preset-pdf', 'preset-bleed', 'preset-marks', 'preset-letter', 'preset-a4'];
+    var pageCount = ${PRINTCSS2_BOOK_PAGE_COUNT};
+    var flipbookSpreadStart = 0;
 
     function waitForImages() {
       var images = Array.prototype.slice.call(document.images);
@@ -10165,15 +10490,61 @@
       if (!stack) return;
       stack.classList.remove('mode-grid', 'mode-flipbook', 'mode-print-preview');
       stack.classList.add('mode-' + mode);
+      if (mode === 'flipbook') {
+        flipbookSpreadStart = 0;
+        stack.classList.remove('flipbook-open');
+        updateFlipbook();
+      } else {
+        clearFlipbook();
+      }
     }
     function setPreset(preset) {
       document.body.classList.remove.apply(document.body.classList, presetClasses);
       document.body.classList.add('preset-' + preset);
     }
+    function clearFlipbook() {
+      if (!stack) return;
+      stack.classList.remove('flipbook-open');
+      Array.prototype.slice.call(stack.querySelectorAll('.book-page')).forEach(function(page) {
+        page.classList.remove('is-flip-visible', 'is-left-page', 'is-right-page');
+      });
+    }
+    function updateFlipbook() {
+      if (!stack || !stack.classList.contains('mode-flipbook')) return;
+      var pages = Array.prototype.slice.call(stack.querySelectorAll('.book-page'));
+      pages.forEach(function(page) {
+        page.classList.remove('is-flip-visible', 'is-left-page', 'is-right-page');
+      });
+      if (flipbookSpreadStart <= 0) {
+        if (pages[0]) pages[0].classList.add('is-flip-visible');
+        stack.classList.remove('flipbook-open');
+        return;
+      }
+      stack.classList.add('flipbook-open');
+      var left = pages[flipbookSpreadStart - 1];
+      var right = pages[flipbookSpreadStart] || null;
+      if (left) left.classList.add('is-flip-visible', 'is-left-page');
+      if (right) right.classList.add('is-flip-visible', 'is-right-page');
+    }
+    function advanceFlipbook() {
+      if (!stack || !stack.classList.contains('mode-flipbook')) return;
+      if (flipbookSpreadStart <= 0) {
+        flipbookSpreadStart = 2;
+      } else {
+        flipbookSpreadStart += 2;
+        if (flipbookSpreadStart > pageCount) {
+          flipbookSpreadStart = 0;
+        }
+      }
+      updateFlipbook();
+    }
     if (viewSelect) {
       viewSelect.addEventListener('change', function() {
         setViewMode(viewSelect.value);
       });
+    }
+    if (stack) {
+      stack.addEventListener('click', advanceFlipbook);
     }
     if (sizeSelect) {
       sizeSelect.addEventListener('change', function() {
